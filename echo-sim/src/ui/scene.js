@@ -180,8 +180,13 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   { const body = new T.Mesh(new T.CylinderGeometry(1.55, 1.25, 7.5, 24), new T.MeshStandardMaterial({ color: 0x2f3a42, roughness: .45 })); body.scale.z = .68; body.position.y = 5.35; probeGroup.add(body);
     const face = new T.Mesh(new T.CylinderGeometry(1.25, 1.1, 1.6, 24), new T.MeshStandardMaterial({ color: 0x59666e, roughness: .4 })); face.scale.z = .68; face.position.y = .8; probeGroup.add(face);
     const notch = new T.Mesh(new T.BoxGeometry(.5, 1.5, .55), new T.MeshBasicMaterial({ color: 0xff8a3c })); notch.position.set(1.45, 2.2, 0); probeGroup.add(notch); }
-  const fanFill = new T.Mesh(new T.BufferGeometry(), new T.MeshBasicMaterial({ color: 0x35d6e0, transparent: true, opacity: .22, side: T.DoubleSide, depthWrite: false }));
-  const fanEdge = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: 0x7fe9f0 })), fanMark = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: 0xff8a3c }));
+  /* the fan exists only inside the body: at steep beam angles its edge would otherwise poke out through the curved chest (the echo ignores that part too) */
+  const fanMat = (hex, opacity) => new T.ShaderMaterial({ transparent: opacity < 1, side: T.DoubleSide, depthWrite: false,
+    uniforms: { uToBody: { value: probeGroup.matrix }, uCol: { value: new T.Color(hex) }, uA: { value: opacity } },
+    vertexShader: `uniform mat4 uToBody; varying vec3 vB; void main(){ vB = (uToBody*vec4(position, 1.0)).xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }`,
+    fragmentShader: `uniform vec3 uCol; uniform float uA; varying vec3 vB; void main(){ float q = vB.x/${hw.toFixed(1)}, r = (vB.z-(${cz.toFixed(1)}))/${hd.toFixed(1)}; if (q*q + r*r > 1.0) discard; gl_FragColor = vec4(uCol, uA); }` });
+  const fanFill = new T.Mesh(new T.BufferGeometry(), fanMat(0x35d6e0, .22));
+  const fanEdge = new T.Line(new T.BufferGeometry(), fanMat(0x7fe9f0, 1)), fanMark = new T.Line(new T.BufferGeometry(), fanMat(0xff8a3c, 1));
   fanFill.renderOrder = 3; probeGroup.add(fanFill, fanEdge, fanMark);
   const cutU = { ...eng.uniforms, uWorldToBody: { value: new T.Matrix4() } };
   const cutMat = new T.RawShaderMaterial({ glslVersion: T.GLSL3, transparent: true, side: T.DoubleSide, uniforms: cutU,
