@@ -1,0 +1,1704 @@
+{
+  "_meta": {
+    "file": "views.json",
+    "version": "0.3.0-draft",
+    "status": "DRAFT — targets are DERIVED from phantom-normal.json landmarks at load time; seeds are approximate starting points. Final targets are set by expert calibration (see _calibration).",
+    "primaryReference": "POCUS101 — Cardiac Ultrasound (Echocardiography) Made Easy",
+    "secondaryReference": "ASE TTE guideline (Mitchell 2019); ASE/EACVI chamber quantification (Lang 2015); ASE RV guideline (Rudski 2010)",
+    "dependsOn": "phantom-normal.json (landmarks_heart, axes_heart, extracardiac_patient)",
+    "v1Sequence": [
+      "plax",
+      "psax_pap",
+      "psax_mv",
+      "psax_av",
+      "a4c",
+      "a5c",
+      "subxiphoid_4c",
+      "ivc"
+    ],
+    "prototypeResults": "Rendered in a WebGL prototype (supine, ED): quality at derived targets PLAX 100, PSAX-PM 100, PSAX-MV 86, PSAX-AV 86, A4C 100, A5C 90, S4C 88, IVC 100; rotating the probe 25° drops quality to 10–50. Remaining misses (PSAX-AV cusp count, S4C RV area) are calibration items."
+  },
+  "conventions": {
+    "notchDeg": {
+      "_note": "Direction the probe notch points ON THE CHEST, viewed from the patient's front, head up. 0° = toward head (12 o'clock); +90° = toward patient's LEFT (3 o'clock); -90° = patient's RIGHT (9 o'clock); 180° = feet. Clockwise rotation (examiner's view) = increasing angle.",
+      "clockFace": {
+        "3": 90,
+        "6": 180,
+        "9": -90,
+        "12": 0,
+        "1:30": 45,
+        "10:30": -45
+      }
+    },
+    "screenMarker": {
+      "ASE": {
+        "markerSide": "right",
+        "_note": "Cardiac preset. Structures on the notch side appear on screen RIGHT. Default."
+      },
+      "POCUS_markerLeft": {
+        "markerSide": "left",
+        "_note": "Abdominal/standard preset (POCUS101 IVC video). Expected notchDeg = ASE notchDeg + 180° so that the image looks the same.",
+        "notchOffsetDeg": 180
+      }
+    },
+    "probeAngles": {
+      "tiltDeg": "Fanning: rotation of the beam about the probe's long (notch) axis, i.e. out of the image plane. + = beam toward patient's head side ('tail toward feet'). Reported relative to the inward skin normal.",
+      "rockDeg": "Angulation within the image plane. + = beam toward the notch side.",
+      "rotationDeg": "Same as notchDeg."
+    },
+    "poseRepresentation": "Engine pose = { skinPoint (patient frame), beamDir (unit), lateralDir (unit, points to notch side) }. UI shows notchDeg / tiltDeg / rockDeg + skin landmark text derived from it.",
+    "landmarkText": "Readout format: '<side> <window> · <n>th ICS · <line> · notch → <direction> (<clock>) · tilt <x>° · rock <y>°'. Lines: parasternal |x|≈2.5–4, MCL |x|≈9–10, AAL |x|≈12–13 (patient frame)."
+  },
+  "windows": {
+    "_note": "Skin regions where the probe may sit for each view family (patient frame, supine). Engine shades them on the Torso map; LLD versions are recomputed after the heart offset.",
+    "parasternal_left": {
+      "xRange": [
+        1.8,
+        6.5
+      ],
+      "yRange": [
+        -6.5,
+        -14
+      ],
+      "seedICS3": [
+        3,
+        -8.9
+      ],
+      "seedICS4": [
+        4,
+        -11.25
+      ],
+      "label": "Left parasternal",
+      "pressCm": 0.3
+    },
+    "apical": {
+      "xRange": [
+        7,
+        13
+      ],
+      "yRange": [
+        -13.5,
+        -19
+      ],
+      "seed_supine": [
+        9.6,
+        -16.3
+      ],
+      "label": "Apical (PMI)",
+      "pressCm": 0.4
+    },
+    "subxiphoid": {
+      "xRange": [
+        -3,
+        3
+      ],
+      "yRange": [
+        -20,
+        -25
+      ],
+      "seed": [
+        0,
+        -21.5
+      ],
+      "label": "Subxiphoid (subcostal)",
+      "pressCm": 1.5
+    },
+    "subxiphoid_ivc": {
+      "xRange": [
+        -4,
+        1
+      ],
+      "yRange": [
+        -20,
+        -25
+      ],
+      "seed": [
+        -1.5,
+        -21
+      ],
+      "label": "Subxiphoid, right of midline",
+      "pressCm": 1.5
+    },
+    "_pressNote": "pressCm = how far the probe face sits below the resting skin (probe pressure). Subxiphoid views need firm pressure so the flat beam passes under the costal cartilages (POCUS101: 'gentle downward pressure'). Engine: origin = skinPoint − outwardNormal × pressCm; the UI exposes a 'Press' control."
+  },
+  "derivationMethods": {
+    "plane3": "Plane through 3 landmarks. Probe = point on (plane ∩ skin) inside the window chosen by cost = beam angle from skin normal (°) + 2×distance from seed (cm) + 40 if over a rib (a sonographer looks for the straightest beam in an intercostal space). Beam = probe → aimAt projected into the plane. Lateral axis = in-plane ⟂ beam, sign so notchSideLandmark is on the notch side. Optional beamPerpTo (axis id): adds 1.5 × |90° − angle(beam, axis)| to the cost, e.g. PLAX keeps the LV–aorta line horizontal.",
+    "fanFromWindow": "Probe fixed at a window seed (snapped to the nearest ICS centre). Beam = probe → levelCenter. Lateral axis u = normalize(axisRef × beam), so the plane is as perpendicular to axisRef as reachable from that window (models fanning through PSAX levels). Sign: notchSideLandmark on notch side.",
+    "tiltFrom": "Start from a base view; rotate the image plane about the probe's lateral axis (pivot at the skin) by the SMALLEST angle φ (|φ|<90°) that brings throughLandmark into the plane: tanφ = −(q·n0)/(q·(u×n0)).",
+    "planeThroughSkin": "Plane through a skin seed point + landmarks. With 2 landmarks the plane is fixed. With 1 landmark + lateralHint (patient-frame direction), the plane contains the skin→landmark line and the lateral direction closest to the hint — this mirrors how the view is scanned (e.g. S4C: notch to patient's left, probe flat).",
+    "output": "Each derivation produces targetPose {skinPoint, beamDir, lateralDir} → converted to {notchDeg, tiltDeg, rockDeg} for UI/hints. Recompute when patient position (supine/LLD) changes."
+  },
+  "scoring": {
+    "_note": "Quality 0–100 = 0.5 × poseScore + 0.5 × contentScore. Content checks make the score reflect what the image actually shows (many poses can produce an acceptable view).",
+    "poseScore": "100 × exp(-0.5 × Σ (err_i / σ_i)^2), σ_i = tolerance_i / 1.5",
+    "defaultTolerance": {
+      "positionCm": 1.5,
+      "rotationDeg": 12,
+      "tiltDeg": 10,
+      "rockDeg": 10
+    },
+    "contentScore": "Mean of: mustSee pass fraction, mustNotSee pass fraction, shapeChecks pass fraction (each check 0/1 or graded).",
+    "lockRule": "Lock (view chip turns ✓, labels + view card unlock) when quality ≥ 80 for ≥ 0.5 s. Unlock when < 65 (hysteresis).",
+    "nearestViewSearch": "Each frame compute quality for all views; chip shows the best one if ≥ 40, otherwise 'Searching…'.",
+    "hints": "When quality 40–80, show ONE hint for the largest normalised error, in sonographer language (templates in hintTemplates)."
+  },
+  "hintTemplates": {
+    "rotation+": "Rotate the probe ~{deg}° clockwise",
+    "rotation-": "Rotate the probe ~{deg}° counter-clockwise",
+    "tilt+": "Tilt the beam toward the head (tail toward the feet) ~{deg}°",
+    "tilt-": "Tilt the beam toward the feet (tail toward the head) ~{deg}°",
+    "rock+": "Rock the beam toward the notch side ~{deg}°",
+    "rock-": "Rock the beam away from the notch ~{deg}°",
+    "slideUp": "Slide up one rib space",
+    "slideDown": "Slide down one rib space",
+    "slideMedial": "Slide medially (toward the sternum) ~{cm} cm",
+    "slideLateral": "Slide laterally ~{cm} cm",
+    "ribShadow": "A rib is in the way — slide into the intercostal space",
+    "lung": "Lung is blocking the view — try left lateral decubitus or slide closer to the sternum",
+    "gas": "Bowel/stomach gas — move the probe toward the patient's right and use the liver as the window",
+    "depth": "Increase depth to see the {structure}"
+  },
+  "labelRules": {
+    "minCutAreaCm2": 0.8,
+    "minCutAreaThinCm": 0.15,
+    "_thin_note": "Valves/septa/pericardium use length-in-plane ≥ 1.0 cm instead of area.",
+    "anchor": "centroid of the structure's cut region; leader line to a label slot outside the structure; avoid overlap by greedy placement",
+    "states": [
+      "off",
+      "text",
+      "tint"
+    ],
+    "crossHighlight": "hover/tap on echo label ↔ highlight structure in Heart cutaway pane"
+  },
+  "_calibration": {
+    "_note": "Expert-in-the-loop tuning. Open the simulator with ?dev=1.",
+    "workflow": [
+      "Expert positions the probe for the best view (supine, then LLD).",
+      "Dev panel → 'Save as target' writes poseOverride {skinPoint, beamDir, lateralDir, patientPosition} for the selected view.",
+      "Optional: 'Save as pitfall example' stores a poseDelta for a pitfall state.",
+      "Export → views.overrides.json (merged over derived targets at load). Commit to repo."
+    ],
+    "fieldsWrittenPerView": "poseOverride.supine, poseOverride.LLD, tolerance (optional), reviewedBy, reviewedOn"
+  },
+  "views": [
+    {
+      "id": "plax",
+      "name": "Parasternal long axis",
+      "shortName": "PLAX",
+      "family": "parasternal",
+      "order": 1,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine",
+          "LLD"
+        ]
+      },
+      "window": "parasternal_left",
+      "derivation": {
+        "method": "plane3",
+        "through": [
+          "MV_center",
+          "LV_apex_endo",
+          "AV_center"
+        ],
+        "aimAt": "midpoint(MV_center, AV_center)",
+        "notchSideLandmark": "Ao_asc_end",
+        "beamPerpTo": "LV_long",
+        "_beamPerpNote": "The PLAX beam should be ⟂ to the LV long axis so the LV and aorta lie horizontal on screen (POCUS101 reference image)."
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          2.6,
+          -8.1
+        ],
+        "landmarkText": "Left parasternal, 3rd–4th ICS (≈ nipple line in males; inframammary fold → sternum in females)",
+        "notchDeg_ASE": -40,
+        "beamAim": "straight in, slight tilt toward the head",
+        "approxTiltDeg": -8,
+        "approxRockDeg": -24,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              2.6,
+              -8.1
+            ],
+            "notchDeg": -38,
+            "tiltDeg": -8,
+            "rockDeg": -24,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              3.8,
+              -6.6
+            ],
+            "notchDeg": -37,
+            "tiltDeg": -11,
+            "rockDeg": -21,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 10,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 16,
+        "sectorDeg": 90
+      },
+      "expectedScreen": {
+        "near": "RV / RVOT",
+        "far": "Descending aorta",
+        "right_ASE": "Aortic root",
+        "left_ASE": "LV (apex off-screen)"
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "AV_cusps",
+            "minLenCm": 1
+          },
+          {
+            "id": "MV_AML",
+            "minLenCm": 1.5
+          },
+          {
+            "id": "LA",
+            "minAreaCm2": 4
+          },
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 12
+          },
+          {
+            "id": "RVOT",
+            "minAreaCm2": 2
+          },
+          {
+            "id": "descending_aorta",
+            "minAreaCm2": 0.8,
+            "atDepthCm": 16
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "LV_apex_endo",
+            "rule": "apex outside sector or within 1 cm of sector edge"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "aorta_LV_horizontal",
+            "rule": "angle between aortic_root axis (projected) and screen horizontal ≤ 15°"
+          },
+          {
+            "id": "mv_av_both",
+            "rule": "AV and MV cut in the same frame"
+          }
+        ]
+      },
+      "labels": [
+        "RV_free_wall",
+        "RVOT",
+        "IVS",
+        "LV_cavity",
+        "PW",
+        "MV_AML",
+        "MV_PML",
+        "AV_cusps",
+        "aortic_root",
+        "LA",
+        "descending_aorta",
+        "pericardium"
+      ],
+      "pitfalls": [
+        {
+          "id": "plax_apex_in_view",
+          "poseDelta": {
+            "rotationDeg": 20
+          },
+          "symptom": "The LV looks short and the apex comes into view (foreshortened, oblique cut).",
+          "fix": "Rotate back toward the right shoulder until the aorta and LV line up horizontally."
+        },
+        {
+          "id": "plax_tilted",
+          "poseDelta": {
+            "rockDeg": 15
+          },
+          "symptom": "The aorta–LV line runs diagonally across the screen.",
+          "fix": "Rock or slide one rib space (up or down) until the line is horizontal."
+        },
+        {
+          "id": "plax_too_shallow",
+          "imageDelta": {
+            "depthCm": 10
+          },
+          "symptom": "No descending aorta → you can't tell a pericardial from a pleural effusion.",
+          "fix": "Increase depth to ~16 cm."
+        }
+      ],
+      "maneuverFromPrevious": "Start here. Probe at the left parasternal 4th ICS, notch toward the patient's RIGHT shoulder.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "A long slice through the left heart: RV on top (closest to the probe), then the septum, LV cavity and posterior wall; the aortic valve and root to the right, the mitral valve in the middle, the LA behind the aortic root, and the descending aorta as a small circle at the bottom.",
+          "howToKnowYoureThere": [
+            "Aorta and LV lie in one horizontal line",
+            "You see BOTH the aortic and mitral valves moving",
+            "The apex is NOT visible (if you see it, the cut is oblique)",
+            "Descending aorta visible behind the LA at ~16 cm depth"
+          ],
+          "handMove": "Notch to the right shoulder (~10–11 o'clock), beam straight into the chest. Fine-tune by sliding up/down one rib space.",
+          "threeLs": "POCUS101 '3 L's': in PLAX the Left ventricle is on the Left of the screen."
+        },
+        "deeper": {
+          "uses": [
+            "Eyeball LV systolic function (wall thickening, MV leaflet excursion)",
+            "LV wall thickness and cavity size",
+            "Aortic root size",
+            "Pericardial vs pleural effusion (relation to the descending aorta)",
+            "MV/AV morphology"
+          ],
+          "measurements": [
+            {
+              "name": "LVIDd (at MV leaflet tips, ⟂ to long axis)",
+              "normal": "M 4.2–5.8 cm; F 3.8–5.2 cm",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "IVSd / LVPWd",
+              "normal": "M 0.6–1.0 cm; F 0.6–0.9 cm",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "Aortic root (sinus of Valsalva)",
+              "normal": "≈3.4 ± 0.3 cm (M), ≈3.0 ± 0.3 cm (F)",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "RVOT proximal (PLAX)",
+              "normal": "≤ ~3.0 cm",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "EPSS (E-point septal separation, M-mode)",
+              "normal": "< 0.7 cm; larger suggests reduced EF",
+              "source": "POCUS teaching (verify)"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "Effusion that tracks ANTERIOR to the descending aorta = pericardial; one that stays POSTERIOR to it = pleural.",
+          "LV dimensions must be measured ⟂ to the LV long axis. An oblique PLAX overestimates them; use 2D-guided linear measurements, not blind M-mode.",
+          "AML in fibrous continuity with the aortic root is the anatomical basis of SAM in HCM (pathology pack)."
+        ],
+        "whyItLooksLikeThis": "The plane contains the LV long axis AND the LVOT/aortic root, which is why it is 'long axis'. Because the LV axis runs from the right shoulder to the left hip, the notch must point to the right shoulder to put the plane along it. Look at the cut face in the Heart cutaway pane."
+      }
+    },
+    {
+      "id": "psax_pap",
+      "name": "Parasternal short axis — papillary (mid-ventricular) level",
+      "shortName": "PSAX-PM",
+      "family": "parasternal",
+      "order": 2,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine",
+          "LLD"
+        ]
+      },
+      "window": "parasternal_left",
+      "derivation": {
+        "method": "fanFromWindow",
+        "probeAt": "seedICS4",
+        "levelCenter": "LV_level_papillary",
+        "axisRef": "LV_long",
+        "notchSideLandmark": "LAA_tip"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          4,
+          -11.2
+        ],
+        "landmarkText": "Same window as PLAX (left parasternal, 4th ICS)",
+        "notchDeg_ASE": 40,
+        "beamAim": "slight tilt toward the apex (left hip)",
+        "approxTiltDeg": -12,
+        "approxRockDeg": 2,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              4,
+              -11.2
+            ],
+            "notchDeg": 41,
+            "tiltDeg": -12,
+            "rockDeg": 2,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              4,
+              -11.2
+            ],
+            "notchDeg": 40,
+            "tiltDeg": -23,
+            "rockDeg": 10,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 8,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 14,
+        "sectorDeg": 90
+      },
+      "expectedScreen": {
+        "near": "RV",
+        "center": "LV ring",
+        "right_ASE": "LV lateral wall",
+        "left_ASE": "septum / RV"
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "papillary_muscles",
+            "count": 2
+          },
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 8
+          },
+          {
+            "id": "RV_cavity",
+            "minAreaCm2": 2
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "MV_AML",
+            "rule": "no leaflet in the cut (else you are at the MV level)"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "lv_round",
+            "rule": "LV cavity circularity (4πA/P²) ≥ 0.85 — oval = oblique cut"
+          }
+        ]
+      },
+      "labels": [
+        "RV_cavity",
+        "RV_free_wall",
+        "IVS",
+        "LV_cavity",
+        "papillary_muscles",
+        "LV_myocardium.segments.mid",
+        "pericardium"
+      ],
+      "segmentOverlay": {
+        "level": "mid",
+        "segments": [
+          "anterior",
+          "anteroseptal",
+          "inferoseptal",
+          "inferior",
+          "inferolateral",
+          "anterolateral"
+        ],
+        "territories": {
+          "LAD": [
+            "anterior",
+            "anteroseptal"
+          ],
+          "RCA": [
+            "inferoseptal",
+            "inferior"
+          ],
+          "LCx": [
+            "inferolateral",
+            "anterolateral"
+          ],
+          "_note": "Anterolateral often dual supply (LAD/LCx). Ties to the coronary map in the 3D heart."
+        }
+      },
+      "pitfalls": [
+        {
+          "id": "psax_oval",
+          "poseDelta": {
+            "rotationDeg": -20
+          },
+          "symptom": "LV looks oval, not round (oblique cut).",
+          "fix": "Rotate back ~20° until the LV is a circle."
+        },
+        {
+          "id": "psax_too_apical",
+          "poseDelta": {
+            "tiltDeg": -12
+          },
+          "symptom": "Small LV ring with no papillary muscles (apex level).",
+          "fix": "Tilt the beam slightly back toward the base (right shoulder)."
+        }
+      ],
+      "maneuverFromPrevious": "From PLAX, keep the probe in place and ROTATE 90° clockwise so the notch points to the patient's LEFT shoulder (~1–2 o'clock).",
+      "teaching": {
+        "core": {
+          "whatYouSee": "A doughnut: the LV as a round ring with two papillary muscles inside (at about 4 and 8 o'clock), the RV as a crescent hugging it from the front/left of the screen.",
+          "howToKnowYoureThere": [
+            "LV is ROUND",
+            "Two papillary muscles visible",
+            "No mitral leaflets in the slice",
+            "RV is a crescent, smaller than the LV"
+          ],
+          "handMove": "Rotate 90° clockwise from PLAX. Then small tilts to fan between levels."
+        },
+        "deeper": {
+          "uses": [
+            "Global EF eyeball (POCUS101: the first PSAX level)",
+            "Regional wall motion: all 3 coronary territories in one slice",
+            "RV size and septal shape (D-sign in RV overload)",
+            "Pericardial effusion"
+          ],
+          "measurements": [
+            {
+              "name": "LV fractional shortening (eyeball)",
+              "normal": "Walls thicken ≥ ~40% and move inward symmetrically",
+              "source": "teaching"
+            },
+            {
+              "name": "Septal curvature",
+              "normal": "Septum bows into the RV in systole AND diastole (round LV)",
+              "source": "teaching"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "D-shaped LV in DIASTOLE → RV volume overload; in SYSTOLE → RV pressure overload (pathology pack: PE, PAH).",
+          "Wall motion is judged by THICKENING, not just inward motion — a tethered scar can move passively.",
+          "Off-axis cuts make normal walls look hypokinetic; always confirm a round LV first."
+        ],
+        "whyItLooksLikeThis": "The beam plane is (nearly) perpendicular to the LV long axis, so the LV is cut across like a sausage → circle. The RV wraps around the front of the LV, so it shows up as a crescent."
+      }
+    },
+    {
+      "id": "psax_mv",
+      "name": "Parasternal short axis — mitral valve level",
+      "shortName": "PSAX-MV",
+      "family": "parasternal",
+      "order": 3,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine",
+          "LLD"
+        ]
+      },
+      "window": "parasternal_left",
+      "derivation": {
+        "method": "fanFromWindow",
+        "probeAt": "seedICS3",
+        "levelCenter": "LV_level_MV",
+        "axisRef": "LV_long",
+        "notchSideLandmark": "LAA_tip"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          3,
+          -8.7
+        ],
+        "landmarkText": "Left parasternal, 3rd–4th ICS",
+        "notchDeg_ASE": 45,
+        "beamAim": "tilted toward the base (right shoulder) compared with the papillary level",
+        "approxTiltDeg": -2,
+        "approxRockDeg": -9,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              3,
+              -8.7
+            ],
+            "notchDeg": 44,
+            "tiltDeg": -2,
+            "rockDeg": -9,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              3,
+              -8.7
+            ],
+            "notchDeg": 39,
+            "tiltDeg": -11,
+            "rockDeg": -2,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 8,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 14,
+        "sectorDeg": 90
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "MV_AML",
+            "minLenCm": 1.5
+          },
+          {
+            "id": "MV_PML",
+            "minLenCm": 0.6
+          },
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 8
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "papillary_muscles",
+            "rule": "no papillary muscle cut"
+          },
+          {
+            "id": "AV_cusps",
+            "rule": "no aortic cusps"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "lv_round",
+            "rule": "LV circularity ≥ 0.80"
+          },
+          {
+            "id": "fish_mouth",
+            "rule": "MV orifice opens and closes in diastole (orifice area > 3 cm² at E peak)"
+          }
+        ]
+      },
+      "labels": [
+        "RV_cavity",
+        "IVS",
+        "LV_cavity",
+        "MV_AML",
+        "MV_PML",
+        "LV_myocardium.segments.basal",
+        "pericardium"
+      ],
+      "segmentOverlay": {
+        "level": "basal",
+        "segments": [
+          "anterior",
+          "anteroseptal",
+          "inferoseptal",
+          "inferior",
+          "inferolateral",
+          "anterolateral"
+        ]
+      },
+      "pitfalls": [
+        {
+          "id": "psax_mv_still_pap",
+          "poseDelta": {
+            "tiltDeg": -10
+          },
+          "symptom": "Papillary muscles visible, no leaflets.",
+          "fix": "Tilt further toward the base / slide one space up toward the sternum."
+        }
+      ],
+      "maneuverFromPrevious": "From the papillary level, tilt the beam toward the base (right shoulder). POCUS101 phrases it as sliding toward the sternum/base. Watch the 'fish mouth' appear.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "The mitral valve seen en face: the anterior and posterior leaflets open wide in early diastole and again with the atrial kick, like a fish mouth opening twice per beat.",
+          "howToKnowYoureThere": [
+            "Fish-mouth MV opening and closing",
+            "No papillary muscles",
+            "No aortic cusps yet",
+            "LV still roughly round"
+          ],
+          "handMove": "Small tilt toward the right shoulder from the papillary level (a few degrees, not a big move)."
+        },
+        "deeper": {
+          "uses": [
+            "MV morphology (thickening, commissures)",
+            "MV orifice planimetry in mitral stenosis (pathology pack)",
+            "Basal wall motion (6 basal segments)"
+          ],
+          "measurements": [
+            {
+              "name": "MV orifice area (planimetry)",
+              "normal": "4–6 cm²",
+              "source": "standard teaching"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "Planimetry must be at the leaflet TIPS. Scan from base to tips and measure the smallest orifice, otherwise MVA is overestimated.",
+          "The two openings per beat = E (passive) and A (atrial kick) — linked to the ECG strip under the image."
+        ],
+        "whyItLooksLikeThis": "Same short-axis cut, moved toward the base. Here the slice passes through the leaflets instead of the papillary muscles."
+      }
+    },
+    {
+      "id": "psax_av",
+      "name": "Parasternal short axis — aortic valve level",
+      "shortName": "PSAX-AV",
+      "family": "parasternal",
+      "order": 4,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine",
+          "LLD"
+        ]
+      },
+      "window": "parasternal_left",
+      "derivation": {
+        "method": "fanFromWindow",
+        "probeAt": "seedICS3",
+        "levelCenter": "AV_center",
+        "axisRef": "aortic_root",
+        "notchSideLandmark": "PV_center"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          3,
+          -8.7
+        ],
+        "landmarkText": "Left parasternal, 3rd ICS",
+        "notchDeg_ASE": 55,
+        "beamAim": "tilted further toward the right shoulder/base",
+        "approxTiltDeg": 16,
+        "approxRockDeg": -12,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              3,
+              -8.7
+            ],
+            "notchDeg": 57,
+            "tiltDeg": 16,
+            "rockDeg": -12,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              3,
+              -8.7
+            ],
+            "notchDeg": 61,
+            "tiltDeg": 5,
+            "rockDeg": 1,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 8,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 14,
+        "sectorDeg": 90
+      },
+      "expectedScreen": {
+        "center": "Aortic valve (3 cusps)",
+        "left_ASE": "RA, TV",
+        "near": "RVOT",
+        "right_ASE": "PV → PA",
+        "far": "LA"
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "AV_cusps",
+            "count": 3
+          },
+          {
+            "id": "LA",
+            "minAreaCm2": 3
+          },
+          {
+            "id": "RA",
+            "minAreaCm2": 3
+          },
+          {
+            "id": "RVOT",
+            "minAreaCm2": 2
+          },
+          {
+            "id": "PV_cusps",
+            "minLenCm": 0.8
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "MV_AML",
+            "rule": "no mitral leaflets"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "av_round",
+            "rule": "aortic root cut circularity ≥ 0.85 (oblique cut fakes a bicuspid valve)"
+          }
+        ]
+      },
+      "labels": [
+        "AV_cusps.RCC",
+        "AV_cusps.LCC",
+        "AV_cusps.NCC",
+        "RA",
+        "TV_septal",
+        "RVOT",
+        "PV_cusps",
+        "PA_main",
+        "LA",
+        "IAS",
+        "LAA"
+      ],
+      "pitfalls": [
+        {
+          "id": "psax_av_oblique",
+          "poseDelta": {
+            "rotationDeg": 18
+          },
+          "symptom": "Aortic valve looks oval/bicuspid.",
+          "fix": "Rotate until the root is a circle before judging the cusps."
+        }
+      ],
+      "maneuverFromPrevious": "From the mitral level, keep tilting toward the base (right shoulder) until the aortic valve sits in the centre like a Mercedes-Benz logo.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "The aortic valve in the centre: three cusps closed in diastole form a 'Mercedes-Benz' Y. Around it: RA and TV on the left of the screen, RVOT wrapping over the top, the pulmonary valve and PA on the right, and the LA below.",
+          "howToKnowYoureThere": [
+            "3-cusp 'Mercedes' sign in diastole",
+            "RVOT 'wraps' over the aorta (a circle surrounded by a sausage)",
+            "PV/PA on the right, TV on the left"
+          ],
+          "handMove": "Tilt the beam further toward the right shoulder (small move from the MV level)."
+        },
+        "deeper": {
+          "uses": [
+            "Bicuspid AV, AS severity (planimetry is secondary)",
+            "TR jet and RVSP (with Doppler, P5)",
+            "Pulmonary valve / PA flow",
+            "Interatrial septum, LAA (limited)"
+          ],
+          "measurements": [
+            {
+              "name": "Cusp count and opening",
+              "normal": "3 thin cusps, triangular opening in systole",
+              "source": "standard teaching"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "Judge bicuspid valve in SYSTOLE ('fish-mouth' opening). A raphe can make a bicuspid valve look tricuspid in diastole.",
+          "Cusp identity: NCC sits next to the interatrial septum; RCC is the most anterior (toward the RVOT); LCC faces the PA.",
+          "'Circle and sausage': the RVOT crosses ANTERIOR to the aortic root — the normal crossed relationship of the great arteries (lost in TGA)."
+        ],
+        "whyItLooksLikeThis": "The plane now cuts across the aortic root instead of the LV. Because the RV outflow tract curves over the front of the aorta from right to left, it appears as a band arching over the circular aortic valve."
+      }
+    },
+    {
+      "id": "a4c",
+      "name": "Apical four-chamber",
+      "shortName": "A4C",
+      "family": "apical",
+      "order": 5,
+      "patientPosition": {
+        "preferred": "LLD",
+        "allowed": [
+          "LLD",
+          "supine"
+        ]
+      },
+      "window": "apical",
+      "derivation": {
+        "method": "plane3",
+        "through": [
+          "LV_apex_endo",
+          "MV_center",
+          "TV_center"
+        ],
+        "aimAt": "crux",
+        "notchSideLandmark": "LAA_tip",
+        "notchSideRule": "LV lateral wall on notch side"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          9.2,
+          -17.3
+        ],
+        "landmarkText": "Apex / PMI: ~5th ICS, mid-clavicular to anterior axillary line (under the breast in females)",
+        "notchDeg_ASE": 95,
+        "beamAim": "aimed up toward the right shoulder (tail toward the feet/left hip)",
+        "approxTiltDeg": 43,
+        "approxRockDeg": -33,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              9.2,
+              -17.3
+            ],
+            "notchDeg": 93,
+            "tiltDeg": 43,
+            "rockDeg": -33,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              11.2,
+              -17.7
+            ],
+            "notchDeg": 92,
+            "tiltDeg": 43,
+            "rockDeg": -28,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 8,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 18,
+        "sectorDeg": 90
+      },
+      "expectedScreen": {
+        "near": "LV/RV apex",
+        "far": "LA, RA, pulmonary veins",
+        "right_ASE": "LV, LA",
+        "left_ASE": "RV, RA"
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 15
+          },
+          {
+            "id": "RV_cavity",
+            "minAreaCm2": 6
+          },
+          {
+            "id": "LA",
+            "minAreaCm2": 6
+          },
+          {
+            "id": "RA",
+            "minAreaCm2": 5
+          },
+          {
+            "id": "MV_AML",
+            "minLenCm": 1.5
+          },
+          {
+            "id": "TV_septal",
+            "minLenCm": 1
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "AV_cusps",
+            "rule": "no LVOT/AV (else A5C)"
+          },
+          {
+            "id": "coronary_sinus",
+            "rule": "CS not cut lengthwise (else CS view)"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "not_foreshortened",
+            "rule": "LV length in image ≥ 0.9 × true LV length (apex endo → MV annulus)"
+          },
+          {
+            "id": "apex_at_top",
+            "rule": "LV apex within 1.5 cm of sector apex"
+          },
+          {
+            "id": "septum_vertical",
+            "rule": "IVS within 20° of the sector midline"
+          }
+        ]
+      },
+      "labels": [
+        "LV_cavity",
+        "RV_cavity",
+        "LA",
+        "RA",
+        "IVS",
+        "IAS",
+        "MV_AML",
+        "MV_PML",
+        "TV_septal",
+        "TV_anterior",
+        "moderator_band",
+        "pulmonary_veins",
+        "RV_free_wall",
+        "pericardium"
+      ],
+      "pitfalls": [
+        {
+          "id": "a4c_foreshortened",
+          "poseDelta": {
+            "slideCm": [
+              -1.5,
+              2
+            ],
+            "tiltDeg": 8
+          },
+          "symptom": "Apex looks round and thick, LV looks short (the beam is cutting above the true apex).",
+          "fix": "Slide one rib space DOWN and more LATERAL until the LV looks long and bullet-shaped with a thin, pointed apex."
+        },
+        {
+          "id": "a4c_cs_view",
+          "throughLandmark": "CS_mid",
+          "method": "tiltFrom",
+          "symptom": "A tubular structure runs across the bottom of the atria and looks like an atrial septal defect.",
+          "fix": "That's the coronary sinus — the tail is tilted too far toward the head. Tilt the tail slightly toward the feet back to A4C.",
+          "source": "POCUS101"
+        },
+        {
+          "id": "a4c_ias_dropout",
+          "condition": "always in A4C",
+          "symptom": "The thin fossa ovalis 'disappears' because it lies parallel to the beam → false ASD.",
+          "fix": "Confirm the septum in the subxiphoid view, where it is perpendicular to the beam."
+        }
+      ],
+      "maneuverFromPrevious": "From PSAX, slide toward the apex with the notch pointing to the patient's LEFT (3 o'clock). Stop where the LV looks smaller, then tilt the tail toward the feet so the beam aims at the right shoulder. Left lateral decubitus helps.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "All four chambers like a 'heart drawn by a child' upside down: ventricles on top (apex nearest the probe), atria at the bottom, LV and LA on the right of the screen, RV and RA on the left, both AV valves in the middle.",
+          "howToKnowYoureThere": [
+            "All 4 chambers + both MV and TV",
+            "Apex at the top of the fan, pointed and thin",
+            "Septum runs straight down the middle",
+            "No aortic valve (that's A5C)"
+          ],
+          "handMove": "Notch to the patient's left (3 o'clock), probe at the PMI, beam aimed at the right shoulder."
+        },
+        "deeper": {
+          "uses": [
+            "LV and RV size/function (biplane EF with A2C, P5)",
+            "RV:LV size ratio",
+            "Atrial size",
+            "Effusion around the apex/lateral wall",
+            "Doppler inflow (P5)"
+          ],
+          "measurements": [
+            {
+              "name": "RV basal diameter (RV-focused A4C)",
+              "normal": "≤ 4.1 cm",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "RV:LV basal ratio",
+              "normal": "< 1 (normal RV ≈ 2/3 of LV)",
+              "source": "teaching"
+            },
+            {
+              "name": "TAPSE (M-mode, lateral TV annulus)",
+              "normal": "≥ 1.7 cm",
+              "source": "ASE 2015"
+            },
+            {
+              "name": "LVEF (biplane Simpson's)",
+              "normal": "M 52–72%; F 54–74%",
+              "source": "ASE 2015"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "How to tell the RV: the TV inserts slightly more APICALLY than the MV (normal offset < ~1 cm) and the RV has a moderator band. These identify the morphologic RV even in complex congenital disease (Ebstein: offset ≥ 8 mm/m²).",
+          "Foreshortening is the #1 error: it underestimates volumes and hides apical WMA and thrombus.",
+          "The CS view mimics an ASD (POCUS101) — always sweep through to confirm."
+        ],
+        "whyItLooksLikeThis": "The plane runs through the apex and both AV valves, so it cuts every chamber lengthwise. The probe sits at the apex, which is why the apex is at the top of the fan and the atria are far away at the bottom."
+      }
+    },
+    {
+      "id": "a5c",
+      "name": "Apical five-chamber",
+      "shortName": "A5C",
+      "family": "apical",
+      "order": 6,
+      "patientPosition": {
+        "preferred": "LLD",
+        "allowed": [
+          "LLD",
+          "supine"
+        ]
+      },
+      "window": "apical",
+      "derivation": {
+        "method": "tiltFrom",
+        "base": "a4c",
+        "throughLandmark": "AV_center",
+        "expectedTiltDeg": 8.5,
+        "direction": "toward -Y (anterior-superior)"
+      },
+      "seedPose": {
+        "landmarkText": "Same spot as A4C",
+        "notchDeg_ASE": 100,
+        "beamAim": "tail tilted slightly further toward the feet (beam more anterior) — only 5–10°",
+        "approxTiltDeg": 48,
+        "approxRockDeg": -36,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              9.2,
+              -17.3
+            ],
+            "notchDeg": 98,
+            "tiltDeg": 48,
+            "rockDeg": -36,
+            "ribPathPct": 23
+          },
+          "LLD": {
+            "skin": [
+              11.2,
+              -17.7
+            ],
+            "notchDeg": 96,
+            "tiltDeg": 48,
+            "rockDeg": -31,
+            "ribPathPct": 20
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 12,
+        "tiltDeg": 4,
+        "rockDeg": 10
+      },
+      "_tolerance_note": "Tilt tolerance is tight because A4C ↔ A5C differ by only ~5–10° (POCUS101).",
+      "image": {
+        "depthCm": 18,
+        "sectorDeg": 90
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "LVOT",
+            "minAreaCm2": 2
+          },
+          {
+            "id": "AV_cusps",
+            "minLenCm": 0.8
+          },
+          {
+            "id": "aortic_root",
+            "minAreaCm2": 2
+          },
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 15
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "lvot_aligned",
+            "rule": "LVOT axis within 20° of the beam (good Doppler alignment)"
+          }
+        ]
+      },
+      "labels": [
+        "LV_cavity",
+        "LVOT",
+        "AV_cusps",
+        "aortic_root",
+        "RV_cavity",
+        "RA",
+        "LA",
+        "IVS",
+        "MV_AML"
+      ],
+      "pitfalls": [
+        {
+          "id": "a5c_overtilt",
+          "poseDelta": {
+            "tiltDeg": 10
+          },
+          "symptom": "Atria disappear and the LV looks oblique.",
+          "fix": "Tilt back a few degrees — the 5th 'chamber' appears with a tiny tilt."
+        }
+      ],
+      "maneuverFromPrevious": "From A4C, tilt the probe tail slightly toward the feet (beam slightly anterior). The LVOT and aortic valve (the '5th chamber') appear in the middle. Tilt back toward the head to return to A4C.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "The A4C plus the LV outflow tract and aortic valve rising out of the middle of the heart (the '5th chamber').",
+          "howToKnowYoureThere": [
+            "Aortic valve + LVOT visible between the MV and septum",
+            "LV apex still at the top",
+            "Tiny tilt from A4C (5–10°)"
+          ],
+          "handMove": "Tail toward the feet, just a little."
+        },
+        "deeper": {
+          "uses": [
+            "LVOT VTI → stroke volume and cardiac output (POCUS101)",
+            "Aortic stenosis gradients (CW Doppler, P5)",
+            "LVOT obstruction / SAM (pathology pack)"
+          ],
+          "measurements": [
+            {
+              "name": "LVOT VTI (PW Doppler)",
+              "normal": "≈ 18–22 cm",
+              "source": "teaching (verify)"
+            },
+            {
+              "name": "Stroke volume",
+              "normal": "SV = LVOT area (π·(D/2)²) × VTI; CO = SV × HR",
+              "source": "physiology"
+            },
+            {
+              "name": "LVOT diameter (from PLAX)",
+              "normal": "≈ 1.8–2.2 cm",
+              "source": "teaching"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "LVOT diameter is squared in the SV formula, so a 1 mm error ≈ 10% SV error. Measure it in a zoomed PLAX, mid-systole, inner edge to inner edge.",
+          "In shock, LVOT VTI < ~15 cm suggests low SV; track VTI change after a fluid/passive-leg-raise challenge."
+        ],
+        "whyItLooksLikeThis": "The aortic valve sits anterior-superior to the mitral valve. Tilting the A4C plane slightly toward the front of the chest swings it through the LVOT and aortic root."
+      }
+    },
+    {
+      "id": "subxiphoid_4c",
+      "name": "Subxiphoid (subcostal) four-chamber",
+      "shortName": "S4C",
+      "family": "subxiphoid",
+      "order": 7,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine"
+        ],
+        "cue": "knees bent (relaxes the abdominal wall)"
+      },
+      "window": "subxiphoid",
+      "derivation": {
+        "method": "planeThroughSkin",
+        "skinSeed": "subxiphoid.seed",
+        "through": [
+          "crux"
+        ],
+        "lateralHint": [
+          1,
+          0,
+          0
+        ],
+        "_note": "lateralHint = patient's LEFT (notch at 3 o'clock, probe flat, as scanned). Content checks decide whether all 4 chambers show; calibrate if not.",
+        "aimAt": "crux",
+        "notchSideLandmark": "LV_apex_epi"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          0,
+          -21.5
+        ],
+        "landmarkText": "Just below the xiphoid, under the costal arch (overhand grip, probe almost flat)",
+        "notchDeg_ASE": 90,
+        "beamAim": "under the ribs toward the LEFT shoulder, probe ~15–25° from the skin surface",
+        "approxTiltDeg": 63,
+        "approxRockDeg": 0,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              0,
+              -21.5
+            ],
+            "notchDeg": 90,
+            "tiltDeg": 63,
+            "rockDeg": 0,
+            "ribPathPct": 20
+          },
+          "LLD": {
+            "skin": [
+              0,
+              -21.5
+            ],
+            "notchDeg": 90,
+            "tiltDeg": 60,
+            "rockDeg": 7,
+            "ribPathPct": 13
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 2,
+        "rotationDeg": 15,
+        "tiltDeg": 12,
+        "rockDeg": 12
+      },
+      "image": {
+        "depthCm": 18,
+        "sectorDeg": 90
+      },
+      "expectedScreen": {
+        "near": "Liver (top-left), then RV free wall",
+        "right_ASE": "LV apex",
+        "far": "LA",
+        "left_ASE": "RA"
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "liver",
+            "minAreaCm2": 8
+          },
+          {
+            "id": "RV_cavity",
+            "minAreaCm2": 3
+          },
+          {
+            "id": "LV_cavity",
+            "minAreaCm2": 6
+          },
+          {
+            "id": "RA",
+            "minAreaCm2": 3
+          },
+          {
+            "id": "LA",
+            "minAreaCm2": 3
+          },
+          {
+            "id": "IAS",
+            "minLenCm": 1.5
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "stomach_gas",
+            "rule": "beam not blocked by gas"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "ias_perpendicular",
+            "rule": "IAS within 45° of perpendicular to the beam"
+          }
+        ]
+      },
+      "labels": [
+        "liver",
+        "RV_free_wall",
+        "RV_cavity",
+        "LV_cavity",
+        "RA",
+        "LA",
+        "IAS",
+        "IVS",
+        "TV_septal",
+        "MV_AML",
+        "pericardium",
+        "diaphragm"
+      ],
+      "pitfalls": [
+        {
+          "id": "s4c_gas",
+          "poseDelta": {
+            "slideCm": [
+              3.5,
+              0
+            ]
+          },
+          "symptom": "Bright, dirty shadow — no heart.",
+          "fix": "Slide toward the patient's right and use the liver as the acoustic window (POCUS101)."
+        },
+        {
+          "id": "s4c_too_steep",
+          "poseDelta": {
+            "tiltDeg": -25
+          },
+          "symptom": "Only liver is seen; the beam passes under the heart.",
+          "fix": "Flatten the probe (overhand grip) and aim at the left shoulder; push down gently."
+        }
+      ],
+      "maneuverFromPrevious": "Move to below the xiphoid with the patient supine and knees bent. Use an overhand grip, hold the probe almost flat, notch to the patient's LEFT (3 o'clock), aim toward the left shoulder, and press gently.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "Liver at the top-left (your window), then the RV free wall closest to it, and all four chambers lying across the screen with the apex to the right.",
+          "howToKnowYoureThere": [
+            "Liver in the near field",
+            "All 4 chambers",
+            "RV free wall closest to the liver",
+            "Interatrial septum crossing the screen"
+          ],
+          "handMove": "Probe flat under the costal arch, beam toward the left shoulder."
+        },
+        "deeper": {
+          "uses": [
+            "Pericardial effusion and tamponade (RV free-wall diastolic collapse) — the go-to view in arrest/eFAST",
+            "Patients with poor parasternal windows (COPD, ventilated)",
+            "Interatrial septum for ASD (septum ⟂ to the beam)",
+            "RV free-wall thickness"
+          ],
+          "measurements": [
+            {
+              "name": "RV free-wall thickness",
+              "normal": "≤ 0.5 cm",
+              "source": "ASE 2015"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "Best view to confirm an ASD: here the septum is perpendicular to the beam, so no false dropout as in A4C.",
+          "During CPR, the subxiphoid view lets you look during the pulse check without interrupting compressions on the chest.",
+          "Hyperinflated lungs push the heart down → the subxiphoid window often IMPROVES in COPD while the parasternal ones worsen."
+        ],
+        "whyItLooksLikeThis": "The beam travels up under the ribs through the liver. Because the RV lies on the diaphragm, it is the first chamber the beam meets. The plane is close to the 4-chamber plane but entered from below, so the image is rotated compared with A4C."
+      }
+    },
+    {
+      "id": "ivc",
+      "name": "Subxiphoid IVC (long axis)",
+      "shortName": "IVC",
+      "family": "subxiphoid",
+      "order": 8,
+      "patientPosition": {
+        "preferred": "supine",
+        "allowed": [
+          "supine"
+        ],
+        "cue": "knees bent"
+      },
+      "window": "subxiphoid_ivc",
+      "derivation": {
+        "method": "planeThroughSkin",
+        "skinSeed": "subxiphoid_ivc.seed",
+        "through": [
+          "IVC.points[1]",
+          "IVC.points[3]"
+        ],
+        "aimAt": "IVC.points[2]",
+        "notchSideLandmark": "RA_center"
+      },
+      "seedPose": {
+        "skinPoint_patient": [
+          -1.5,
+          -21
+        ],
+        "landmarkText": "Subxiphoid, ~1–2 cm right of midline",
+        "notchDeg_ASE": -5,
+        "notchDeg_POCUS_markerLeft": 175,
+        "beamAim": "posterior and slightly cranial, longitudinal (sagittal) plane",
+        "approxTiltDeg": -10,
+        "approxRockDeg": 34,
+        "derived": {
+          "_note": "Computed by derive.js from phantom-normal.json v0.3 (supine/LLD). The engine recomputes these at load.",
+          "supine": {
+            "skin": [
+              -1.5,
+              -21
+            ],
+            "notchDeg": -6,
+            "tiltDeg": -10,
+            "rockDeg": 34,
+            "ribPathPct": 0
+          },
+          "LLD": {
+            "skin": [
+              -1.5,
+              -21
+            ],
+            "notchDeg": -6,
+            "tiltDeg": -10,
+            "rockDeg": 34,
+            "ribPathPct": 0
+          }
+        }
+      },
+      "poseOverride": {
+        "supine": null,
+        "LLD": null
+      },
+      "tolerance": {
+        "positionCm": 1.5,
+        "rotationDeg": 15,
+        "tiltDeg": 10,
+        "rockDeg": 10
+      },
+      "image": {
+        "depthCm": 16,
+        "sectorDeg": 80
+      },
+      "expectedScreen": {
+        "near": "Liver",
+        "right_ASE": "RA (IVC entering)",
+        "left_ASE": "IVC caudally",
+        "_note": "Same image in POCUS marker-left mode with the notch pointing to the feet (POCUS101)."
+      },
+      "contentChecks": {
+        "mustSee": [
+          {
+            "id": "IVC",
+            "minLenCm": 4,
+            "rule": "cut along its long axis (cut width ≥ 0.9 × true diameter)"
+          },
+          {
+            "id": "RA",
+            "minAreaCm2": 2,
+            "rule": "IVC–RA junction visible"
+          },
+          {
+            "id": "liver",
+            "minAreaCm2": 10
+          }
+        ],
+        "mustNotSee": [
+          {
+            "id": "descending_aorta",
+            "rule": "abdominal aorta not the main vessel in the plane"
+          }
+        ],
+        "shapeChecks": [
+          {
+            "id": "not_cylinder_effect",
+            "rule": "plane passes within 0.3 cm of the IVC centreline (off-centre cut underestimates diameter)"
+          }
+        ]
+      },
+      "labels": [
+        "IVC",
+        "RA",
+        "hepatic_veins",
+        "liver",
+        "diaphragm"
+      ],
+      "measurementTool": {
+        "name": "IVC diameter",
+        "where": "≈2 cm from the RA junction (just caudal to the hepatic vein inlet), ⟂ to the vessel",
+        "respiratoryReadout": "max / min diameter and % collapse over the resp cycle; 'Sniff' button"
+      },
+      "pitfalls": [
+        {
+          "id": "ivc_aorta_mixup",
+          "poseDelta": {
+            "slideCm": [
+              3,
+              0
+            ]
+          },
+          "symptom": "A thick-walled, pulsatile tube that does NOT drain into the RA.",
+          "fix": "That's the aorta (left of midline). Slide right and confirm the vessel enters the RA."
+        },
+        {
+          "id": "ivc_cylinder",
+          "poseDelta": {
+            "slideCm": [
+              0.8,
+              0
+            ]
+          },
+          "symptom": "IVC looks thin and collapses 'too much'.",
+          "fix": "Off-centre cut (cylinder effect). Rock/slide until the widest diameter is shown, or check in short axis."
+        }
+      ],
+      "maneuverFromPrevious": "From S4C keep the RA in view, find the IVC in the liver and centre it, then rotate 90° so the notch points to the HEAD (ASE). In POCUS101's marker-left setup, rotate clockwise so the notch points to the FEET — the image looks the same.",
+      "teaching": {
+        "core": {
+          "whatYouSee": "The IVC as a dark tube running through the liver and draining into the RA, often with a hepatic vein joining it. It narrows when the patient breathes in.",
+          "howToKnowYoureThere": [
+            "Tube through the liver that ENTERS the RA",
+            "Hepatic vein joining it",
+            "Collapses with inspiration/sniff"
+          ],
+          "handMove": "From S4C, rotate 90° to a longitudinal (sagittal) plane, just right of midline."
+        },
+        "deeper": {
+          "uses": [
+            "Estimate RA pressure / CVP",
+            "Volume status trend (with caution)"
+          ],
+          "measurements": [
+            {
+              "name": "RAP estimate (ASE)",
+              "normal": "IVC ≤ 2.1 cm & > 50% sniff collapse → RAP ≈ 3 (0–5); > 2.1 cm & < 50% → ≈ 15 (10–20); otherwise ≈ 8 (5–10) mmHg",
+              "source": "ASE (Rudski 2010)"
+            },
+            {
+              "name": "CVP table (POCUS101)",
+              "normal": "<1.5 cm & >50% → 0–5; 1.5–2.5 & >50% → 6–10; 1.5–2.5 & <50% → 11–15; >2.5 & <50% → 16–20 mmHg",
+              "source": "POCUS101"
+            }
+          ]
+        },
+        "fellowPearl": [
+          "Ventilated patients REVERSE the pattern: the IVC is largest in inspiration (positive pressure). Collapsibility indices are not valid there; use distensibility instead.",
+          "A plethoric, non-collapsing IVC is very sensitive for raised RAP (tamponade, RV failure) but not specific (athletes can have a large IVC).",
+          "IVC numbers are a static snapshot with the same limits as CVP (POCUS101). Intermediate values are indeterminate."
+        ],
+        "whyItLooksLikeThis": "A sagittal plane just right of midline contains the IVC along its length as it climbs through the liver and pierces the diaphragm to enter the RA."
+      }
+    }
+  ],
+  "v2_backlog": [
+    "a2c",
+    "a3c_aplax",
+    "rv_inflow",
+    "psax_apex",
+    "suprasternal_arch",
+    "subcostal_sax"
+  ]
+}

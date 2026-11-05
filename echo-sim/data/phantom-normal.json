@@ -1,0 +1,2219 @@
+{
+  "_meta": {
+    "file": "phantom-normal.json",
+    "version": "0.3.0-draft",
+    "status": "DRAFT — geometry is schematic; validate with an echo-lab fellow/cardiologist (planned after P2/P3). Tune visually with the dev calibration mode described in views.json._calibration.",
+    "units": "cm, degrees, time as fraction of RR interval (t=0 at R-wave peak = end-diastole)",
+    "references": [
+      "Lang RM et al. Recommendations for cardiac chamber quantification. JASE 2015;28:1-39",
+      "Mitchell C et al. ASE Guidelines for performing a comprehensive TTE examination in adults. JASE 2019;32:1-64",
+      "POCUS101 Cardiac Ultrasound Made Easy (primary teaching reference)"
+    ],
+    "supersedes": "Plan v1.1 §1.1/§1.2: LV long-axis orientation refined (≈50° left of sagittal, ≈35° inferior, ≈17° anterior) so that PLAX is reachable with a near-perpendicular beam; LV ES length 7.2 cm with MAPSE 1.3 cm (was 7.5).",
+    "changelog": [
+      "0.2.0: heart moved 1.2 cm posterior (RV free wall was touching the chest wall; RV now ~2 cm deep in PLAX); descending aorta moved to stay just behind the LA; rib width 1.3→1.0 cm and AP thickness 1.0→0.8 cm (realistic intercostal windows); liver left lobe enlarged (subxiphoid window); lung cardiac notch enlarged (apical window opens in LLD). All found by rendering the views and tracing the centre scan line.",
+      "0.3.0: anatomy realism pass after staff-style review of renders — curved/tapered MV+TV leaflets with free-edge curl, AV cusp belly sag, bullet-shaped LV, organic atria (vestibules, PV ostia, LAA, SVC, RA appendage, carved IAS, LA–aorta wall), thicker pericardium; echo: myocardium/liver mottling. Pericardium thinner except posteriorly; leaflet width-arc (short-axis curvature). LA moved posterior (under the aortic root, as in PLAX); mitral annulus tilted; descending aorta moved posterior-left to stay behind the LA."
+    ]
+  },
+  "frames": {
+    "patient": {
+      "_note": "Body-fixed frame, patient supine. Origin = skin at the suprasternal notch.",
+      "origin": "suprasternal notch (skin)",
+      "axes": {
+        "x": "patient's LEFT",
+        "y": "HEAD (cranial)",
+        "z": "ANTERIOR"
+      }
+    },
+    "heart": {
+      "_note": "Right-handed. All cardiac landmarks/shapes below are in this frame. Engine transform: p_patient = origin + x_h*X + y_h*Y + z_h*Z.",
+      "origin_patient": [
+        0.5,
+        -9.0,
+        -7.8
+      ],
+      "origin_is": "mitral annulus centre (MV_center)",
+      "X_patient": [
+        -0.458,
+        -0.126,
+        0.88
+      ],
+      "Y_patient": [
+        -0.491,
+        -0.79,
+        -0.369
+      ],
+      "Z_patient": [
+        0.741,
+        -0.601,
+        0.3
+      ],
+      "axes": {
+        "X": "from LV toward RV / septum (≈ anterior-right): the 'S' axis",
+        "Y": "inferior-posterior (diaphragmatic side, coronary sinus side). -Y = anterior-superior (LVOT/aorta side)",
+        "Z": "LV long axis, base → apex"
+      },
+      "teachingNote": "A4C plane ≈ X–Z plane (Y≈0). Tilting the beam toward -Y opens the LVOT (A5C); toward +Y shows the coronary sinus (pitfall)."
+    }
+  },
+  "landmarks_heart": {
+    "_note": "End-diastolic positions (heart frame, cm). Engine animates them via 'cycle'.",
+    "MV_center": [
+      0,
+      0,
+      0
+    ],
+    "TV_center": [
+      3.6,
+      0.3,
+      0.8
+    ],
+    "crux": [
+      1.8,
+      0.15,
+      0.4
+    ],
+    "AV_center": [
+      1.6,
+      -1.3,
+      -0.28
+    ],
+    "PV_center": [
+      1.56,
+      -3.37,
+      -0.05
+    ],
+    "PA_bifurcation": [
+      -1.94,
+      -4.56,
+      -1.92
+    ],
+    "Ao_asc_end": [
+      4.56,
+      -4.93,
+      -4.78
+    ],
+    "LV_apex_endo": [
+      0,
+      0,
+      8.5
+    ],
+    "LV_apex_epi": [
+      0,
+      0,
+      9.4
+    ],
+    "LV_level_MV": [
+      0,
+      0,
+      1.2
+    ],
+    "LV_level_papillary": [
+      0,
+      0,
+      4.8
+    ],
+    "LV_level_apex": [
+      0,
+      0,
+      7.0
+    ],
+    "LA_center": [
+      -1.6,
+      0.8,
+      -1.9
+    ],
+    "RA_center": [
+      2.9,
+      1.8,
+      -2.4
+    ],
+    "LAA_tip": [
+      -2.8,
+      -1.2,
+      -1.0
+    ],
+    "CS_lateral": [
+      -2.4,
+      1.6,
+      0.0
+    ],
+    "CS_mid": [
+      -0.2,
+      2.3,
+      -0.4
+    ],
+    "CS_ostium": [
+      2.4,
+      1.9,
+      -1.2
+    ],
+    "PVein_LU": [
+      -2.6,
+      0.4,
+      -3.8
+    ],
+    "PVein_LL": [
+      -2.4,
+      1.6,
+      -3.2
+    ],
+    "PVein_RU": [
+      0.6,
+      0.2,
+      -4.6
+    ],
+    "PVein_RL": [
+      0.8,
+      1.4,
+      -4.2
+    ],
+    "ALPM_base": [
+      -1.7,
+      -1.1,
+      5.4
+    ],
+    "ALPM_tip": [
+      -1.2,
+      -0.8,
+      3.6
+    ],
+    "PMPM_base": [
+      0.5,
+      1.9,
+      5.4
+    ],
+    "PMPM_tip": [
+      0.35,
+      1.3,
+      3.6
+    ],
+    "RV_apex": [
+      2.6,
+      -0.4,
+      7.0
+    ],
+    "moderator_band_septal": [
+      3.4,
+      -0.2,
+      5.4
+    ],
+    "moderator_band_free": [
+      5.6,
+      -0.4,
+      5.6
+    ]
+  },
+  "axes_heart": {
+    "LV_long": [
+      0,
+      0,
+      1
+    ],
+    "aortic_root": [
+      0.456,
+      -0.558,
+      -0.693
+    ],
+    "_aortic_root_note": "Unit vector from AV annulus toward ascending aorta (patient: right, superior, anterior).",
+    "AV_cusp_dirs": {
+      "_note": "Unit vectors ⟂ aortic_root from AV_center toward each cusp's belly (closed). RCC anterior, LCC left (PA side), NCC right-posterior (IAS side).",
+      "RCC": [
+        0.761,
+        -0.159,
+        0.629
+      ],
+      "LCC": [
+        -0.78,
+        -0.625,
+        -0.01
+      ],
+      "NCC": [
+        0.018,
+        0.785,
+        -0.62
+      ]
+    }
+  },
+  "structures": {
+    "_sdf_vocabulary": {
+      "ellipsoid": "{center, semi:[a,b,c], rotation?}",
+      "capsule": "{a, b, r} or {points:[...], r} for a chain",
+      "shell": "{of, offset, thickness} — offset surface of another structure",
+      "truncate": "{by: plane {point, normal}, keep: 'positive'|'negative'}",
+      "smoothUnion": "{items, k}",
+      "subtract": "{from, minus}",
+      "leaflet": "{hinge, dirClosed, length, width, thickness, openAxis, openAngleParam}",
+      "torus": "{center, normal, R, r} (annulus ring)"
+    },
+    "_animation": "Any numeric value may be replaced by {param:'name'} referencing cycle.params; ED values shown as defaults.",
+    "LV_cavity": {
+      "type": "truncate",
+      "of": {
+        "type": "ellipsoid",
+        "center": [
+          0,
+          0,
+          {
+            "param": "LV_centerZ",
+            "ed": 3.0
+          }
+        ],
+        "semi": [
+          {
+            "param": "LV_semiXY",
+            "ed": 2.4
+          },
+          {
+            "param": "LV_semiXY",
+            "ed": 2.4
+          },
+          {
+            "param": "LV_semiZ",
+            "ed": 5.5
+          }
+        ]
+      },
+      "by": {
+        "point": [
+          0,
+          0,
+          {
+            "param": "MV_annulusZ",
+            "ed": 0
+          }
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "keep": "positive",
+      "tissue": "blood",
+      "label": "LV",
+      "bullet": {
+        "apexCapRadius": 0.6,
+        "blend": 0.6,
+        "apicalWallFactor": 0.8,
+        "_note": "Cavity = smooth union of the ellipsoid with a round cone (base radius = LV_semiXY, apex cap 0.6 cm) → bullet shape with a conical apex; apical wall thins to 80%."
+      }
+    },
+    "LVOT": {
+      "type": "capsule",
+      "a": [
+        0.6,
+        -0.6,
+        1.2
+      ],
+      "b": "AV_center",
+      "r": 1.0,
+      "tissue": "blood",
+      "label": "LVOT",
+      "_note": "Unioned with LV_cavity; bounded by IVS and AML."
+    },
+    "LV_myocardium": {
+      "type": "subtract",
+      "from": {
+        "type": "truncate",
+        "of": {
+          "type": "ellipsoid",
+          "center": [
+            0,
+            0,
+            {
+              "param": "LV_centerZ",
+              "ed": 3.0
+            }
+          ],
+          "semi": [
+            {
+              "param": "LV_outerXY",
+              "ed": 3.3
+            },
+            {
+              "param": "LV_outerXY",
+              "ed": 3.3
+            },
+            {
+              "param": "LV_outerZ",
+              "ed": 6.4
+            }
+          ]
+        },
+        "by": {
+          "point": [
+            0,
+            0,
+            -0.3
+          ],
+          "normal": [
+            0,
+            0,
+            1
+          ]
+        },
+        "keep": "positive"
+      },
+      "minus": [
+        "LV_cavity",
+        "LVOT"
+      ],
+      "tissue": "myocardium",
+      "regions": {
+        "_note": "AHA segments assigned by angle around Z in the X–Y plane (0° = -Y direction / anterior-superior, increasing toward +X / septum) and by Z level: basal z<2.8, mid 2.8–5.6, apical >5.6.",
+        "angleConvention": "atan2(x_h, -y_h)",
+        "segments": {
+          "anterior": [
+            -30,
+            30
+          ],
+          "anteroseptal": [
+            30,
+            90
+          ],
+          "inferoseptal": [
+            90,
+            150
+          ],
+          "inferior": [
+            150,
+            210
+          ],
+          "inferolateral": [
+            210,
+            270
+          ],
+          "anterolateral": [
+            270,
+            330
+          ]
+        },
+        "IVS_label_segments": [
+          "anteroseptal",
+          "inferoseptal"
+        ],
+        "PW_label_segments": [
+          "inferolateral"
+        ]
+      },
+      "labels": {
+        "IVS": "IVS",
+        "PW": "Posterior wall (inferolateral)",
+        "apex": "LV apex"
+      }
+    },
+    "RV_cavity": {
+      "type": "subtract",
+      "from": {
+        "type": "ellipsoid",
+        "center": [
+          {
+            "param": "RV_centerX",
+            "ed": 2.6
+          },
+          -0.4,
+          {
+            "param": "RV_centerZ",
+            "ed": 2.4
+          }
+        ],
+        "semi": [
+          {
+            "param": "RV_semiX",
+            "ed": 4.2
+          },
+          {
+            "param": "RV_semiY",
+            "ed": 2.6
+          },
+          {
+            "param": "RV_semiZ",
+            "ed": 4.2
+          }
+        ]
+      },
+      "minus": [
+        "LV_myocardium_outer"
+      ],
+      "tissue": "blood",
+      "label": "RV",
+      "_note": "Inner semi-axes = outer (4.6, 3.0, 4.6) minus free-wall 0.4. Crescent wraps the septum; basal diameter ≈3.4 cm at TV level."
+    },
+    "RV_free_wall": {
+      "type": "shell",
+      "of": "RV_cavity",
+      "offset": 0,
+      "thickness": 0.4,
+      "excludeSide": "septum",
+      "tissue": "myocardium",
+      "label": "RV free wall"
+    },
+    "RVOT": {
+      "type": "capsule",
+      "a": [
+        3.0,
+        -1.8,
+        1.5
+      ],
+      "b": "PV_center",
+      "r": {
+        "param": "RVOT_r",
+        "ed": 1.4
+      },
+      "tissue": "blood",
+      "label": "RVOT",
+      "wall": 0.35
+    },
+    "PA_main": {
+      "type": "capsule",
+      "a": "PV_center",
+      "b": "PA_bifurcation",
+      "r": 1.2,
+      "tissue": "blood",
+      "label": "PA",
+      "wall": 0.15
+    },
+    "moderator_band": {
+      "type": "capsule",
+      "a": "moderator_band_septal",
+      "b": "moderator_band_free",
+      "r": 0.25,
+      "tissue": "myocardium",
+      "label": "Moderator band"
+    },
+    "LA": {
+      "type": "ellipsoid",
+      "center": "LA_center",
+      "semi": [
+        {
+          "param": "LA_semiX",
+          "ed": 1.9
+        },
+        {
+          "param": "LA_semiY",
+          "ed": 1.5
+        },
+        {
+          "param": "LA_semiZ",
+          "ed": 2.2
+        }
+      ],
+      "wall": 0.25,
+      "tissue": "blood",
+      "label": "LA",
+      "_note": "ED (post-atrial-kick) is near-minimum; AP diameter ≈3.0 ED, ≈3.6 at end-systole.",
+      "detail": {
+        "vestibuleRadius": 1.4,
+        "vestibuleBlend": 0.8,
+        "veinBlend": 0.5,
+        "laaBlend": 0.4,
+        "wobble": 0.15,
+        "_note": "Organic atrium: ellipsoid + funnel (vestibule) to the mitral annulus + pulmonary-vein ostia + LAA, low-frequency wobble so it is never a perfect sphere; clipped at the annulus plane."
+      }
+    },
+    "RA": {
+      "type": "ellipsoid",
+      "center": "RA_center",
+      "semi": [
+        {
+          "param": "RA_semiX",
+          "ed": 1.6
+        },
+        {
+          "param": "RA_semiY",
+          "ed": 1.6
+        },
+        {
+          "param": "RA_semiZ",
+          "ed": 2.1
+        }
+      ],
+      "wall": 0.25,
+      "tissue": "blood",
+      "label": "RA",
+      "detail": {
+        "vestibuleRadius": 1.3,
+        "vestibuleBlend": 0.8,
+        "wobble": 0.15,
+        "svc": {
+          "a": [
+            2.9,
+            1.8,
+            -2.4
+          ],
+          "b": [
+            2.4,
+            -1.36,
+            -4.8
+          ],
+          "r": 0.9
+        },
+        "raa": {
+          "a": [
+            3.4,
+            1.2,
+            -2.4
+          ],
+          "b": [
+            4.7,
+            0.2,
+            -2.3
+          ],
+          "r": 0.7
+        },
+        "_note": "RA + vestibule to the TV + SVC (toward the head) + broad RA appendage (anterior); IVC joins from below (extracardiac)."
+      }
+    },
+    "IAS": {
+      "type": "derived",
+      "rule": "wall where LA and RA walls meet (smoothUnion k=0.6)",
+      "thickness": 0.35,
+      "fossaOvalis": {
+        "center": [
+          1.3,
+          1.4,
+          -2.6
+        ],
+        "r": 0.8,
+        "thickness": 0.12,
+        "_note": "Thin → drops out when parallel to beam (A4C false-ASD pitfall)."
+      },
+      "tissue": "myocardium",
+      "label": "IAS",
+      "carve": 0.35
+    },
+    "LAA": {
+      "type": "capsule",
+      "a": [
+        -1.6,
+        -0.4,
+        -1.6
+      ],
+      "b": "LAA_tip",
+      "r": 0.6,
+      "tissue": "blood",
+      "label": "LAA",
+      "wall": 0.15
+    },
+    "pulmonary_veins": {
+      "type": "capsules",
+      "items": [
+        {
+          "a": "PVein_LU",
+          "b": [
+            -3.8,
+            0.6,
+            -5.2
+          ],
+          "r": 0.6,
+          "label": "LUPV"
+        },
+        {
+          "a": "PVein_LL",
+          "b": [
+            -3.6,
+            2.2,
+            -4.6
+          ],
+          "r": 0.6,
+          "label": "LLPV"
+        },
+        {
+          "a": "PVein_RU",
+          "b": [
+            0.9,
+            0.0,
+            -6.2
+          ],
+          "r": 0.6,
+          "label": "RUPV"
+        },
+        {
+          "a": "PVein_RL",
+          "b": [
+            1.2,
+            1.8,
+            -5.8
+          ],
+          "r": 0.6,
+          "label": "RLPV"
+        }
+      ],
+      "tissue": "blood",
+      "groupLabel": "Pulm. veins"
+    },
+    "coronary_sinus": {
+      "type": "capsule",
+      "points": [
+        "CS_lateral",
+        "CS_mid",
+        "CS_ostium"
+      ],
+      "r": 0.45,
+      "wall": 0.1,
+      "tissue": "blood",
+      "label": "Coronary sinus"
+    },
+    "MV_annulus": {
+      "type": "torus",
+      "center": [
+        0,
+        0,
+        {
+          "param": "MV_annulusZ",
+          "ed": 0
+        }
+      ],
+      "normal": [
+        -0.36,
+        0.29,
+        0.89
+      ],
+      "R": 1.5,
+      "r": 0.18,
+      "tissue": "fibrous",
+      "_tiltNote": "Annulus plane tilted ~27° from ⟂ LV axis: the posterior (PML) hinge sits ~0.8 cm more basal than the anterior (AML) hinge, so in PLAX the closed MV runs diagonally from the aortic root toward the AV groove instead of a vertical line."
+    },
+    "MV_AML": {
+      "type": "leaflet",
+      "hinge": [
+        1.16,
+        -0.95,
+        0.75
+      ],
+      "dirClosed": [
+        -0.62,
+        0.5,
+        0.35
+      ],
+      "length": 2.4,
+      "width": 3.0,
+      "thickness": 0.3,
+      "openToward": [
+        0,
+        0,
+        1
+      ],
+      "openAngle": {
+        "param": "MV_open",
+        "scale": 1.0
+      },
+      "tissue": "valve",
+      "label": "AML",
+      "_note": "Hinge on the anterior annulus in fibrous continuity with the AV (non-coronary/left cusps).",
+      "tipThickness": 0.18,
+      "curvatureClosed": 0.25,
+      "curvatureOpen": 0.55,
+      "bowClosed": [
+        0,
+        0,
+        -1
+      ],
+      "bowOpen": [
+        0.6,
+        -0.5,
+        0.4
+      ],
+      "widthCurl": 0.22,
+      "_shapeNote": "Curved, tapered leaflet: centre-line bows toward bowClosed (systole, billowing into the LA) or bowOpen (diastole); widthCurl bends the free edge back toward the annulus so the short-axis cut is an arc (fish mouth).",
+      "arc": 0.3
+    },
+    "MV_PML": {
+      "type": "leaflet",
+      "hinge": [
+        -1.16,
+        0.95,
+        -0.75
+      ],
+      "dirClosed": [
+        0.66,
+        -0.53,
+        0.35
+      ],
+      "length": 1.4,
+      "width": 3.4,
+      "thickness": 0.28,
+      "openToward": [
+        0,
+        0,
+        1
+      ],
+      "openAngle": {
+        "param": "MV_open",
+        "scale": 0.7
+      },
+      "tissue": "valve",
+      "label": "PML",
+      "tipThickness": 0.16,
+      "curvatureClosed": 0.2,
+      "curvatureOpen": 0.45,
+      "bowClosed": [
+        0,
+        0,
+        -1
+      ],
+      "bowOpen": [
+        -0.6,
+        0.5,
+        0.4
+      ],
+      "widthCurl": 0.3,
+      "arc": 0.35
+    },
+    "chordae": {
+      "type": "lines",
+      "from": [
+        "ALPM_tip",
+        "PMPM_tip"
+      ],
+      "to": [
+        "MV_AML.freeEdge",
+        "MV_PML.freeEdge"
+      ],
+      "r": 0.06,
+      "tissue": "valve",
+      "visibility": "faint"
+    },
+    "papillary_muscles": {
+      "type": "capsules",
+      "items": [
+        {
+          "a": "ALPM_base",
+          "b": "ALPM_tip",
+          "r": 0.55,
+          "label": "ALPM"
+        },
+        {
+          "a": "PMPM_base",
+          "b": "PMPM_tip",
+          "r": 0.55,
+          "label": "PMPM"
+        }
+      ],
+      "tissue": "myocardium",
+      "_note": "Move with LV wall (attach to nearest LV endocardium each frame)."
+    },
+    "TV_annulus": {
+      "type": "torus",
+      "center": "TV_center",
+      "normal": [
+        0.15,
+        0,
+        0.99
+      ],
+      "R": 1.5,
+      "r": 0.15,
+      "tissue": "fibrous",
+      "_note": "TV is ≈0.8 cm more apical than MV (normal apical offset)."
+    },
+    "TV_septal": {
+      "type": "leaflet",
+      "hinge": [
+        2.2,
+        0.3,
+        0.9
+      ],
+      "dirClosed": [
+        0.8,
+        0,
+        0.6
+      ],
+      "length": 1.6,
+      "width": 2.5,
+      "thickness": 0.25,
+      "openToward": [
+        0,
+        0,
+        1
+      ],
+      "openAngle": {
+        "param": "TV_open",
+        "scale": 0.8
+      },
+      "tissue": "valve",
+      "label": "TV (septal)",
+      "tipThickness": 0.14,
+      "curvatureClosed": 0.2,
+      "curvatureOpen": 0.4,
+      "bowClosed": [
+        0,
+        0,
+        -1
+      ],
+      "bowOpen": [
+        -0.5,
+        0,
+        0.4
+      ],
+      "widthCurl": 0.2,
+      "arc": 0.25
+    },
+    "TV_anterior": {
+      "type": "leaflet",
+      "hinge": [
+        5.0,
+        0.0,
+        0.7
+      ],
+      "dirClosed": [
+        -0.8,
+        0,
+        0.6
+      ],
+      "length": 2.2,
+      "width": 3.0,
+      "thickness": 0.25,
+      "openToward": [
+        0,
+        0,
+        1
+      ],
+      "openAngle": {
+        "param": "TV_open",
+        "scale": 1.0
+      },
+      "tissue": "valve",
+      "label": "TV (anterior)",
+      "tipThickness": 0.14,
+      "curvatureClosed": 0.2,
+      "curvatureOpen": 0.5,
+      "bowClosed": [
+        0,
+        0,
+        -1
+      ],
+      "bowOpen": [
+        0.5,
+        0,
+        0.4
+      ],
+      "widthCurl": 0.2,
+      "arc": 0.25
+    },
+    "aortic_root": {
+      "type": "lathe",
+      "axisOrigin": "AV_center",
+      "axis": "aortic_root",
+      "profile": [
+        [
+          0,
+          1.15
+        ],
+        [
+          0.6,
+          1.45
+        ],
+        [
+          1.2,
+          1.6
+        ],
+        [
+          1.9,
+          1.5
+        ],
+        [
+          2.4,
+          1.35
+        ],
+        [
+          6.5,
+          1.45
+        ]
+      ],
+      "_profile_note": "[distance along axis, radius]: annulus 2.3 → sinus 3.2 → STJ 2.7 → ascending 2.9 cm diameters.",
+      "wall": 0.2,
+      "tissue": "blood",
+      "labels": {
+        "root": "Ao root",
+        "ascending": "Asc. aorta"
+      }
+    },
+    "AV_cusps": {
+      "type": "cusps",
+      "center": "AV_center",
+      "axis": "aortic_root",
+      "dirs": "AV_cusp_dirs",
+      "radius": 1.15,
+      "height": 1.1,
+      "thickness": 0.12,
+      "openFraction": {
+        "param": "AV_open"
+      },
+      "tissue": "valve",
+      "labels": {
+        "RCC": "RCC",
+        "LCC": "LCC",
+        "NCC": "NCC"
+      },
+      "_note": "Closed in diastole → 'Mercedes-Benz' Y in PSAX-AV; open in systole → triangular orifice.",
+      "bellySag": 0.3,
+      "_bellyNote": "Closed cusps sag toward the LV at the centre (belly), so the coaptation line is curved in PLAX/A5C."
+    },
+    "PV_cusps": {
+      "type": "cusps",
+      "center": "PV_center",
+      "axisFrom": "PV_center",
+      "axisTo": "PA_bifurcation",
+      "radius": 1.1,
+      "height": 1.0,
+      "thickness": 0.1,
+      "openFraction": {
+        "param": "PV_open"
+      },
+      "tissue": "valve",
+      "label": "PV"
+    },
+    "pericardium": {
+      "type": "shell",
+      "of": "heart_epicardial_union",
+      "offset": 0.15,
+      "thickness": 0.16,
+      "tissue": "pericardium",
+      "label": "Pericardium",
+      "space": {
+        "param": "effusion_cm",
+        "ed": 0.0,
+        "_note": "Normal = 0 (physiologic fluid not rendered). Pathology pack sets >0."
+      },
+      "posteriorExtra": 0.3,
+      "_posteriorNote": "Posterior (AV-groove / inferolateral) pericardium is thicker and brighter, as in the PLAX far field; elsewhere it stays thin so chambers don't get white rims."
+    },
+    "epicardial_fat": {
+      "type": "shell",
+      "of": "heart_epicardial_union",
+      "offset": 0,
+      "thickness": 0.12,
+      "tissue": "fat",
+      "regionsOnly": [
+        "AV_groove",
+        "RV_free_wall_anterior"
+      ]
+    }
+  },
+  "extracardiac_patient": {
+    "_note": "Patient frame (cm). These do NOT move with the heart in LLD (only the body rolls).",
+    "torso": {
+      "type": "ellipticCylinder",
+      "axis": "y",
+      "center_xz": [
+        0,
+        -11
+      ],
+      "halfWidthX": 16,
+      "halfDepthZ": 11,
+      "yRange": [
+        2,
+        -40
+      ],
+      "tissue": "skin_surface",
+      "_note": "Anterior skin z = -11 + 11*sqrt(1-(x/16)^2). Visual mesh may be nicer; echo uses this surface for probe contact."
+    },
+    "chest_wall": {
+      "type": "layer",
+      "below": "torso",
+      "thickness": 1.2,
+      "tissue": "chest_wall",
+      "_note": "Skin 0.2 + fat/muscle 1.0 → bright layered near field."
+    },
+    "sternum": {
+      "type": "segments",
+      "items": [
+        {
+          "name": "manubrium",
+          "yRange": [
+            -0.5,
+            -5.0
+          ],
+          "halfWidth": [
+            2.8,
+            2.0
+          ]
+        },
+        {
+          "name": "body",
+          "yRange": [
+            -5.0,
+            -18.0
+          ],
+          "halfWidth": [
+            1.8,
+            1.5
+          ]
+        },
+        {
+          "name": "xiphoid",
+          "yRange": [
+            -18.0,
+            -20.5
+          ],
+          "halfWidth": [
+            0.8,
+            0.3
+          ]
+        }
+      ],
+      "frontZ": -0.6,
+      "thickness": 1.2,
+      "tissue": "bone",
+      "landmarks": {
+        "sternal_angle_y": -5.0,
+        "xiphoid_tip_y": -20.5
+      }
+    },
+    "ribs": {
+      "_note": "Anterior rib arcs follow the chest surface at depth 1.0 (centre). Rib n centre y at |x|: y = -0.875 - 2.25*n - 0.25*max(0, |x|-3). ICS n (between rib n and n+1) centre: y = -2.0 - 2.25*n - 0.25*max(0,|x|-3). Example at parasternal x=3: ICS2 -6.5, ICS3 -8.75, ICS4 -11.0, ICS5 -13.25. Width 1.0 → intercostal gap ≈1.25 cm (a phased-array footprint fits, edge beams may clip ribs = realistic edge shadows).",
+      "numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "craniocaudalWidth": 1.0,
+      "thickness": 0.8,
+      "costochondralJunction_absX": {
+        "1": 3.5,
+        "2": 4.5,
+        "3": 5.5,
+        "4": 6.5,
+        "5": 7.5,
+        "6": 8.0,
+        "7": 8.0,
+        "8": 9.0,
+        "9": 10.0,
+        "10": 11.0
+      },
+      "cartilage": "medial to the junction; ribs 6–7 cartilage curves down to meet the sternum at y≈-17; ribs 8–10 join the costal margin",
+      "costalMargin_polyline": [
+        [
+          1.5,
+          -20.5
+        ],
+        [
+          6,
+          -22
+        ],
+        [
+          10,
+          -25
+        ],
+        [
+          13,
+          -26
+        ]
+      ],
+      "costalMargin_mirror": true,
+      "tissue_bone": "bone",
+      "tissue_cartilage": "cartilage",
+      "LLD_icsWidening_cm": 0.15
+    },
+    "clavicles": {
+      "type": "capsules",
+      "items": [
+        {
+          "a": [
+            2,
+            0.5,
+            -0.8
+          ],
+          "b": [
+            15,
+            1.5,
+            -3.0
+          ]
+        },
+        {
+          "a": [
+            -2,
+            0.5,
+            -0.8
+          ],
+          "b": [
+            -15,
+            1.5,
+            -3.0
+          ]
+        }
+      ],
+      "r": 0.8,
+      "tissue": "bone"
+    },
+    "vertebral_column": {
+      "type": "box",
+      "xRange": [
+        -2.2,
+        2.2
+      ],
+      "zRange": [
+        -13.5,
+        -17.5
+      ],
+      "yRange": [
+        2,
+        -40
+      ],
+      "tissue": "bone"
+    },
+    "descending_aorta": {
+      "type": "capsule",
+      "points": [
+        [
+          2.4,
+          -5.5,
+          -12.9
+        ],
+        [
+          2.6,
+          -12.0,
+          -13.0
+        ],
+        [
+          2.2,
+          -20.0,
+          -13.1
+        ],
+        [
+          1.2,
+          -30.0,
+          -13.0
+        ],
+        [
+          0.8,
+          -40.0,
+          -12.5
+        ]
+      ],
+      "r": 1.1,
+      "wall": 0.2,
+      "tissue": "blood",
+      "labels": {
+        "thoracic": "Desc. Ao",
+        "abdominal": "Abd. aorta"
+      },
+      "_note": "Sits just behind the LA/AV groove → visible in PLAX far field; abdominal part lies LEFT of the IVC (IVC-view pitfall)."
+    },
+    "IVC": {
+      "type": "capsule",
+      "points": [
+        [
+          -2.4,
+          -32,
+          -11.0
+        ],
+        [
+          -2.6,
+          -22,
+          -10.2
+        ],
+        [
+          -3.0,
+          -15.5,
+          -8.6
+        ],
+        [
+          -3.3,
+          -11.3,
+          -6.6
+        ]
+      ],
+      "r": {
+        "param": "IVC_r",
+        "ed": 0.9
+      },
+      "wall": 0.12,
+      "tissue": "blood",
+      "label": "IVC",
+      "joins": "RA"
+    },
+    "hepatic_veins": {
+      "type": "capsules",
+      "items": [
+        {
+          "a": [
+            -1.5,
+            -18.5,
+            -6.0
+          ],
+          "b": [
+            -2.8,
+            -14.2,
+            -8.0
+          ],
+          "r": 0.35,
+          "label": "Middle HV"
+        },
+        {
+          "a": [
+            -7.0,
+            -18.0,
+            -8.5
+          ],
+          "b": [
+            -3.3,
+            -14.0,
+            -8.3
+          ],
+          "r": 0.4,
+          "label": "Right HV"
+        }
+      ],
+      "tissue": "blood"
+    },
+    "liver": {
+      "type": "smoothUnion",
+      "k": 1.5,
+      "items": [
+        {
+          "type": "ellipsoid",
+          "center": [
+            -6.0,
+            -20.0,
+            -9.0
+          ],
+          "semi": [
+            9.0,
+            6.5,
+            8.0
+          ]
+        },
+        {
+          "type": "ellipsoid",
+          "center": [
+            1.0,
+            -19.0,
+            -5.5
+          ],
+          "semi": [
+            7.0,
+            4.5,
+            5.0
+          ]
+        }
+      ],
+      "minus": [
+        "IVC",
+        "hepatic_veins"
+      ],
+      "tissue": "liver",
+      "label": "Liver",
+      "_note": "Left lobe sits under the xiphoid → acoustic window for subxiphoid views."
+    },
+    "diaphragm": {
+      "type": "shell",
+      "of": {
+        "type": "union",
+        "items": [
+          "liver",
+          {
+            "type": "ellipsoid",
+            "center": [
+              7,
+              -20,
+              -9
+            ],
+            "semi": [
+              6.5,
+              5,
+              7
+            ]
+          }
+        ]
+      },
+      "side": "superior",
+      "thickness": 0.4,
+      "tissue": "diaphragm",
+      "label": "Diaphragm"
+    },
+    "stomach_gas": {
+      "type": "ellipsoid",
+      "center": [
+        7.5,
+        -21.0,
+        -5.0
+      ],
+      "semi": [
+        4.0,
+        3.0,
+        3.5
+      ],
+      "tissue": "gas",
+      "_note": "Blocks a subxiphoid probe placed too far left (POCUS101 pitfall)."
+    },
+    "lungs": {
+      "left": {
+        "type": "subtract",
+        "from": {
+          "type": "ellipsoid",
+          "center": [
+            9.0,
+            -9.5,
+            -10.5
+          ],
+          "semi": [
+            7.0,
+            10.5,
+            9.5
+          ]
+        },
+        "minus": [
+          "mediastinum",
+          "cardiac_notch",
+          "pericardium_margin_1cm"
+        ]
+      },
+      "right": {
+        "type": "subtract",
+        "from": {
+          "type": "ellipsoid",
+          "center": [
+            -9.0,
+            -8.5,
+            -10.5
+          ],
+          "semi": [
+            7.0,
+            10.5,
+            9.5
+          ]
+        },
+        "minus": [
+          "mediastinum",
+          "pericardium_margin_1cm"
+        ]
+      },
+      "mediastinum": {
+        "type": "ellipsoid",
+        "center": [
+          0.5,
+          -10.0,
+          -7.5
+        ],
+        "semi": [
+          5.0,
+          9.0,
+          7.0
+        ]
+      },
+      "cardiac_notch": {
+        "supine": {
+          "center": [
+            5.5,
+            -14.0,
+            -2.0
+          ],
+          "semi": [
+            3.8,
+            4.0,
+            4.5
+          ]
+        },
+        "LLD": {
+          "center": [
+            7.0,
+            -14.5,
+            -2.5
+          ],
+          "semi": [
+            5.2,
+            4.5,
+            5.0
+          ]
+        }
+      },
+      "respiratoryExcursion_cm": {
+        "inspiration_extraNotchShrink": 0.6
+      },
+      "tissue": "lung",
+      "_note": "Anterior lung edges are where most 'no image' moments come from — tune so parasternal ICS3–4 and apical windows are partly open supine and clearly open in LLD."
+    }
+  },
+  "tissues": {
+    "_note": "Shader lookup. brightness = mean echo amplitude (0–1) before speckle; transmit = fraction of energy passing beyond (1 = no shadow); speckleCm = speckle grain size; edgeBoost = specular interface brightness.",
+    "blood": {
+      "brightness": 0.03,
+      "transmit": 1.0,
+      "speckleCm": 0.05,
+      "edgeBoost": 0.0
+    },
+    "myocardium": {
+      "brightness": 0.38,
+      "transmit": 0.98,
+      "speckleCm": 0.09,
+      "edgeBoost": 0.15
+    },
+    "valve": {
+      "brightness": 0.75,
+      "transmit": 0.97,
+      "speckleCm": 0.06,
+      "edgeBoost": 0.3
+    },
+    "fibrous": {
+      "brightness": 0.7,
+      "transmit": 0.95,
+      "speckleCm": 0.06,
+      "edgeBoost": 0.3
+    },
+    "pericardium": {
+      "brightness": 0.75,
+      "transmit": 0.92,
+      "speckleCm": 0.05,
+      "edgeBoost": 0.35
+    },
+    "fat": {
+      "brightness": 0.5,
+      "transmit": 0.97,
+      "speckleCm": 0.1,
+      "edgeBoost": 0.1
+    },
+    "chest_wall": {
+      "brightness": 0.45,
+      "transmit": 0.93,
+      "speckleCm": 0.1,
+      "edgeBoost": 0.2,
+      "layered": true
+    },
+    "liver": {
+      "brightness": 0.42,
+      "transmit": 0.97,
+      "speckleCm": 0.07,
+      "edgeBoost": 0.1
+    },
+    "diaphragm": {
+      "brightness": 0.9,
+      "transmit": 0.9,
+      "speckleCm": 0.05,
+      "edgeBoost": 0.6
+    },
+    "vessel_wall": {
+      "brightness": 0.6,
+      "transmit": 0.98,
+      "speckleCm": 0.05,
+      "edgeBoost": 0.3
+    },
+    "cartilage": {
+      "brightness": 0.22,
+      "transmit": 0.6,
+      "speckleCm": 0.08,
+      "edgeBoost": 0.2
+    },
+    "bone": {
+      "brightness": 1.0,
+      "transmit": 0.04,
+      "speckleCm": 0.05,
+      "edgeBoost": 1.0,
+      "artifact": "acoustic_shadow"
+    },
+    "lung": {
+      "brightness": 0.9,
+      "transmit": 0.0,
+      "speckleCm": 0.05,
+      "edgeBoost": 1.0,
+      "artifact": "A_lines_reverberation"
+    },
+    "gas": {
+      "brightness": 0.85,
+      "transmit": 0.0,
+      "speckleCm": 0.05,
+      "edgeBoost": 1.0,
+      "artifact": "dirty_shadow"
+    },
+    "fluid": {
+      "brightness": 0.0,
+      "transmit": 1.0,
+      "speckleCm": 0.05,
+      "edgeBoost": 0.0,
+      "artifact": "posterior_enhancement"
+    }
+  },
+  "imaging_defaults": {
+    "frequencyMHz": 2.5,
+    "attenuation_dB_per_cm_MHz": 0.5,
+    "gain_dB": 0,
+    "dynamicRange_dB": 55,
+    "sectorDeg": 80,
+    "persistence": 0.3,
+    "lateralBlur_cm_per_cm_depth": 0.012,
+    "nearFieldClutter_cm": 1.5,
+    "frameRateFps": 50,
+    "speckleSeeding": "hash(world position quantised to speckleCm) → Rayleigh sample; re-seeded slowly (decorrelation 0.1/frame) so it shimmers like real tissue"
+  },
+  "cycle": {
+    "HR_default": 70,
+    "_timing_note": "t is fraction of RR from R peak. At 70 bpm (RR 857 ms): IVC 0–0.06, ejection 0.06–0.38, IVR 0.38–0.47, rapid filling (E) 0.47–0.62, diastasis 0.62–0.86, atrial contraction (A) 0.86–1.0.",
+    "HR_scaling": "Keep systole (t 0→0.47 at 70 bpm = 400 ms) as systoleMs = 400 - 1.6*(HR-70), clamped 300–420 ms; compress/expand diastasis first, then rapid filling.",
+    "phases": [
+      {
+        "name": "isovolumic contraction",
+        "t": [
+          0.0,
+          0.06
+        ]
+      },
+      {
+        "name": "ejection",
+        "t": [
+          0.06,
+          0.38
+        ]
+      },
+      {
+        "name": "isovolumic relaxation",
+        "t": [
+          0.38,
+          0.47
+        ]
+      },
+      {
+        "name": "rapid filling (E)",
+        "t": [
+          0.47,
+          0.62
+        ]
+      },
+      {
+        "name": "diastasis",
+        "t": [
+          0.62,
+          0.86
+        ]
+      },
+      {
+        "name": "atrial contraction (A)",
+        "t": [
+          0.86,
+          1.0
+        ]
+      }
+    ],
+    "markers": {
+      "ED": 0.0,
+      "ES": 0.38
+    },
+    "interpolation": "monotone cubic (Catmull-Rom without overshoot)",
+    "params": {
+      "LV_semiXY": [
+        [
+          0,
+          2.4
+        ],
+        [
+          0.06,
+          2.4
+        ],
+        [
+          0.38,
+          1.6
+        ],
+        [
+          0.47,
+          1.62
+        ],
+        [
+          0.62,
+          2.25
+        ],
+        [
+          0.86,
+          2.3
+        ],
+        [
+          1.0,
+          2.4
+        ]
+      ],
+      "LV_semiZ": [
+        [
+          0,
+          5.5
+        ],
+        [
+          0.06,
+          5.5
+        ],
+        [
+          0.38,
+          4.5
+        ],
+        [
+          0.47,
+          4.55
+        ],
+        [
+          0.62,
+          5.2
+        ],
+        [
+          0.86,
+          5.3
+        ],
+        [
+          1.0,
+          5.5
+        ]
+      ],
+      "LV_centerZ": [
+        [
+          0,
+          3.0
+        ],
+        [
+          0.38,
+          3.9
+        ],
+        [
+          0.47,
+          3.85
+        ],
+        [
+          0.62,
+          3.25
+        ],
+        [
+          0.86,
+          3.2
+        ],
+        [
+          1.0,
+          3.0
+        ]
+      ],
+      "MV_annulusZ": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0.06,
+          0.05
+        ],
+        [
+          0.38,
+          1.3
+        ],
+        [
+          0.47,
+          1.25
+        ],
+        [
+          0.62,
+          0.35
+        ],
+        [
+          0.86,
+          0.25
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "LV_outerXY": [
+        [
+          0,
+          3.3
+        ],
+        [
+          0.38,
+          3.0
+        ],
+        [
+          0.47,
+          3.0
+        ],
+        [
+          0.62,
+          3.2
+        ],
+        [
+          0.86,
+          3.25
+        ],
+        [
+          1.0,
+          3.3
+        ]
+      ],
+      "LV_outerZ": [
+        [
+          0,
+          6.4
+        ],
+        [
+          0.38,
+          5.4
+        ],
+        [
+          0.47,
+          5.45
+        ],
+        [
+          0.62,
+          6.1
+        ],
+        [
+          0.86,
+          6.2
+        ],
+        [
+          1.0,
+          6.4
+        ]
+      ],
+      "_LV_check": "Diastole: EDD 4.8, wall 0.9, length 8.5 (apex endo 8.5). Systole: ESD 3.2, wall 1.4, length 8.4-1.3 = 7.1–7.2, MAPSE 1.3 → EF (Teichholz-ish) ≈ 60%.",
+      "RV_centerX": [
+        [
+          0,
+          2.6
+        ],
+        [
+          0.38,
+          2.45
+        ],
+        [
+          1.0,
+          2.6
+        ]
+      ],
+      "RV_centerZ": [
+        [
+          0,
+          2.4
+        ],
+        [
+          0.38,
+          2.9
+        ],
+        [
+          0.62,
+          2.55
+        ],
+        [
+          1.0,
+          2.4
+        ]
+      ],
+      "RV_semiX": [
+        [
+          0,
+          4.2
+        ],
+        [
+          0.38,
+          3.7
+        ],
+        [
+          0.62,
+          4.05
+        ],
+        [
+          0.86,
+          4.1
+        ],
+        [
+          1.0,
+          4.2
+        ]
+      ],
+      "RV_semiY": [
+        [
+          0,
+          2.6
+        ],
+        [
+          0.38,
+          2.3
+        ],
+        [
+          0.62,
+          2.5
+        ],
+        [
+          1.0,
+          2.6
+        ]
+      ],
+      "RV_semiZ": [
+        [
+          0,
+          4.2
+        ],
+        [
+          0.38,
+          3.8
+        ],
+        [
+          0.62,
+          4.1
+        ],
+        [
+          1.0,
+          4.2
+        ]
+      ],
+      "TV_annulusShiftZ": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0.38,
+          2.0
+        ],
+        [
+          0.47,
+          1.9
+        ],
+        [
+          0.62,
+          0.5
+        ],
+        [
+          0.86,
+          0.3
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "_TAPSE_note": "Lateral TV annulus excursion 2.0 cm (normal TAPSE ≥1.7).",
+      "RVOT_r": [
+        [
+          0,
+          1.4
+        ],
+        [
+          0.38,
+          1.2
+        ],
+        [
+          1.0,
+          1.4
+        ]
+      ],
+      "LA_scale": [
+        [
+          0,
+          1.0
+        ],
+        [
+          0.38,
+          1.2
+        ],
+        [
+          0.47,
+          1.2
+        ],
+        [
+          0.62,
+          1.08
+        ],
+        [
+          0.86,
+          1.05
+        ],
+        [
+          0.95,
+          0.96
+        ],
+        [
+          1.0,
+          1.0
+        ]
+      ],
+      "LA_semiX": "1.9 * LA_scale",
+      "LA_semiY": "1.5 * LA_scale",
+      "LA_semiZ": "2.2 * LA_scale",
+      "RA_scale": [
+        [
+          0,
+          1.0
+        ],
+        [
+          0.38,
+          1.15
+        ],
+        [
+          0.47,
+          1.15
+        ],
+        [
+          0.62,
+          1.06
+        ],
+        [
+          0.86,
+          1.04
+        ],
+        [
+          0.95,
+          0.96
+        ],
+        [
+          1.0,
+          1.0
+        ]
+      ],
+      "RA_semiX": "1.6 * RA_scale",
+      "RA_semiY": "1.6 * RA_scale",
+      "RA_semiZ": "2.1 * RA_scale",
+      "MV_open": [
+        [
+          0,
+          0
+        ],
+        [
+          0.47,
+          0
+        ],
+        [
+          0.53,
+          70
+        ],
+        [
+          0.62,
+          40
+        ],
+        [
+          0.75,
+          25
+        ],
+        [
+          0.86,
+          28
+        ],
+        [
+          0.93,
+          55
+        ],
+        [
+          0.99,
+          5
+        ],
+        [
+          1.0,
+          0
+        ]
+      ],
+      "TV_open": [
+        [
+          0,
+          0
+        ],
+        [
+          0.48,
+          0
+        ],
+        [
+          0.54,
+          65
+        ],
+        [
+          0.63,
+          38
+        ],
+        [
+          0.75,
+          25
+        ],
+        [
+          0.86,
+          28
+        ],
+        [
+          0.93,
+          50
+        ],
+        [
+          0.99,
+          5
+        ],
+        [
+          1.0,
+          0
+        ]
+      ],
+      "AV_open": [
+        [
+          0,
+          0
+        ],
+        [
+          0.06,
+          0
+        ],
+        [
+          0.09,
+          1.0
+        ],
+        [
+          0.3,
+          0.9
+        ],
+        [
+          0.36,
+          0.3
+        ],
+        [
+          0.38,
+          0
+        ],
+        [
+          1.0,
+          0
+        ]
+      ],
+      "PV_open": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          0
+        ],
+        [
+          0.08,
+          1.0
+        ],
+        [
+          0.32,
+          0.9
+        ],
+        [
+          0.38,
+          0.3
+        ],
+        [
+          0.4,
+          0
+        ],
+        [
+          1.0,
+          0
+        ]
+      ]
+    },
+    "ecg": {
+      "_note": "Sum of Gaussians on t (wrap at 1.0). amp in mV-ish units; draw as a green trace with moving cursor; ED marker at R, ES marker at end of T.",
+      "waves": [
+        {
+          "name": "P",
+          "center": 0.86,
+          "width": 0.025,
+          "amp": 0.15
+        },
+        {
+          "name": "Q",
+          "center": -0.015,
+          "width": 0.006,
+          "amp": -0.12
+        },
+        {
+          "name": "R",
+          "center": 0.0,
+          "width": 0.008,
+          "amp": 1.0
+        },
+        {
+          "name": "S",
+          "center": 0.018,
+          "width": 0.008,
+          "amp": -0.25
+        },
+        {
+          "name": "T",
+          "center": 0.32,
+          "width": 0.045,
+          "amp": 0.3
+        }
+      ]
+    }
+  },
+  "respiration": {
+    "rate_per_min": 14,
+    "_note": "Spontaneous breathing. t_resp 0 = start of inspiration, 0.4 = end-inspiration.",
+    "IVC_r": [
+      [
+        0,
+        0.9
+      ],
+      [
+        0.4,
+        0.45
+      ],
+      [
+        0.55,
+        0.8
+      ],
+      [
+        1.0,
+        0.9
+      ]
+    ],
+    "_IVC_note": "Diameter 1.8 cm, ~50% inspiratory collapse → normal RAP (ASE: ≤2.1 cm & >50% → RAP ≈3).",
+    "heartShift_y_cm": {
+      "amplitude": 0.4,
+      "enabledByDefault": false,
+      "_note": "Optional realism: heart descends slightly on inspiration."
+    },
+    "sniffButton": {
+      "IVC_r_min": 0.25,
+      "duration_s": 1.2
+    }
+  },
+  "positions": {
+    "supine": {
+      "bodyRollDeg": 0,
+      "heartOffset_patient": [
+        0,
+        0,
+        0
+      ],
+      "heartRotateYDeg": 0,
+      "lungNotch": "supine",
+      "kneesBentCue": [
+        "subxiphoid_4c",
+        "ivc"
+      ]
+    },
+    "LLD": {
+      "bodyRollDeg": 40,
+      "_roll_note": "Whole body rotates about the patient y axis, left side down (rendering). Heart offset below is relative to the thorax (gravity).",
+      "heartOffset_patient": [
+        1.6,
+        -0.2,
+        -0.6
+      ],
+      "heartRotateYDeg": 8,
+      "heartRotatePivot": "MV_center",
+      "_rotate_note": "Positive = apex swings laterally/posteriorly; apical window moves toward the anterior axillary line.",
+      "lungNotch": "LLD",
+      "armPose": "left arm abducted above head (opens ICS by ribs.LLD_icsWidening_cm)",
+      "teachingTooltip": "In left lateral decubitus the heart falls toward the left chest wall and the lingula slides away, so the parasternal and apical windows open up and the apex moves lateral."
+    }
+  },
+  "palette_anatomyTint": {
+    "_note": "Shared by echo 'Anatomy tint' overlay and the inset cut face (alpha ~0.35 on echo).",
+    "LV": "#E4574F",
+    "LV_myocardium": "#B8323A",
+    "RV": "#5B8DEF",
+    "RV_free_wall": "#3E63B8",
+    "LA": "#F29B6B",
+    "RA": "#7FB3F5",
+    "Ao": "#F2C14E",
+    "PA": "#8E7CF0",
+    "valves": "#F5F1E6",
+    "pericardium": "#FFE29A",
+    "liver": "#9A6B4F",
+    "IVC": "#6FA8DC",
+    "DA": "#E0A458",
+    "CS": "#C77DDB"
+  }
+}
