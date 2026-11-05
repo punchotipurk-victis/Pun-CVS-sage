@@ -244,9 +244,10 @@ const PHANTOM = (() => {
     add(`float dLiver = smin(sdEllipsoid(p - vec3(${lv[0].center.map(f)}), vec3(${lv[0].semi.map(f)})), sdEllipsoid(p - vec3(${lv[1].center.map(f)}), vec3(${lv[1].semi.map(f)})), ${f(E.liver.k)});`);
     add(`float dDome = min(dLiver, sdEllipsoid(p - vec3(7.0,-20.0,-9.0), vec3(6.5,5.0,7.0)));`);
     add(`if (dLiver < 0.0) { tissue = ${T.liver}; label = ${Lb["liver"]}; return; }`);
-    add(`if (dDome < 0.4 && p.y > -26.0) { tissue = ${T.diaphragm}; label = ${Lb["diaphragm"]}; return; }`);
+    add(`if (abs(dDome) < 0.4 && p.y > -26.0) { tissue = ${T.diaphragm}; label = ${Lb["diaphragm"]}; return; }`);   // a shell (phantom: thickness 0.4), not a solid dome
     const sg = E.stomach_gas;
     add(`if (sdEllipsoid(p - vec3(${sg.center.map(f)}), vec3(${sg.semi.map(f)})) < 0.0) { tissue = ${T.gas}; label = ${Lb["stomach_gas"]}; return; }`);
+    add(`if (dDome < 0.0 && p.y > -26.0) { tissue = ${T.soft}; label = 0; return; }`);   // abdomen under the dome: soft tissue, never lung
     /* lungs: ellipsoids minus mediastinum minus cardiac notch (notch is a uniform: changes with LLD) */
     const lu = E.lungs;
     add(`float dMed = sdEllipsoid(p - vec3(${lu.mediastinum.center.map(f)}), vec3(${lu.mediastinum.semi.map(f)}));`);

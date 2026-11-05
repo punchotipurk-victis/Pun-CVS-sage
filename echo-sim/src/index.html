@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Echo Simulator Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--@CSS:src/ui/style.css-->
+</head><body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="boot" role="status">Starting… (needs Chrome or Edge with hardware acceleration)</div>
+<div id="app">
+  <header id="top">
+    <h1>Echo Simulator</h1>
+    <span class="chip" id="chip" data-state="search" title="Best-matching view and image quality">Searching…</span>
+    <span class="group" aria-label="Depth"><button id="depthDn" aria-label="Decrease depth">−</button><span id="depthVal">16 cm</span><button id="depthUp" aria-label="Increase depth">+</button></span>
+    <span class="group"><button id="edBtn" title="Jump to end-diastole and freeze">ED</button><button id="esBtn" title="Jump to end-systole and freeze">ES</button><button id="freeze">Freeze</button></span>
+    <span class="seg" role="group" aria-label="Patient position"><button id="posSup">Supine</button><button id="posLLD" title="Left lateral decubitus">LLD</button></span>
+    <span class="seg" role="group" aria-label="Screen convention"><button id="convASE" title="Cardiology: marker on screen right">ASE</button><button id="convPOCUS" title="Emergency: marker on screen left">POCUS</button></span>
+    <button id="bodyBtn" title="Skin → Ghost → Skeleton (B)">Body: Skin</button>
+    <span class="seg" role="group" aria-label="Gesture mode"><button id="modeProbe" title="Gestures move the probe">Probe</button><button id="modeCam" title="Gestures orbit and zoom the camera">Camera</button></span>
+  </header>
+  <main id="main">
+    <div id="stageCol">
+      <section id="stage" tabindex="0" aria-label="3D patient. Drag the probe to slide it. Keys: arrows slide, Q and E rotate, W and S tilt, A and D rock."></section>
+      <div id="inset" aria-label="Anatomy inset">
+        <div id="panes">
+          <div class="pane" id="paneCut"><span class="pane-name">Heart cutaway</span><button class="swapBtn" id="swapCut" aria-label="Expand heart cutaway">⇄</button></div>
+          <div class="pane" id="paneMap"><span class="pane-name">Torso map</span><button class="swapBtn" id="swapMap" aria-label="Expand torso map">⇄</button></div>
+        </div>
+        <div id="cutCtl">
+          <button id="cutSection" aria-pressed="true" title="Clip the heart at the beam plane, or show it whole">Section</button>
+          <select id="cutPreset" aria-label="Cutaway camera"><option value="follow">Follow beam</option><option value="front">Front</option><option value="probe">Probe's eye</option><option value="free">Free orbit</option></select>
+          <button id="cut_ribs">Ribs</button><button id="cut_lungs">Lungs</button><button id="cut_liver">Liver</button>
+        </div>
+        <div id="strip">
+          <div id="readout" aria-live="off">–</div>
+          <div id="stripRow"><span class="chip" id="chipInset" data-state="search">Searching…</span><span class="sp"></span>
+            <button id="insetSize" title="Normal or large inset" aria-label="Toggle inset size">⤢</button><button id="insetMin" title="Minimise inset" aria-label="Minimise inset">–</button></div>
+        </div>
+      </div>
+      <div id="pad" role="group" aria-label="Probe control pad">
+        <div id="padKeys"></div>
+        <button id="fineBtn" title="Fine mode, 0.3× (F)">Fine ×0.3</button>
+      </div>
+      <div id="toast" role="status" hidden></div>
+    </div>
+    <section id="echoCol" aria-label="Echo screen">
+      <div id="echoScreen"><canvas id="echoOverlay" aria-hidden="true"></canvas></div>
+      <div id="ecgWrap"><canvas id="ecg" aria-label="ECG strip synchronised with the echo"></canvas></div>
+    </section>
+    <aside id="panel">
+      <div id="tabs" role="tablist"><button role="tab" data-tab="probeTab" aria-selected="true">Probe</button><button role="tab" data-tab="imageTab" aria-selected="false">Image</button></div>
+      <div id="probeTab">
+        <div class="row"><select id="snapView" aria-label="Move the probe to a view's computed target"><option value="">Snap to a view…</option></select></div>
+        <div id="probeSliders"></div>
+        <div class="row"><button id="pressAuto" title="Use each window's standard probe pressure">Auto press</button></div>
+        <p class="help"><b>Moving the probe.</b> Drag the probe to slide. Wheel or <kbd>Q</kbd><kbd>E</kbd> rotates. <kbd>Shift</kbd>+drag tilts (up/down) and rocks (left/right). <kbd>W</kbd><kbd>S</kbd> tilt, <kbd>A</kbd><kbd>D</kbd> rock, arrows slide, <kbd>F</kbd> fine. Touch: one finger slides, two fingers twist, tilt or rock. <kbd>B</kbd> changes the body view.</p>
+      </div>
+      <div id="imageTab" hidden><div id="imageSliders"></div></div>
+    </aside>
+  </main>
+  <footer>Simulation model for learning only — not for diagnosis or patient care.</footer>
+</div>
+<!--@THREE-->
+<!--@JSON:phantom:data/phantom-normal.json-->
+<!--@JSON:views:data/views.json-->
+<!--@JSON?:viewsOverrides:data/views.overrides.json-->
+<!--@JS:src/engine/phantom.js-->
+<!--@JS:src/engine/probe.js-->
+<!--@JS:src/engine/derive.js-->
+<!--@JS:src/engine/echo.js-->
+<!--@JS:src/engine/scoring.js-->
+<!--@JS:src/ui/scene.js-->
+<!--@JS:src/ui/inset.js-->
+<!--@JS:src/ui/panels.js-->
+<!--@JS:src/ui/input.js-->
+<!--@JS:src/ui/app.js-->
+</body></html>

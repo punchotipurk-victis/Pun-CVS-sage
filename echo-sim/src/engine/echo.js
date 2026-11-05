@@ -86,7 +86,9 @@ uniform sampler2D uBeamTex, uTissue; uniform float uSector, uGain, uDR, uMarkerR
 in vec2 vUv; out vec4 o;
 void main(){
   /* screen: apex at top-centre; x to the marker side = the probe's notch (lateral) side */
-  vec2 q = vec2((vUv.x - 0.5)*2.0*uAspect, 1.0 - vUv.y) ; q.x *= uMarkerRight > 0.5 ? 1.0 : -1.0;
+  vec2 q = vec2((vUv.x - 0.5)*uAspect, 1.0 - vUv.y);          // 1 unit = screen height on BOTH axes (isotropic, so a round LV stays round)
+  q *= max(1.0, 2.0*0.97*sin(min(uSector, 3.14)*0.5)/uAspect); // zoom out so a wide fan fits a narrow screen
+  q.x *= uMarkerRight > 0.5 ? 1.0 : -1.0;
   float R = 0.97, r = length(q)/R, a = atan(q.x, q.y);
   if (r > 1.0 || abs(a) > uSector*0.5) { o = vec4(0.0,0.0,0.0,1.0); return; }
   vec2 tc = vec2(a/uSector + 0.5, r);
