@@ -34,6 +34,8 @@ python tools/validate_data.py data                       # data sanity (ids, fra
 python tools/build_lab.py .                              # → dist/echo-sim.html (fetches three@0.158.0 via npm if vendor/ is empty)
 python tools/build_lab.py . --template src/dev/render-test.html --out dist/render-test.html   # engine smoke test
 python tools/embed_lab.py ../index.html dist/echo-sim.html --key echo --title "Echo Simulator Lab" --tab-long "Echo simulator" --tab-short "Echo"
+python tools/test_lab.py dist/echo-sim.html --shots DIR     # P1 acceptance test (SwiftShader: about 5 min; SKIP_VIEWS=1 skips the view loop)
+python tools/test_embed.py <copy of index.html>             # #echo + all other routes, theme sync, hidden-iframe pause
 ```
 Headless test (Playwright, Chromium flags): `--use-angle=swiftshader --enable-webgl --ignore-gpu-blocklist --enable-unsafe-swiftshader`.
 Pass criteria: no page/shader errors; every view's derived target quality ≥ 80 (supine and LLD); 25° off target < 60;

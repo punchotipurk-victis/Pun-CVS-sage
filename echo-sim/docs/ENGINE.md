@@ -270,6 +270,12 @@ Check each of these, and look at the screenshots yourself:
 - Embedded in a copy of `index.html`: `#echo` opens, and `#mi` and the other labs still route.
 
 ## Pitfalls already found (do not undo)
+- **Fan squeezed sideways (fixed in P1).** Pass C scaled x by 2×aspect, so a 90° fan looked like a kite and a round LV looked oval. x and y now share one scale, and a wide fan zooms out to fit a narrow screen. The overlay in `panels.js` uses the same mapping.
+- **Solid diaphragm (fixed in P1).** `dDome < 0.4` filled the whole left dome with diaphragm and hid stomach gas. It is now `abs(dDome) < 0.4`, with soft tissue under the dome.
+- **Quality is judged over one beat (P1).** Content score = the best single frame in the last R-R interval, because the mitral fish mouth exists only while the valve is open. A frozen image scores that one frame only.
+- **`#inset` must not live inside `#stage`.** On phones it is a static block; inside the stage it filled the 3D view.
+- **Hidden iframe keeps `innerWidth`.** Pause on the host element's rect, not on `innerWidth`.
+- **Collapsed pane.** Other viewports draw over it, so throttling needs a render target that is blitted every frame.
 - **The heart was drawn over the chest wall.** Evaluate the body wall *first* in `scene()`, so bone and chest wall win.
 - **Cavities merged with no wall** (RVOT ran straight into the LVOT/aorta). Carve walls with `max(a, -(b - wall))`.
 - **The LVOT never got labelled.** Test it before the LV cavity.

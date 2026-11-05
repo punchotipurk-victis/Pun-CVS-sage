@@ -116,7 +116,7 @@
     let lastPose = "";
     function frame(now){
       requestAnimationFrame(frame);
-      if (!innerWidth || !innerHeight || document.hidden) { last = now; return; }     // hidden lab iframe: nothing to draw
+      const host = $("app").getBoundingClientRect(); if (!host.width || !host.height || document.hidden) { last = now; return; }     // hidden lab iframe: nothing to draw
       const dt = Math.min(.1, (now-last)/1000); last = now; APP.time += dt; frameDt = dt;
       if (!APP.frozen){ APP.phase = (APP.phase + dt*APP.hr/60)%1; APP.resp = (APP.resp + dt*14/60)%1; }
       drawAll(now);
@@ -150,6 +150,7 @@
       renderOnce(){ drawAll(performance.now(), true); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
       labels: () => eng.readLabels(), tissueLine: i => eng.tissueLine(i), NL: eng.NL, readout: () => panels.readout(), inset: inset.st, swap: inset.swap, orbit: S.orbit, chip: () => $("chip").textContent,
       probeScreen(){ const r = document.getElementById("stage").getBoundingClientRect(); S.aimMain({ w: r.width, h: r.height }); const q = new THREE.Vector3(0, 3, 0).applyMatrix4(S.probeGroup.matrixWorld).project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
+      zoneCentre: id => inset.zoneCentre(id),
       heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img };
   }
   boot().catch(e => { console.error(e); fail(e.message || String(e)); });

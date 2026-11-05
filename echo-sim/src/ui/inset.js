@@ -81,7 +81,8 @@ function makeInset(APP, S){
   }
   function layoutZones(position){ const off = (ph.positions[position].heartOffset_patient || [0])[0];
     for (const z of zones){ const a = z.w, dx = z.id === "apical" ? off : 0;
-      for (let i = 0; i < z.P.count; i++){ const u = z.P.getX(i)+.5, v = z.P.getY(i)+.5, q = S.onSkin(a.xRange[0]+dx+(a.xRange[1]-a.xRange[0])*u, a.yRange[1]+(a.yRange[0]-a.yRange[1])*v, .15); z.P.setXYZ(i, q.x, q.y, q.z); }
+      const uv = z.m.geometry.attributes.uv;                       // uv, not position: this runs again on every position change
+      for (let i = 0; i < z.P.count; i++){ const u = uv.getX(i), v = uv.getY(i), q = S.onSkin(a.xRange[0]+dx+(a.xRange[1]-a.xRange[0])*u, a.yRange[1]+(a.yRange[0]-a.yRange[1])*v, .15); z.P.setXYZ(i, q.x, q.y, q.z); }
       z.P.needsUpdate = true; z.m.geometry.computeBoundingSphere(); } }
   const accent = new T.MeshBasicMaterial({ color: 0xe0592a, depthTest: false }), noteMat = new T.MeshBasicMaterial({ color: 0xff8a3c, depthTest: false });
   const dot = new T.Mesh(new T.SphereGeometry(.85, 16, 12), accent); dot.renderOrder = 6; map.add(dot);
@@ -128,5 +129,6 @@ function makeInset(APP, S){
     S.drawTo(r, H, 0, 1); blitQ.material.uniforms.t.value = rtSmall.texture; renderer.render(blitS, blitC);
   }
   applyClasses();
-  return { st, render, layoutZones, setMapTheme, applyClasses, swap, panes, rectOf };
+  const zoneCentre = id => { const z = zones.find(q => q.id === id); return z.m.geometry.boundingSphere.center.toArray(); };
+  return { st, render, zoneCentre, layoutZones, setMapTheme, applyClasses, swap, panes, rectOf };
 }
