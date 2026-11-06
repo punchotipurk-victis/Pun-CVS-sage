@@ -22,6 +22,7 @@ function makeInset(APP, S){
   $("insetSize").onclick = () => { st.large = !st.large; applyClasses(); };
   $("cutSection").onclick = () => { st.section = !st.section; $("cutSection").textContent = st.section ? "Section" : "Whole"; $("cutSection").setAttribute("aria-pressed", st.section); };
   $("cutPreset").onchange = e => { st.preset = e.target.value; };
+  $("cutColour").onclick = () => { const m = S.colourMode() === "real" ? "teach" : "real"; S.setColourMode(m); $("cutColour").textContent = m === "real" ? "Real colours" : "Label colours"; $("cutColour").setAttribute("aria-pressed", m === "teach"); };
   for (const k of ["ribs", "lungs", "liver"]){ const b = $("cut_" + k); b.setAttribute("aria-pressed", st[k]); b.onclick = () => { st[k] = !st[k]; b.setAttribute("aria-pressed", st[k]); }; }
 
   /* free orbit: dragging the big cutaway switches to Free; wheel zooms */

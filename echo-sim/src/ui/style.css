@@ -17,7 +17,7 @@ html,body{margin:0;height:100%}
 html{background:var(--paper)}
 body{color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.4;overflow-x:hidden}
 #gl{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none;display:block}
-#app{position:relative;z-index:1;display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100vh;height:100dvh;min-width:0}
+#app{position:relative;z-index:1;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;height:100vh;height:100dvh;min-width:0}
 
 /* top bar */
 #top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--rule);min-width:0}
@@ -38,7 +38,8 @@ button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
 #stage{position:absolute;inset:0;overflow:hidden;outline:none;cursor:grab;user-select:none;-webkit-user-select:none}
 #stage.nearprobe{cursor:move}#stage.grabbing{cursor:grabbing}
 #echoCol{display:flex;flex-direction:column;min-height:0;min-width:0;border-left:1px solid var(--rule);background:transparent}
-#echoScreen{position:relative;flex:1 1 auto;min-height:0}
+#echoScreen{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+#echoLive{position:relative;flex:1 1 auto;min-height:0}
 #echoOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #ecgWrap{position:relative;flex:0 0 74px;min-height:0;overflow:hidden;background:#06090a;border-top:1px solid #1d2a2b}
 #ecg{position:absolute;inset:0;display:block;width:100%;height:100%}
@@ -62,7 +63,7 @@ footer{background:var(--surface);border-top:1px solid var(--rule);padding:4px 10
 #fineBtn{align-self:stretch}
 
 /* Anatomy Inset */
-#inset{position:absolute;left:8px;top:8px;width:min(52%,400px);z-index:3;display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:transparent;transition:width .25s}
+#inset{position:absolute;left:8px;top:8px;width:min(44%,340px);z-index:3;display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:transparent;transition:width .25s}
 #inset.large{width:min(74%,620px)}
 #panes{position:relative;aspect-ratio:4/3;width:100%;background:transparent}
 #inset.min #panes,#inset.min #cutCtl{display:none}
@@ -87,7 +88,7 @@ footer{background:var(--surface);border-top:1px solid var(--rule);padding:4px 10
 
 /* two columns: panel below */
 @media (max-width:1099px){
-  #app{height:auto;min-height:100dvh;grid-template-rows:auto auto auto}
+  #app{height:auto;min-height:100dvh;grid-template-rows:auto auto auto auto}
   #main{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
   #stageCol{height:68vh;min-height:460px}#echoCol{height:68vh;min-height:460px}
   #panel{grid-column:1/3;border-left:0;border-top:1px solid var(--rule)}
@@ -110,3 +111,46 @@ footer{background:var(--surface);border-top:1px solid var(--rule);padding:4px 10
   .sl input{height:28px}
 }
 @media (prefers-reduced-motion:reduce){.pane,#inset{transition:none}}
+
+/* view bar */
+#viewBar{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--surface);border-bottom:1px solid var(--rule);min-width:0}
+.vb-l{font:600 .78rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+#viewBtns{display:flex;gap:4px;overflow-x:auto;min-width:0;flex:1;scrollbar-width:thin;padding-bottom:1px}
+#viewBtns button{white-space:nowrap;position:relative;padding:6px 10px}
+#viewBtns button .q{font:500 .66rem var(--f-mono);margin-left:5px;color:var(--muted)}
+#viewBtns button[data-state="near"] .q{color:var(--warn)}
+#viewBtns button[data-state="locked"]{border-color:#14805a}#viewBtns button[data-state="locked"] .q{color:#14805a}
+#viewBtns button.sel{box-shadow:inset 0 -3px 0 var(--accent)}
+#refToggle{white-space:nowrap}
+
+/* ideal image: picture-in-picture in the echo screen, or side by side (stacked) */
+#refPane{position:absolute;left:8px;bottom:8px;width:44%;aspect-ratio:4/3.3;display:flex;flex-direction:column;border:1px solid #2fb7c9;border-radius:4px;background:transparent;z-index:2;overflow:hidden}
+#echoScreen.split #refPane{position:relative;left:auto;bottom:auto;width:auto;aspect-ratio:auto;flex:1 1 0;border-width:1px 0 0;border-radius:0}
+#echoScreen.split #echoLive{flex:1 1 0}
+#refHead{display:flex;align-items:center;gap:6px;padding:3px 6px;background:rgba(6,14,16,.86);color:#d8e6e3;font:500 .74rem var(--f-mono)}
+#refHead b{font:600 .86rem var(--f-display);letter-spacing:.04em;color:#7fe9f0}
+#refHead .sp{flex:1}#refMatch{color:#b9c7c4}
+#refHead button{min-height:22px;padding:0 6px;background:transparent;color:#d8e6e3;border-color:#3a4a4c;font-size:.8rem}
+#refView{position:relative;flex:1;min-height:0}
+#refLabels{position:absolute;inset:0;pointer-events:none}
+.rl i{position:absolute;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#7fe9f0}
+.rl span{position:absolute;font:600 .68rem/15px var(--f-display);letter-spacing:.02em;padding:0 4px;background:rgba(10,30,34,.82);color:#e8f6f4;border-radius:2px;white-space:nowrap}
+
+/* landmark labels over the 3D view */
+#lmLabels{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2}
+.lm{position:absolute;left:0;top:0;white-space:nowrap;font:600 .7rem/1 var(--f-display);letter-spacing:.02em}
+.lm i{position:absolute;left:-3px;top:-3px;width:6px;height:6px}
+.lm span{position:absolute;top:-8px;padding:3px 5px;border-radius:3px;background:rgba(14,20,22,.72);color:#fff}
+.lm.r span{left:8px}.lm.l span{right:8px}
+.lm.ics span{background:rgba(14,20,22,.5);font-weight:500;font-size:.64rem;padding:2px 4px}
+.lm.small span{background:transparent;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000}
+.lm.win span{background:rgba(8,40,52,.78);color:#7fe4f7;border:1px solid rgba(56,198,232,.55)}
+#stage[data-hover="cap"]{cursor:grab}#stage[data-hover="ring"]{cursor:alias}#stage[data-hover="body"]{cursor:move}
+.help .k-cap{color:#1a9fb0}.help .k-ring{color:#d9692a}.help .k-body{color:var(--ink)}
+@media (max-width:760px){
+  #viewBar{padding:5px 8px}.vb-l{display:none}
+  #refPane{width:52%}
+  .lm span{font-size:.6rem}
+  .lm.ics,.lm.small,.lm.minor{display:none!important}
+  #refMatch{display:none}#refHead b{font-size:.78rem}
+}

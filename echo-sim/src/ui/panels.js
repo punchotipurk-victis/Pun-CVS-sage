@@ -45,16 +45,25 @@ function makePanels(APP){
   $("fineBtn").onclick = () => APP.setFine(!APP.fine);
   $("depthDn").onclick = () => APP.setImg({ depthCm: Math.max(4, APP.img.depthCm-1) });
   $("depthUp").onclick = () => APP.setImg({ depthCm: Math.min(24, APP.img.depthCm+1) });
-  const snap = $("snapView");
-  for (const v of VJ.views){ const o = document.createElement("option"); o.value = v.id; o.textContent = v.name; snap.appendChild(o); }
-  snap.onchange = () => { if (snap.value){ APP.snapTo(snap.value); toast(`Probe moved to the computed ${VJ.views.find(v => v.id === snap.value).shortName} target.`); } snap.value = ""; };
+  /* view buttons: move the probe to the view's computed target (animated) and open its ideal image */
+  const VIEW_NAMES = { plax: "PLAX", psax_av: "PSAX · aortic valve", psax_mv: "PSAX · mitral valve", psax_pap: "PSAX · papillary", a4c: "A4C", a5c: "A5C", subxiphoid_4c: "Subcostal 4C", ivc: "IVC" };
+  const vbtn = {};
+  for (const v of VJ.views){ const b = document.createElement("button"); b.type = "button"; b.dataset.view = v.id; b.title = `${v.name}: move the probe to the ideal position and show the ideal image`;
+    b.innerHTML = `${VIEW_NAMES[v.id] || v.shortName}<b class="q"></b>`; b.onclick = () => APP.goToView(v.id); $("viewBtns").appendChild(b); vbtn[v.id] = b; }
+  $("refToggle").onclick = () => APP.showRef(!APP.refShown);
+  $("refClose").onclick = () => APP.showRef(false);
+  $("refSplit").onclick = () => { APP.refSplit = !APP.refSplit; syncTop(); };
+  $("lmBtn").onclick = () => APP.setLandmarks(!APP.landmarks);
 
   function syncTop(){
     const on = (id, v) => $(id).setAttribute("aria-pressed", v);
     on("posSup", APP.position === "supine"); on("posLLD", APP.position === "LLD"); on("convASE", APP.conv === "ASE"); on("convPOCUS", APP.conv === "POCUS");
     on("modeProbe", APP.mode === "probe"); on("modeCam", APP.mode === "camera"); on("freeze", APP.frozen); on("fineBtn", APP.fine);
     $("freeze").textContent = APP.frozen ? "Live" : "Freeze";
-    $("bodyBtn").textContent = "Body: " + { skin: "Skin", ghost: "Ghost", skeleton: "Skeleton" }[APP.body];
+    $("bodyBtn").textContent = "Body: " + { skin: "Skin", muscle: "Muscle", ghost: "Ghost", skeleton: "Skeleton" }[APP.body];
+    on("lmBtn", APP.landmarks); on("refToggle", APP.refShown);
+    $("refPane").hidden = !APP.refShown; $("echoScreen").classList.toggle("split", !!APP.refSplit);
+    for (const id in vbtn) vbtn[id].classList.toggle("sel", APP.refView === id);
     $("stage").style.touchAction = APP.mode === "probe" ? "none" : "pan-y";
   }
   let toastT = 0; function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 6500); }
@@ -76,7 +85,10 @@ function makePanels(APP){
   }
   const CM = [[0, ph.extracardiac_patient.sternum.landmarks.xiphoid_tip_y]].concat(ph.extracardiac_patient.ribs.costalMargin_polyline, [[16, -26]]);
   function S_costal(ax){ for (let i = 1; i < CM.length; i++) if (ax <= CM[i][0]){ const t = (ax-CM[i-1][0])/(CM[i][0]-CM[i-1][0]); return CM[i-1][1]+t*(CM[i][1]-CM[i-1][1]); } return -26; }
-  function syncChip(best){
+  function syncViewBtns(){ for (const id in vbtn){ const sc = APP.scores[id], q = sc ? Math.round(sc.q) : 0, b = vbtn[id];
+      b.dataset.state = sc && sc.locked ? "locked" : (q >= 60 ? "near" : ""); b.querySelector(".q").textContent = sc && q >= 40 ? q + "%" : ""; }
+    if (APP.refView){ const sc = APP.scores[APP.refView]; $("refMatch").textContent = sc ? `match ${Math.round(sc.q)}%${sc.locked ? " ✓" : ""}` : ""; } }
+  function syncChip(best){ syncViewBtns();
     const chips = [$("chip"), $("chipInset")];
     for (const c of chips){ if (!best || best.q < 40){ c.textContent = "Searching…"; c.dataset.state = "search"; }
       else { c.textContent = `${best.view.shortName}${best.locked ? " ✓" : ""} ${Math.round(best.q)}%`; c.dataset.state = best.locked ? "locked" : "near"; } }
@@ -116,5 +128,16 @@ function makePanels(APP){
     octx.fillStyle = "#b9c7c4"; octx.textAlign = "left"; octx.fillText(`${D} cm · ${Math.round(sec)}°`, 8*pr, 12*pr); octx.fillText(`HR ${APP.hr}${APP.frozen ? " · FROZEN" : ""}`, 8*pr, 28*pr);
     octx.fillText(APP.conv === "ASE" ? "ASE · marker right" : "POCUS · marker left", 8*pr, 44*pr); octx.textAlign = "start";
   }
-  return { syncSliders, syncTop, syncChip, readout, drawEcg, drawOverlay, toast };
+  /* ideal image labels: anchors in fan cm → pane px with the same mapping as Pass C; greedy placement without overlaps */
+  function placeRefLabels(list, conv, img){
+    const host = $("refLabels"), b = $("refView").getBoundingClientRect(), W = b.width, H = b.height; host.innerHTML = ""; if (!W || !H) return;
+    const asp = W/H, sec = img.sectorDeg*Math.PI/180, fit = Math.max(1, 2*.97*Math.sin(Math.min(sec, 3.14)/2)/asp), sc = H*.97/fit, sg = conv === "ASE" ? 1 : -1, boxes = [];
+    const items = list.map(L => ({ ...L, x: W/2 + sg*L.cx/img.depthCm*sc, y: L.cy/img.depthCm*sc })).filter(L => L.y > 4 && L.y < H-4 && L.x > 2 && L.x < W-2).sort((a, c) => a.y - c.y);
+    for (const L of items){ const w = L.text.length*6.4 + 12, h = 15, left = L.x > W*.6; let bx = left ? L.x - 6 - w : L.x + 6, by = L.y - h/2;
+      bx = Math.max(2, Math.min(W - w - 2, bx));
+      for (let k = 0; k < 8 && boxes.some(q => bx < q[0]+q[2] && bx+w > q[0] && by < q[1]+q[3] && by+h > q[1]); k++) by += h*.9;
+      boxes.push([bx, by, w, h]);
+      const d = document.createElement("div"); d.className = "rl"; d.innerHTML = `<i style="left:${L.x.toFixed(1)}px;top:${L.y.toFixed(1)}px"></i><span style="left:${bx.toFixed(1)}px;top:${by.toFixed(1)}px">${L.text}</span>`; host.appendChild(d); }
+  }
+  return { syncSliders, syncTop, syncChip, readout, drawEcg, drawOverlay, toast, placeRefLabels, VIEW_NAMES };
 }

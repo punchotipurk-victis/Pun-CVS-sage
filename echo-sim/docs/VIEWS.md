@@ -138,7 +138,8 @@ Methods: `plane3`, `fanFromWindow` (u = axisRef Ã— beam), `tiltFrom` (smallest Ï
 
 ## Learning modes
 1. **Free scan.** Everything is unlocked, and the chip shows the nearest view.
-2. **Guided tour.** Follow the v1 order. Each step shows `maneuverFromPrevious`, gives hints, and lets "Snap to view" (Guided only) animate the probe to the target over 1 s. Once locked, the view card opens on Core.
+2. **Guided tour.** Follow the v1 order. Each step shows `maneuverFromPrevious`, gives hints, and lets "Snap to view" animate the probe to the target over 1 s. Once locked, the view card opens on Core.
+   The "Go to view" buttons (added 7 Nov 2026) do the same in Free scan and open the ideal image beside the live one.
 3. **Find-the-view challenge.**
    - Skin body view, inset minimised, labels off, timer running.
    - Score = time + final quality + number of hints used. Run it in both supine and LLD.
