@@ -133,11 +133,17 @@ function makePanels(APP){
     const host = $("refLabels"), b = $("refView").getBoundingClientRect(), W = b.width, H = b.height; host.innerHTML = ""; if (!W || !H) return;
     const asp = W/H, sec = img.sectorDeg*Math.PI/180, fit = Math.max(1, 2*.97*Math.sin(Math.min(sec, 3.14)/2)/asp), sc = H*.97/fit, sg = conv === "ASE" ? 1 : -1, boxes = [];
     const items = list.map(L => ({ ...L, x: W/2 + sg*L.cx/img.depthCm*sc, y: L.cy/img.depthCm*sc })).filter(L => L.y > 4 && L.y < H-4 && L.x > 2 && L.x < W-2).sort((a, c) => a.y - c.y);
-    for (const L of items){ const w = L.text.length*6.4 + 12, h = 15, left = L.x > W*.6; let bx = left ? L.x - 6 - w : L.x + 6, by = L.y - h/2;
-      bx = Math.max(2, Math.min(W - w - 2, bx));
-      for (let k = 0; k < 8 && boxes.some(q => bx < q[0]+q[2] && bx+w > q[0] && by < q[1]+q[3] && by+h > q[1]); k++) by += h*.9;
-      boxes.push([bx, by, w, h]);
-      const d = document.createElement("div"); d.className = "rl"; d.innerHTML = `<i style="left:${L.x.toFixed(1)}px;top:${L.y.toFixed(1)}px"></i><span style="left:${bx.toFixed(1)}px;top:${by.toFixed(1)}px">${L.text}</span>`; host.appendChild(d); }
+    const hit = (x, y, w, h) => boxes.some(q => x < q[0]+q[2] && x+w > q[0] && y < q[1]+q[3] && y+h > q[1]) || x < 1 || x+w > W-1 || y < 1 || y+h > H-1;
+    let svg = `<svg width="${W}" height="${H}" style="position:absolute;left:0;top:0">`;
+    for (const L of items){ const w = L.text.length*6.4 + 12, h = 15, pref = L.x > W*.6 ? -1 : 1; let best = null;
+      /* nearest free slot: both sides, then stepping up and down; draw a leader if the label had to move */
+      for (const dy of [0, -1, 1, -2, 2, -3, 3, -4, 4]){ for (const sd of [pref, -pref]){ const bx = sd > 0 ? L.x + 6 : L.x - 6 - w, by = L.y - h/2 + dy*h; if (!hit(bx, by, w, h)){ best = [bx, by]; break; } } if (best) break; }
+      if (!best) continue;
+      boxes.push([best[0], best[1], w, h]);
+      const ax = best[0] > L.x ? best[0] : best[0] + w, ay = best[1] + h/2;
+      if (Math.abs(ay - L.y) > 3) svg += `<line x1="${L.x.toFixed(1)}" y1="${L.y.toFixed(1)}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="#7fe9f0" stroke-width="1" opacity=".8"/>`;
+      const d = document.createElement("div"); d.className = "rl"; d.innerHTML = `<i style="left:${L.x.toFixed(1)}px;top:${L.y.toFixed(1)}px"></i><span style="left:${best[0].toFixed(1)}px;top:${best[1].toFixed(1)}px">${L.text}</span>`; host.appendChild(d); }
+    host.insertAdjacentHTML("afterbegin", svg + "</svg>");
   }
   return { syncSliders, syncTop, syncChip, readout, drawEcg, drawOverlay, toast, placeRefLabels, VIEW_NAMES };
 }
