@@ -177,7 +177,7 @@
     applyPose(); syncAll(); panels.syncSliders();
     drawAll(performance.now(), true); if (shaderErr) throw new Error("Shader failed to compile: " + shaderErr.slice(0, 900));
     say("Building the 3D heart from the phantom…"); await wait();
-    const info = S.bakeHeart(); await wait();
+    const tb0 = performance.now(), info = S.bakeHeart(); info.bakeMs = Math.round(performance.now() - tb0); await wait();
     S.bakeOrgans("supine"); drawAll(performance.now(), true); if (shaderErr) throw new Error("Shader failed to compile: " + shaderErr.slice(0, 900));
     $("boot").hidden = true;
     requestAnimationFrame(frame);
@@ -202,7 +202,25 @@
         if (k === "body" || k === "face") o.copy(new THREE.Vector3(0, k === "face" ? 1.2 : 4.5, 0).applyMatrix4(S.probeVis.matrixWorld));
         const q = o.project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       pick: (x, y, touch) => input.pick({ clientX: x, clientY: y, pointerType: touch ? "touch" : "mouse" }), setColourMode: m => S.setColourMode(m),
-      heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img };
+      heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img,
+      /* dev: the baked heart alone (front | back | left | cut = A4C plane), for before/after grids. Returns a PNG data URL. */
+      heartShot(which, w = 560, h = 560){
+        const T = THREE, rt = new T.WebGLRenderTarget(w, h, { samples: 4 }), cam = new T.PerspectiveCamera(30, w/h, 1, 300), hidden = [];
+        S.scene.traverse(o => { if ((o.isMesh || o.isLine || o.isLineSegments || o.isPoints || o.isSprite) && o !== S.heart && o !== S.cutFace && o.visible){ hidden.push(o); o.visible = false; } });
+        S.patient.updateMatrixWorld(true); S.syncProbe();
+        S.heart.geometry.computeBoundingSphere(); const bs = S.heart.geometry.boundingSphere, hc = bs.center.clone().applyMatrix4(S.heart.matrixWorld), R = bs.radius;
+        const dirs = { front: [0, 0, 1], back: [0, 0, -1], left: [1, .15, .1] }, cutOn = which === "cut";
+        S.heart.visible = true; S.cutFace.visible = cutOn; cam.layers.enableAll();
+        if (cutOn){ S.clip.setFromNormalAndCoplanarPoint(S.elevWorld.clone(), S.originWorld);
+          const tg = S.originWorld.clone().addScaledVector(S.beamWorld, APP.img.depthCm*.55); cam.position.copy(tg).addScaledVector(S.elevWorld, -34); cam.up.copy(S.beamWorld).negate(); cam.lookAt(tg); }
+        else { S.clip.constant = 1e5; const d = new T.Vector3(...dirs[which]).normalize().transformDirection(S.patient.matrixWorld); cam.position.copy(hc).addScaledVector(d, R*3.6); cam.up.set(0, 1, 0).transformDirection(S.patient.matrixWorld); cam.lookAt(hc); }
+        cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+        renderer.setRenderTarget(rt); renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h); renderer.setClearColor(0x15181b, 1); renderer.clear(); renderer.render(S.scene, cam);
+        const buf = new Uint8Array(w*h*4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, buf); renderer.setRenderTarget(null); rt.dispose();
+        hidden.forEach(o => o.visible = true); S.clip.set(new T.Vector3(0, 0, 1), 1e5);
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h; const cx = cv.getContext("2d"), im = cx.createImageData(w, h);
+        for (let y = 0; y < h; y++) im.data.set(buf.subarray((h-1-y)*w*4, (h-y)*w*4), y*w*4);
+        cx.putImageData(im, 0, 0); return cv.toDataURL("image/png"); } };
   }
   boot().catch(e => { console.error(e); fail(e.message || String(e)); });
 })();
