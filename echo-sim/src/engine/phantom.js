@@ -11,13 +11,13 @@ const PHANTOM = (() => {
   const LABELS = ["", "LV_cavity","RV_cavity","LA","RA","LVOT","RVOT","aortic_root","aortic_root.ascending","PA_main","LAA","pulmonary_veins",
     "coronary_sinus","MV_AML","MV_PML","TV_septal","TV_anterior","AV_cusps.RCC","AV_cusps.LCC","AV_cusps.NCC","PV_cusps",
     "papillary_muscles.ALPM","papillary_muscles.PMPM","moderator_band","IVS","PW","LV_myocardium","RV_free_wall","pericardium","liver",
-    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall"];
+    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall","aortic_arch","arch_branches","RPA","LPA"];
   const LABEL_TEXT = { LV_cavity:"LV", RV_cavity:"RV", LA:"LA", RA:"RA", LVOT:"LVOT", RVOT:"RVOT", aortic_root:"Ao root", "aortic_root.ascending":"Asc. aorta",
     PA_main:"PA", LAA:"LAA", pulmonary_veins:"Pulm. veins", coronary_sinus:"Coronary sinus", MV_AML:"AML", MV_PML:"PML", TV_septal:"TV (septal)",
     TV_anterior:"TV (anterior)", "AV_cusps.RCC":"RCC", "AV_cusps.LCC":"LCC", "AV_cusps.NCC":"NCC", PV_cusps:"PV", "papillary_muscles.ALPM":"ALPM",
     "papillary_muscles.PMPM":"PMPM", moderator_band:"Moderator band", IVS:"IVS", PW:"Posterior wall", LV_myocardium:"LV wall", RV_free_wall:"RV free wall",
     pericardium:"Pericardium", liver:"Liver", diaphragm:"Diaphragm", IVC:"IVC", hepatic_veins:"Hepatic vein", descending_aorta:"Desc. Ao",
-    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall" };
+    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall", aortic_arch:"Aortic arch", arch_branches:"Arch branch", RPA:"RPA", LPA:"LPA" };
   const Lb = Object.fromEntries(LABELS.map((t,i)=>[t,i]));
 
   /* ---- cycle: monotone cubic interpolation of keyframes (no overshoot) ---- */
@@ -92,7 +92,7 @@ const PHANTOM = (() => {
     /* -------- heart (heart frame, variable h) -------- */
     const lvc = S.LV_cavity.of, lvm = S.LV_myocardium.from.of;
     add(`vec3 h = (uW2H * vec4(p,1.0)).xyz;`);
-    add(`float dHeartBound = length(h - vec3(1.0,0.0,1.5)) - 11.0;`);
+    add(`float dHeartBound = length(h - vec3(1.0,-1.0,0.5)) - 13.0;`);
     add(`if (dHeartBound < 0.0) {`);
     add(` float mvz = uP[${pidx.MV_annulusZ}];`);
     /* LV = bullet: ellipsoid ∪ round cone (conical apex), wall = outer − inner semi-axis, thinner toward the apex */
@@ -129,6 +129,14 @@ const PHANTOM = (() => {
     add(` rvot = max(rvot, -lvOut);`);                               // RVOT never eats the LV/septum
     add(` float rvotW = rvot - 0.35;`);
     add(` float pa    = sdCapsule(h, ${v3(S.PA_main.a)}, ${v3(S.PA_main.b)}, ${f(S.PA_main.r)});`);
+    /* aortic arch, its 3 branches and the PA branches: swept tubes in the heart frame (so they are part of the 3D heart envelope) */
+    const ach = S.aortic_arch, abr = S.arch_branches, pab = S.PA_branches;
+    add(` float arch = ${ach ? tube(ach.points, ach.r, ach.rTip ?? ach.r, 0.6) : "1e3"};`);
+    add(` float archB = 1e3;`); if (abr) for (const it of abr.items) add(` archB = min(archB, ${tube(it.points, it.r, it.rTip ?? it.r*0.9, 0.3)});`);
+    add(` archB = max(archB, -(arch - 0.05));`);                                    // branch lumens end at the arch lumen
+    add(` float rpa = 1e3, lpa = 1e3;`);
+    if (pab) for (const it of pab.items) add(` ${it.label === "RPA" ? "rpa" : "lpa"} = ${tube(it.points, it.r, it.rTip ?? it.r, 0.4)};`);
+    add(` pa = smin(pa, min(rpa, lpa), 0.5);`);
     const la = S.LA, ra = S.RA;
     const LD = la.detail || { vestibuleRadius: 1.4, vestibuleBlend: 0.8, veinBlend: 0.5, laaBlend: 0.4, wobble: 0.15 };
     const RD = ra.detail || { vestibuleRadius: 1.3, vestibuleBlend: 0.8, wobble: 0.15 };
@@ -173,7 +181,13 @@ const PHANTOM = (() => {
       const [t0,r0] = prof[i], [t1,r1] = prof[i+1];
       rexpr = `(at < ${f(t1)} ? mix(${f(r0)}, ${f(r1)}, (at - ${f(t0)}) / ${f(t1-t0)}) : ${rexpr})`;
     }
-    add(` float aoLum = length(h - (aO + aAx*at)) - ${rexpr};`);
+    const sn = ar.sinuses;
+    if (sn){ /* sinuses of Valsalva: trefoil bulge toward each cusp, narrower at the commissures, between annulus and STJ */
+      add(` vec3 aRad = (h - aO) - aAx*dot(h - aO, aAx); float aRl = length(aRad); vec3 aRn = aRad / max(aRl, 1e-4);`);
+      add(` float sLobe = max(max(dot(aRn, ${v3(A.AV_cusp_dirs.RCC)}), dot(aRn, ${v3(A.AV_cusp_dirs.LCC)})), dot(aRn, ${v3(A.AV_cusp_dirs.NCC)}));`);
+      add(` float sBump = sin(3.14159*clamp((at - ${f(sn.from)}) / ${f(sn.to - sn.from)}, 0.0, 1.0));`);
+      add(` float aoLum = length(h - (aO + aAx*at)) - (${rexpr} + sBump*(${f(sn.amplitude)}*max(sLobe, 0.0)*max(sLobe, 0.0) - ${f(sn.commissureNarrowing)}));`); }   // distance to the clamped axis point: the root ends where the arch begins
+    else add(` float aoLum = length(h - (aO + aAx*at)) - ${rexpr};`);
     add(` aoLum = max(aoLum, -dot(h - aO, aAx));`);       // starts at the annulus
     add(` float aoWall = aoLum - ${f(ar.wall)};`);
     if (S.LVOT.anteriorWall){ const aw = S.LVOT.anteriorWall;
@@ -184,6 +198,7 @@ const PHANTOM = (() => {
       add(` lvOut = min(lvOut, lvotW); rvot = max(rvot, -(lvotW + 0.05)); rvCav = max(rvCav, -(lvotW + 0.05));`); }
     add(` rvot = max(rvot, -(aoLum - 0.35)); rvCav = max(rvCav, -(aoLum - 0.35));`);   // keep a wall between RVOT and the aortic root
     add(` laCav = max(laCav, -(aoLum - 0.3)); raCav = max(raCav, -(aoLum - 0.3));`);     // aorto-atrial walls
+    add(` laCav = max(laCav, -(min(rpa, lpa) - 0.25)); raCav = max(raCav, -(min(rpa, lpa) - 0.25));`);   // RPA passes over the LA roof and behind the SVC
     add(` laCav = max(laCav, -(lvOut + 0.05)); raCav = max(raCav, -(max(rvOut, -rvCav) + 0.05));`);   // atria never eat ventricular wall (the RA may meet the RV cavity at the TV orifice)
     add(` float atrWall = min(laRaw, raRaw) - 0.25;`);
     /* heart solid (myocardium + atrial walls) */
@@ -240,7 +255,7 @@ const PHANTOM = (() => {
     add(` float peri = abs(solid - 0.15 - uP[${pidx.effusion_cm}] - pHalf) - pHalf;`);
     add(` float effusion = (solid > 0.0 && solid < 0.15 + uP[${pidx.effusion_cm}]) ? -1.0 : 1.0;`);
     /* outer envelope of the heart (signed distance, cm): the 3D mesh is cut from this field, so grooves and thin walls stay crisp */
-    add(` gHeartD = min(min(solid, rvotW), min(aoWall, min(pa - 0.15, min(laa - 0.15, min(pvn - 0.1, csv - 0.1)))));`);
+    add(` gHeartD = min(min(min(solid, rvotW), min(aoWall, min(pa - 0.15, min(laa - 0.15, min(pvn - 0.1, csv - 0.1))))), min(arch - ${f(ach?.wall ?? 0.2)}, archB - 0.12));`);
     /* ---- priority: first match wins ---- */
     add(` if (avc < 0.0 && aoLum < 0.3) { tissue = ${T.valve}; label = avk; return; }`);
     add(` if (aml < 0.0) { tissue = ${T.valve}; label = ${Lb["MV_AML"]}; return; }`);
@@ -254,9 +269,11 @@ const PHANTOM = (() => {
     add(` if (pap < 0.0 && lvCav < 0.3) { tissue = ${T.myocardium}; label = papA < papP ? ${Lb["papillary_muscles.ALPM"]} : ${Lb["papillary_muscles.PMPM"]}; return; }`);
     add(` if (mb < 0.0 && rvCav < 0.3) { tissue = ${T.myocardium}; label = ${Lb["moderator_band"]}; return; }`);
     add(` if (aoLum < 0.0) { tissue = ${T.blood}; label = at < 2.4 ? ${Lb["aortic_root"]} : ${Lb["aortic_root.ascending"]}; return; }`);
+    add(` if (arch < 0.0 && aoLum > 0.0) { tissue = ${T.blood}; label = ${Lb["aortic_arch"]}; return; }`);
+    add(` if (archB < 0.0) { tissue = ${T.blood}; label = ${Lb["arch_branches"]}; return; }`);
     add(` if (lvot < 0.0) { tissue = ${T.blood}; label = ${Lb["LVOT"]}; return; }`);      // LVOT before LV so the outflow tract is labelled
     add(` if (lvCav < 0.0) { tissue = ${T.blood}; label = ${Lb["LV_cavity"]}; return; }`);
-    add(` if (pa < 0.0) { tissue = ${T.blood}; label = ${Lb["PA_main"]}; return; }`);
+    add(` if (pa < 0.0) { tissue = ${T.blood}; label = rpa < 0.0 ? ${Lb["RPA"]} : (lpa < 0.0 ? ${Lb["LPA"]} : ${Lb["PA_main"]}); return; }`);
     add(` if (rvot < 0.0) { tissue = ${T.blood}; label = ${Lb["RVOT"]}; return; }`);
     add(` if (rvCav < 0.0) { tissue = ${T.blood}; label = ${Lb["RV_cavity"]}; return; }`);
     add(` if (csv < 0.0) { tissue = ${T.blood}; label = ${Lb["coronary_sinus"]}; return; }`);
@@ -264,7 +281,8 @@ const PHANTOM = (() => {
     add(` if (laCav < 0.0) { tissue = ${T.blood}; label = ${Lb["LA"]}; return; }`);
     add(` if (raCav < 0.0) { tissue = ${T.blood}; label = ${Lb["RA"]}; return; }`);
     add(` if (pvn < 0.0) { tissue = ${T.blood}; label = ${Lb["pulmonary_veins"]}; return; }`);
-    add(` if (aoWall < 0.0 || (pa < 0.15 && pa >= 0.0)) { tissue = ${T.vessel_wall}; label = ${Lb["aortic_root"]}; return; }`);
+    add(` if (aoWall < 0.0 || (pa < 0.15 && pa >= 0.0)) { tissue = ${T.vessel_wall}; label = pa < 0.15 && pa >= 0.0 ? ${Lb["PA_main"]} : ${Lb["aortic_root"]}; return; }`);
+    add(` if (arch < ${f(ach?.wall ?? 0.2)} || archB < 0.12) { tissue = ${T.vessel_wall}; label = arch < ${f(ach?.wall ?? 0.2)} ? ${Lb["aortic_arch"]} : ${Lb["arch_branches"]}; return; }`);
     add(` if (solid < 0.0) { tissue = ${T.myocardium};`);
     add(`   label = lvOut < 0.0 ? (rvOut < 0.2 && h.x > 0.5 ? ${Lb["IVS"]} : ${Lb["PW"]}) : (rvOut < 0.0 ? ${Lb["RV_free_wall"]} : (max(laRaw, raRaw) < 0.55 ? ${Lb["IAS"]} : (laRaw < raRaw ? ${Lb["LA_wall"]} : (raRaw < 0.6 ? ${Lb["RA_wall"]} : ${Lb["RV_free_wall"]})))); return; }`);
     add(` if (effusion < 0.0 && uP[${pidx.effusion_cm}] > 0.01) { tissue = ${T.fluid}; label = ${Lb["pericardium"]}; return; }`);

@@ -23,9 +23,10 @@ async def main():
         await pg.evaluate("ECHO.setPosition('supine')")
         t = await pg.evaluate("() => { ECHO.goToView('a4c', true); const t0 = performance.now(); for (let i = 0; i < 20; i++) ECHO.renderOnce(); return (performance.now() - t0)/20; }")
         res["renderOnceMs_swiftshader"] = round(t, 1)
-        for w in ["front", "back", "left", "cut"]:
-            if w == "cut": await pg.evaluate("ECHO.goToView('a4c', true); ECHO.setPhase(0); ECHO.renderOnce()")
-            d = await pg.evaluate(f"ECHO.heartShot('{w}')"); open(os.path.join(out, f"heart_{w}.png"), "wb").write(base64.b64decode(d.split(",")[1]))
+        for w in ["front", "back", "left", "frontal", "cut", "cut_plax", "cut_psax_av", "cut_psax_pap"]:
+            v = {"cut": "a4c", "cut_plax": "plax", "cut_psax_av": "psax_av", "cut_psax_pap": "psax_pap"}.get(w)
+            if v: await pg.evaluate(f"ECHO.goToView('{v}', true); ECHO.setPhase(0); ECHO.renderOnce()")
+            d = await pg.evaluate(f"ECHO.heartShot('{'cut' if v else w}')"); open(os.path.join(out, f"heart_{w}.png"), "wb").write(base64.b64decode(d.split(",")[1]))
         res["errors"] = errs
         if not os.environ.get("HEART_ONLY"): json.dump(res, open(os.path.join(out, "scores.json"), "w"), indent=1)
         print(json.dumps({k: (round(v["q"]), round(v["ed"]), v["fails"]) for k, v in res["views"].items()}, indent=0)); print(res["info"], res["renderOnceMs_swiftshader"], errs)

@@ -88,7 +88,7 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   const MYO = [.46, .09, .08], REAL = { LV_myocardium: MYO, IVS: MYO, PW: MYO, LVOT: MYO, RVOT: [.5, .12, .1], RV_free_wall: [.52, .13, .11], RV_cavity: [.42, .04, .05], LV_cavity: [.42, .04, .05],
     "papillary_muscles.ALPM": [.5, .12, .11], "papillary_muscles.PMPM": [.5, .12, .11], moderator_band: [.5, .12, .11],
     LA: [.42, .12, .15], LAA: [.4, .1, .13], RA: [.36, .13, .22], LA_wall: [.44, .13, .16], RA_wall: [.38, .14, .23], pulmonary_veins: [.52, .2, .22], coronary_sinus: [.34, .22, .38], IAS: [.5, .18, .2],
-    aortic_root: [.87, .73, .64], "aortic_root.ascending": [.87, .73, .64], PA_main: [.82, .65, .62],
+    aortic_root: [.87, .73, .64], "aortic_root.ascending": [.87, .73, .64], aortic_arch: [.87, .73, .64], arch_branches: [.86, .72, .63], PA_main: [.82, .65, .62], RPA: [.8, .64, .62], LPA: [.8, .64, .62],
     MV_AML: [.93, .87, .76], MV_PML: [.93, .87, .76], TV_septal: [.93, .87, .76], TV_anterior: [.93, .87, .76], "AV_cusps.RCC": [.93, .87, .76], "AV_cusps.LCC": [.93, .87, .76], "AV_cusps.NCC": [.93, .87, .76], PV_cusps: [.93, .87, .76],
     liver: [.43, .14, .1], IVC: [.3, .33, .58], hepatic_veins: [.32, .35, .6], descending_aorta: [.78, .25, .21], "descending_aorta.abdominal": [.78, .25, .21] };
   const FAT = [.9, .74, .43], MUSCLE_L = new Set(["LV_myocardium", "IVS", "PW", "RV_free_wall", "LA", "RA", "LAA", "RVOT", "LVOT", "IAS", "LA_wall", "RA_wall"]);
@@ -137,7 +137,7 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
           transformed.z += uBZ*along; }`); };
   const heart = new T.Mesh(new T.BufferGeometry(), heartMat); heart.visible = false; heartGroup.add(heart);
   function bakeHeart(){
-    const v = ph._mesh?.heartVoxelCm ?? .13, lo = [-8, -8.5, -8.5], hi = [8, 8, 11], n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
+    const v = ph._mesh?.heartVoxelCm ?? .13, lo = ph._mesh?.boxLo ?? [-8.5, -10.5, -9.5], hi = ph._mesh?.boxHi ?? [8, 8, 11], n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
     const h2b = PHANTOM.worldToHeart(ph, "supine", T).clone().invert(), keep = L.filter(x => !NOT_HEART.has(x)), set = labelSet(keep);
     const prev = eng.uniforms.uW2H.value.clone(); eng.uniforms.uW2H.value.copy(PHANTOM.worldToHeart(ph, "supine", T));
     bakeU.uSkipBody.value = 1; const vol = bake(h2b, lo, n, v); bakeU.uSkipBody.value = 0; eng.uniforms.uW2H.value.copy(prev);
@@ -203,7 +203,7 @@ in vec3 vW; out vec4 o;
 void main(){ int t, l; scene((uWorldToBody*vec4(vW, 1.0)).xyz, t, l);
   if (t == 0 || t == 7 || t == 13 || t == 16) discard;             // none, chest wall, lung, soft: keep the cut clean
   vec3 c = uPalette[l]; if (dot(c, c) == 0.0) c = vec3(0.85);
-  o = vec4(t == 1 ? c*0.9 : c*0.6 + 0.25, 0.95); }` });
+  o = vec4(t == 1 ? c*0.55 : c*0.7 + 0.3, 0.95); }` });
   const cutFace = new T.Mesh(new T.PlaneGeometry(1, 1), cutMat); cutFace.frustumCulled = false; probeGroup.add(cutFace); onLayer(cutFace, 3);
   let fanKey = "";
   function updateFan(depth, sectorDeg){

@@ -209,15 +209,24 @@
         S.scene.traverse(o => { if ((o.isMesh || o.isLine || o.isLineSegments || o.isPoints || o.isSprite) && o !== S.heart && o !== S.cutFace && o.visible){ hidden.push(o); o.visible = false; } });
         S.patient.updateMatrixWorld(true); S.syncProbe();
         S.heart.geometry.computeBoundingSphere(); const bs = S.heart.geometry.boundingSphere, hc = bs.center.clone().applyMatrix4(S.heart.matrixWorld), R = bs.radius;
-        const dirs = { front: [0, 0, 1], back: [0, 0, -1], left: [1, .15, .1] }, cutOn = which === "cut";
+        const dirs = { front: [0, 0, 1], back: [0, 0, -1], left: [1, .15, .1] }, cutOn = which === "cut", frontal = which === "frontal";
         S.heart.visible = true; S.cutFace.visible = cutOn; cam.layers.enableAll();
-        if (cutOn){ S.clip.setFromNormalAndCoplanarPoint(S.elevWorld.clone(), S.originWorld);
+        let quad = null; const skip0 = eng.uniforms.uSkipBody.value; eng.uniforms.uSkipBody.value = 1;
+        if (frontal){   /* internal anatomy: coronal cut through the heart centre, anterior half removed, seen from the front */
+          const n = new T.Vector3(0, 0, -1).transformDirection(S.patient.matrixWorld);
+          S.clip.setFromNormalAndCoplanarPoint(n, hc);
+          quad = new T.Mesh(new T.PlaneGeometry(R*2.6, R*2.6), S.cutFace.material); quad.frustumCulled = false;
+          quad.position.copy(hc).addScaledVector(n, -0.02); quad.lookAt(hc.clone().sub(n)); S.scene.add(quad);
+          S.patient.updateMatrixWorld(true); S.syncProbe();
+          cam.position.copy(hc).addScaledVector(n, -R*3.4); cam.up.set(0, 1, 0).transformDirection(S.patient.matrixWorld); cam.lookAt(hc); }
+        else if (cutOn){ S.clip.setFromNormalAndCoplanarPoint(S.elevWorld.clone(), S.originWorld);
           const tg = S.originWorld.clone().addScaledVector(S.beamWorld, APP.img.depthCm*.55); cam.position.copy(tg).addScaledVector(S.elevWorld, -34); cam.up.copy(S.beamWorld).negate(); cam.lookAt(tg); }
         else { S.clip.constant = 1e5; const d = new T.Vector3(...dirs[which]).normalize().transformDirection(S.patient.matrixWorld); cam.position.copy(hc).addScaledVector(d, R*3.6); cam.up.set(0, 1, 0).transformDirection(S.patient.matrixWorld); cam.lookAt(hc); }
         cam.updateProjectionMatrix(); cam.updateMatrixWorld();
         renderer.setRenderTarget(rt); renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h); renderer.setClearColor(0x15181b, 1); renderer.clear(); renderer.render(S.scene, cam);
         const buf = new Uint8Array(w*h*4); renderer.readRenderTargetPixels(rt, 0, 0, w, h, buf); renderer.setRenderTarget(null); rt.dispose();
-        hidden.forEach(o => o.visible = true); S.clip.set(new T.Vector3(0, 0, 1), 1e5);
+        hidden.forEach(o => o.visible = true); S.clip.set(new T.Vector3(0, 0, 1), 1e5); eng.uniforms.uSkipBody.value = skip0;
+        if (quad){ S.scene.remove(quad); quad.geometry.dispose(); }
         const cv = document.createElement("canvas"); cv.width = w; cv.height = h; const cx = cv.getContext("2d"), im = cx.createImageData(w, h);
         for (let y = 0; y < h; y++) im.data.set(buf.subarray((h-1-y)*w*4, (h-y)*w*4), y*w*4);
         cx.putImageData(im, 0, 0); return cv.toDataURL("image/png"); } };

@@ -174,6 +174,18 @@ def main():
         rng("RV basal outer half-width beyond the septum (semiBase x + centre x − LV outer radius)", lo["semiBase"][0] + lo["centerBase"][0] - 3.3, 2.8, 4.8, " cm")
     fo = S.get("IAS", {}).get("fossaOvalis", {})
     if fo and fo.get("thicknessES", 1) < 0.1: warn("fossa ovalis thinner than 0.1 cm in systole: it will vanish (reads as an ASD)")
+    # great vessels (P1.5): arch height, branch order, bake box
+    res = lambda q: V3(L[q]) if isinstance(q, str) else V3(q)
+    toB = lambda hp: add(O, add(mul(X, hp[0]), add(mul(Y, hp[1]), mul(Z, hp[2]))))
+    if "aortic_arch" in S:
+        top = max(toB(res(q))[1] for q in S["aortic_arch"]["points"])
+        rng("top of the aortic arch below the suprasternal notch", -top, 1.0, 4.0, " cm")
+        xs = [toB(res(it["points"][0]))[0] for it in S["arch_branches"]["items"]]
+        (info if xs == sorted(xs) else warn)(f"arch branch origins run right → left (brachiocephalic, LCCA, LSA): x = {[round(x,1) for x in xs]}")
+        mb = P.get("_mesh", {}); lo_, hi_ = mb.get("boxLo", [-8.5, -10.5, -9.5]), mb.get("boxHi", [8, 8, 11])
+        allp = [res(q) for q in S["aortic_arch"]["points"]] + [res(q) for it in S["arch_branches"]["items"] + S["PA_branches"]["items"] for q in it["points"]]
+        out = [p_ for p_ in allp if any(p_[i] - 1.5 < lo_[i] or p_[i] + 1.5 > hi_[i] for i in range(3))]
+        (warn if out else info)(f"3D bake box holds the great vessels ({len(out)} points within 1.5 cm of the box edge)")
     # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
     import re
     js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()
