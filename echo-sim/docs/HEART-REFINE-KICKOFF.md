@@ -2,6 +2,13 @@
 
 Refine the heart in the echo simulator's phantom so it is anatomically accurate and not blocky, without breaking the echo. Load the skills `echo-sim-engine`, `echo-view-library` and `heart-3d-model`. First read, in the repo `punchotipurk-victis/Pun-CVS-sage` (branch `echo-sim/p1-scene-ui`, or `main` if PR #2 is merged): `echo-sim/docs/P1-CONTEXT.md`, `echo-sim/AGENTS.md`, `docs/ENGINE.md` (pitfalls), `data/phantom-normal.json` (v0.3), `src/engine/phantom.js` (`compile()`), `tools/validate_data.py`. Use the project's anatomy images (`heart-anatomy-labeled-diagram-1.png`, `Detailed heart anatomy 02.jpg`) as visual references.
 
+## Resources (prepared by Punnatorn, folder "Resources for 3d heart alignment")
+- **Where:** lecture files, a Netter extract (heart + mediastinum) and a large cardiac CT dataset. If the folder is not among the project files, it is on Punnatorn's PC: ask him to add it with **+ → Add folder** in the Claude desktop app, then open files individually (device tools; ≤ 400 MB per file, ≤ 500 MB per transfer). Never guess paths; ask if it is not found.
+- **CT:** use ONE normal adult, ECG-gated, contrast-enhanced study at end-diastole (~70–75 % R-R), slices ≤ 1 mm. Read DICOM/NIfTI with `pydicom`/`nibabel` (pip). If masks exist, measure from them. Extract positions and sizes in cm (chamber centroids and axes, wall thickness, annulus planes and diameters, vessel centrelines) and convert them to the heart frame. Record every value with its source (`CT: <series>`, `Netter p.x`, `Lang 2015`, `lecture`). Confirm the data is de-identified or openly licensed.
+- **Netter and lectures:** for shape and relationships only. Private references: no images or text from them go into the app or its teaching cards.
+- **Echo comparison:** POCUS101 "Cardiac Ultrasound (Echocardiography) Made Easy" (https://www.pocus101.com/cardiac-ultrasound-echocardiography-made-easy-step-by-step-guide/). Compare each simulated view against it side by side; do not copy its images.
+- **First step:** a short plan and a baseline (screenshots of the current heart + 8 views + scores), shown to Punnatorn before any change.
+
 ## Why
 The heart is built from simple SDF primitives (ellipsoids, capsules, truncations, shells). The 3D mesh looks like joined shapes, and the same shapes slice into the echo, so blocky anatomy also means a less realistic echo. One phantom feeds three things (echo, cut face, 3D mesh), so improving it improves all three at once.
 
