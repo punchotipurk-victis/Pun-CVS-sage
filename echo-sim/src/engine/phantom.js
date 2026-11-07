@@ -11,13 +11,13 @@ const PHANTOM = (() => {
   const LABELS = ["", "LV_cavity","RV_cavity","LA","RA","LVOT","RVOT","aortic_root","aortic_root.ascending","PA_main","LAA","pulmonary_veins",
     "coronary_sinus","MV_AML","MV_PML","TV_septal","TV_anterior","AV_cusps.RCC","AV_cusps.LCC","AV_cusps.NCC","PV_cusps",
     "papillary_muscles.ALPM","papillary_muscles.PMPM","moderator_band","IVS","PW","LV_myocardium","RV_free_wall","pericardium","liver",
-    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall","aortic_arch","arch_branches","RPA","LPA","crista_terminalis"];
+    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall","aortic_arch","arch_branches","RPA","LPA","crista_terminalis","chordae"];
   const LABEL_TEXT = { LV_cavity:"LV", RV_cavity:"RV", LA:"LA", RA:"RA", LVOT:"LVOT", RVOT:"RVOT", aortic_root:"Ao root", "aortic_root.ascending":"Asc. aorta",
     PA_main:"PA", LAA:"LAA", pulmonary_veins:"Pulm. veins", coronary_sinus:"Coronary sinus", MV_AML:"AML", MV_PML:"PML", TV_septal:"TV (septal)",
     TV_anterior:"TV (anterior)", "AV_cusps.RCC":"RCC", "AV_cusps.LCC":"LCC", "AV_cusps.NCC":"NCC", PV_cusps:"PV", "papillary_muscles.ALPM":"ALPM",
     "papillary_muscles.PMPM":"PMPM", moderator_band:"Moderator band", IVS:"IVS", PW:"Posterior wall", LV_myocardium:"LV wall", RV_free_wall:"RV free wall",
     pericardium:"Pericardium", liver:"Liver", diaphragm:"Diaphragm", IVC:"IVC", hepatic_veins:"Hepatic vein", descending_aorta:"Desc. Ao",
-    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall", aortic_arch:"Aortic arch", arch_branches:"Arch branch", RPA:"RPA", LPA:"LPA", crista_terminalis:"Crista terminalis" };
+    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall", aortic_arch:"Aortic arch", arch_branches:"Arch branch", RPA:"RPA", LPA:"LPA", crista_terminalis:"Crista terminalis", chordae:"Chordae" };
   const Lb = Object.fromEntries(LABELS.map((t,i)=>[t,i]));
 
   /* ---- cycle: monotone cubic interpolation of keyframes (no overshoot) ---- */
@@ -98,12 +98,25 @@ const PHANTOM = (() => {
     /* LV = bullet: ellipsoid ∪ round cone (conical apex), wall = outer − inner semi-axis, thinner toward the apex */
     const bul = S.LV_cavity.bullet || { apexCapRadius: 0.6, blend: 0.6, apicalWallFactor: 0.8 };
     add(` float rB = uP[${pidx.LV_semiXY}], apexZ = uP[${pidx.LV_centerZ}] + uP[${pidx.LV_semiZ}];`);
-    add(` float lvShape = smin(sdEllipsoid(h - ${v3(lvc.center)}, ${v3(lvc.semi)}), sdRoundCone(h, vec3(0.0,0.0,mvz + 0.9*rB), vec3(0.0,0.0,apexZ - ${f(bul.apexCapRadius)}), rB, ${f(bul.apexCapRadius)}), ${f(bul.blend)});`);
+    const lft = S.LV_cavity.loft;
+    if (lft){
+      /* LV cavity as a smooth loft along Z: elliptical shoulder from below the annulus up to the widest level, then a power-law
+         taper (bullet) to the apex — no seam between primitives. Approximate SDF (scaled for safety). */
+      /* LV cavity = chain of round cones along the long axis through a radius profile (z fraction of the length, radius fraction of rB):
+         exact distances, so the wall offset stays even to the apex; smooth joints (no seam, no tab) */
+      add(` float lvLen = apexZ - mvz, lvK0 = rB; float lvShape = 1e3;`);
+      const pr = lft.profile;
+      for (let i = 0; i < pr.length-1; i++){ const [z0, r0] = pr[i], [z1, r1] = pr[i+1];
+        const seg = `sdRoundCone(h, vec3(0.0,0.0,mvz + ${f(z0)}*lvLen), vec3(0.0,0.0,mvz + ${f(z1)}*lvLen), ${f(r0)}*lvK0, ${f(r1)}*lvK0)`;
+        add(` lvShape = ${i ? `smin(lvShape, ${seg}, ${f(lft.blend ?? 0.3)})` : seg};`); }
+      }
+    else add(` float lvShape = smin(sdEllipsoid(h - ${v3(lvc.center)}, ${v3(lvc.semi)}), sdRoundCone(h, vec3(0.0,0.0,mvz + 0.9*rB), vec3(0.0,0.0,apexZ - ${f(bul.apexCapRadius)}), rB, ${f(bul.apexCapRadius)}), ${f(bul.blend)});`);
     add(` float lvWall = (uP[${pidx.LV_outerXY}] - uP[${pidx.LV_semiXY}]) * mix(1.0, ${f(bul.apicalWallFactor)}, clamp((h.z - mvz)/7.0, 0.0, 1.0));`);
     const nA = nrm(S.MV_annulus.normal || [0,0,1]);
     add(` vec3 nA = ${v3(nA)}; float annD = dot(h - vec3(0.0,0.0,mvz), nA);   // signed distance to the (tilted) mitral annulus plane`);
     add(` float lvOut = max(lvShape - lvWall, -(annD + 0.3));`);
-    add(` float lvCav = max(lvShape, -annD);`);
+    if (lft && lft.trabAmp) add(` float lvCav = max(lvShape + ${f(lft.trabAmp)}*smoothstep(${f(lft.trabFrom)}, ${f(lft.trabTo)}, h.z)*sin(4.3*h.x + 1.1)*sin(3.9*h.y + 2.3)*sin(2.7*h.z + 0.4), -annD);`);   // apical trabeculation: rough endocardium near the apex (echo texture + cut face)
+    else add(` float lvCav = max(lvShape, -annD);`);
     add(` float lvot  = sdCapsule(h, ${v3(S.LVOT.a)}, ${v3(S.LVOT.b)}, ${f(S.LVOT.r)});`);
     const rv = S.RV_cavity.from;
     if (S.RV_cavity.loft){ const lo = S.RV_cavity.loft, w = S.RV_free_wall.thickness ?? 0.4;
@@ -228,9 +241,10 @@ const PHANTOM = (() => {
       const hn = s.hinge, hl = Math.hypot(hn[0], hn[1]) || 1, tc = [-hn[0]/hl, -hn[1]/hl, 0];   // toward the orifice centre
       add(`   vec3 c = dir*(u - kw*qw*qw) + bw*(curv*u*fu) + ${v3(tc)}*(${f(s.arc ?? 0.25)}*qw*qw) + w*qw;   // width arc: commissures curve toward the orifice centre`);
       add(`   float t = mix(${f(s.thickness)}, ${f(s.tipThickness ?? s.thickness*0.6)}, fu), hw = ${f(s.width/2)}*sqrt(max(0.0, 1.0 - 0.5*fu*fu));`);
-      add(`   ${name} = max(max(length(q - c) - 0.5*t, abs(qw) - hw), max(-ua, ua - ${f(L)})); }`);
+      add(`   ${name} = max(max(length(q - c) - 0.5*t, abs(qw) - hw), max(-ua, ua - ${f(L)}));`);
+      add(`   ${name}Tip = ${v3(s.hinge)} + vec3(0.0,0.0,${annZ}) + dir*${f(L*0.95)} + bw*(curv*${f(L*0.9)}); ${name}W = w*${f(s.width/2)}; }`);   // free-edge centre + half-width vector (for chordae)
     }
-    add(` float aml, pml, tvs, tva;`);
+    add(` float aml, pml, tvs, tva; vec3 amlTip, amlW, pmlTip, pmlW, tvsTip, tvsW, tvaTip, tvaW;`);
     leaflet("aml", S.MV_AML, "mvz"); leaflet("pml", S.MV_PML, "mvz");
     add(` float tvz = uP[${pidx.TV_annulusShiftZ}] * 0.8;`);
     leaflet("tvs", S.TV_septal, "tvz"); leaflet("tva", S.TV_anterior, "tvz");
@@ -254,7 +268,19 @@ const PHANTOM = (() => {
     add(` float pvc = max(abs(axd) - 0.06, max(rrv - ${f(S.PV_cusps.radius)}, uP[${pidx.PV_open}]*${f(S.PV_cusps.radius*0.9)} - rrv));`);
     /* papillary muscles + moderator band */
     const pm = S.papillary_muscles.items;
-    add(` float papA = sdCapsule(h, ${v3(pm[0].a)}, ${v3(pm[0].b)}, ${f(pm[0].r)}), papP = sdCapsule(h, ${v3(pm[1].a)}, ${v3(pm[1].b)}, ${f(pm[1].r)}); float pap = min(papA, papP);`);
+    const PM = S.papillary_muscles;
+    if (PM.heads){
+      /* papillary muscles: tapered body rooted in the LV wall + 2–3 heads; they move with the wall (radial scale with LV size, z with the annulus) */
+      add(` float lvK = rB / ${f(lvc.semi[0].ed ?? 2.4)}; vec3 pmS = vec3(lvK, lvK, 1.0), pmZ = vec3(0.0, 0.0, 0.5*mvz);`);
+      const pmC = (it, nm) => { add(` float ${nm} = sdRoundCone(h, ${v3(it.a)}*pmS + pmZ, ${v3(it.b)}*pmS + pmZ, ${f(it.r)}, ${f(it.rTip ?? it.r*0.75)});`);
+        for (const hd of it.heads) add(` ${nm} = smin(${nm}, length(h - (${v3(hd)}*pmS + pmZ)) - ${f(PM.headR)}, 0.25);`); };
+      pmC(pm[0], "papA"); pmC(pm[1], "papP"); add(` float pap = min(papA, papP);`);
+      /* chordae tendineae: thin strands from each head to the nearer half of both mitral leaflets' free edges (they follow the leaflets) */
+      add(` float chd = 1e3;`);
+      pm.forEach((it, k) => { const sg = it.edgeSide;   // per leaflet ±1: which half of the free edge this muscle supports
+        it.heads.forEach((hd, j) => { const hp = `(${v3(hd)}*pmS + pmZ)`;
+          for (const [lf, fr] of [["aml", 0.35 + 0.25*j], ["pml", 0.4 + 0.25*j]]) add(` chd = min(chd, sdCapsule(h, ${hp}, ${lf}Tip + ${lf}W*${f(sg[lf]*Math.min(0.9, fr))}, ${f(S.chordae.r)}));`); }); }); }
+    else add(` float papA = sdCapsule(h, ${v3(pm[0].a)}, ${v3(pm[0].b)}, ${f(pm[0].r)}), papP = sdCapsule(h, ${v3(pm[1].a)}, ${v3(pm[1].b)}, ${f(pm[1].r)}); float pap = min(papA, papP); float chd = 1e3;`);
     add(` float mb = sdCapsule(h, ${v3(S.moderator_band.a)}, ${v3(S.moderator_band.b)}, ${f(S.moderator_band.r)});`);
     /* pericardium: shell around the heart solid */
     const pt = (S.pericardium.thickness || 0.22)/2, px = (S.pericardium.posteriorExtra || 0)/2;
@@ -274,6 +300,7 @@ const PHANTOM = (() => {
     add(` if (mvAnn < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);
     if (S.aortomitral_curtain){ const c = S.aortomitral_curtain;
       add(` if (sdCapsule(h, ${v3(c.a)} + vec3(0.0,0.0,0.6*mvz), ${v3(c.b)} + vec3(0.0,0.0,mvz), ${f(c.r)}) < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`); }
+    add(` if (chd < 0.0 && lvCav < 0.0) { tissue = ${T.fibrous}; label = ${Lb["chordae"]}; return; }`);
     add(` if (pap < 0.0 && lvCav < 0.3) { tissue = ${T.myocardium}; label = papA < papP ? ${Lb["papillary_muscles.ALPM"]} : ${Lb["papillary_muscles.PMPM"]}; return; }`);
     add(` if (mb < 0.0 && rvCav < 0.3) { tissue = ${T.myocardium}; label = ${Lb["moderator_band"]}; return; }`);
     add(` if (aoLum < 0.0) { tissue = ${T.blood}; label = at < 2.4 ? ${Lb["aortic_root"]} : ${Lb["aortic_root.ascending"]}; return; }`);

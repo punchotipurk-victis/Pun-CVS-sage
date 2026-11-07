@@ -13,6 +13,7 @@ VIEWS = [("frontal", "Coronal cut, front half removed", "{n:[0,0,-1]}"),
          ("ias", "Deeper coronal cut: interatrial septum with the thin fossa ovalis and its rim", "{n:[0,0,-1], at:'RA_center', offset:1.9, zoom:1.6}"),
          ("la_open", "LA opened from behind (cut through the four pulmonary-vein ostia)", "{n:[0,0,1], at:'LA_center', offset:-2.1, zoom:1.6}"),
          ("plax", "Long-axis cut (PLAX plane)", "{fan:true, view:'plax'}"),
+         ("psax_pap", "Short-axis cut at the papillary muscles", "{fan:true, view:'psax_pap'}"),
          ("psax_av", "Short-axis cut at the aortic valve", "{fan:true, view:'psax_av'}")]
 SKIP = {"", "chest_wall", "lungs", "ribs", "sternum", "pericardium", "diaphragm"}
 def img(d): return Image.open(io.BytesIO(base64.b64decode(d.split(",")[1]))).convert("RGB")

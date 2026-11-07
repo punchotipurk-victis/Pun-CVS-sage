@@ -1,0 +1,121 @@
+{
+ "info": {
+  "verts": 64018,
+  "tris": 128300,
+  "voxelCm": 0.13,
+  "disagree": 0.0003,
+  "bakeMs": 2375
+ },
+ "views": {
+  "supine/plax": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.1 \u2192 soft@1.3 \u2192 myocardium@1.5 \u2192 blood@1.8 \u2192 myocardium@4.1 \u2192 blood@5.4 \u2192 fibrous@6.0 \u2192 valve@6.0 \u2192 blood@6.3 \u2192 valve@8.9 \u2192 blood@9.2 \u2192 myocardium@9.7 \u2192 soft@10.6 \u2192 pericardium@10.8 \u2192 soft@11.3 \u2192 bone@13.6"
+  },
+  "supine/psax_pap": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.1 \u2192 soft@1.3 \u2192 myocardium@1.5 \u2192 blood@3.6 \u2192 myocardium@8.2 \u2192 soft@9.0 \u2192 pericardium@9.2 \u2192 soft@9.5 \u2192 lung@11.4"
+  },
+  "supine/psax_mv": {
+   "q": 100,
+   "ed": 78.57142857142857,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.4 \u2192 soft@1.6 \u2192 myocardium@1.9 \u2192 blood@2.5 \u2192 myocardium@3.7 \u2192 blood@4.7 \u2192 valve@5.7 \u2192 blood@6.0 \u2192 valve@8.4 \u2192 blood@8.6 \u2192 myocardium@9.6 \u2192 blood@9.9 \u2192 pericardium@10.7 \u2192 soft@11.1 \u2192 bone@13.5"
+  },
+  "supine/psax_av": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@1.0 \u2192 pericardium@1.2 \u2192 soft@1.4 \u2192 myocardium@1.6 \u2192 blood@1.9 \u2192 myocardium@4.6 \u2192 vessel_wall@4.9 \u2192 blood@5.2 \u2192 valve@5.9 \u2192 blood@6.9 \u2192 vessel_wall@7.2 \u2192 fibrous@7.3 \u2192 vessel_wall@7.5 \u2192 myocardium@7.6 \u2192 blood@7.7 \u2192 myocardium@11.7 \u2192 soft@12.2 \u2192 pericardium@12.5 \u2192 lung@13.5"
+  },
+  "supine/a4c": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@1.2 \u2192 pericardium@4.3 \u2192 soft@4.6 \u2192 myocardium@4.9 \u2192 blood@6.4 \u2192 valve@11.2 \u2192 myocardium@12.6 \u2192 soft@16.3 \u2192 pericardium@16.7 \u2192 soft@17.1"
+  },
+  "supine/a5c": {
+   "q": 90,
+   "ed": 90,
+   "fails": [
+    "shape:lvot_aligned"
+   ],
+   "line": "chest_wall@0.0 \u2192 soft@1.4 \u2192 pericardium@4.4 \u2192 soft@4.6 \u2192 myocardium@4.9 \u2192 blood@6.5 \u2192 valve@9.8 \u2192 blood@10.0 \u2192 valve@13.1 \u2192 blood@13.3 \u2192 vessel_wall@15.4 \u2192 soft@15.6 \u2192 pericardium@16.5 \u2192 soft@16.8 \u2192 myocardium@17.1"
+  },
+  "supine/subxiphoid_4c": {
+   "q": 100,
+   "ed": 87.5,
+   "fails": [],
+   "line": "liver@0.0 \u2192 pericardium@7.4 \u2192 liver@7.7 \u2192 diaphragm@7.8 \u2192 myocardium@7.9 \u2192 blood@8.7 \u2192 myocardium@10.1 \u2192 blood@11.4 \u2192 myocardium@13.2 \u2192 blood@13.7"
+  },
+  "supine/ivc": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "liver@0.0 \u2192 vessel_wall@7.7 \u2192 blood@7.9 \u2192 vessel_wall@9.7 \u2192 liver@9.9 \u2192 diaphragm@12.6 \u2192 lung@13.1"
+  },
+  "LLD/plax": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.7 \u2192 soft@1.9 \u2192 myocardium@2.1 \u2192 blood@2.5 \u2192 myocardium@4.3 \u2192 vessel_wall@4.5 \u2192 blood@4.7 \u2192 valve@6.0 \u2192 blood@7.1 \u2192 fibrous@7.4 \u2192 blood@7.7 \u2192 myocardium@11.5 \u2192 soft@12.0 \u2192 pericardium@12.2 \u2192 soft@12.9 \u2192 bone@14.0"
+  },
+  "LLD/psax_pap": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@1.0 \u2192 pericardium@1.3 \u2192 soft@1.5 \u2192 myocardium@1.6 \u2192 blood@2.1 \u2192 myocardium@4.0 \u2192 blood@4.8 \u2192 myocardium@9.4 \u2192 lung@10.2 \u2192 pericardium@10.3 \u2192 lung@10.6"
+  },
+  "LLD/psax_mv": {
+   "q": 85.71428571428572,
+   "ed": 78.57142857142857,
+   "fails": [
+    "missing:LV_cavity",
+    "shape:lv_round"
+   ],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.2 \u2192 soft@1.4 \u2192 myocardium@1.6 \u2192 blood@2.0 \u2192 myocardium@4.5 \u2192 blood@5.4 \u2192 valve@5.7 \u2192 blood@5.8 \u2192 valve@6.4 \u2192 blood@6.6 \u2192 myocardium@10.1 \u2192 soft@11.0 \u2192 pericardium@11.2 \u2192 blood@11.6 \u2192 vessel_wall@13.6 \u2192 lung@13.8"
+  },
+  "LLD/psax_av": {
+   "q": 92.85714285714286,
+   "ed": 92.85714285714286,
+   "fails": [
+    "shape:av_round"
+   ],
+   "line": "chest_wall@0.0 \u2192 soft@0.9 \u2192 pericardium@1.2 \u2192 soft@1.4 \u2192 myocardium@1.7 \u2192 blood@2.2 \u2192 myocardium@4.2 \u2192 vessel_wall@4.4 \u2192 blood@4.7 \u2192 valve@6.1 \u2192 blood@6.8 \u2192 fibrous@7.2 \u2192 blood@7.2 \u2192 myocardium@11.5 \u2192 soft@11.8 \u2192 pericardium@12.0 \u2192 vessel_wall@12.4 \u2192 soft@12.6 \u2192 bone@13.2"
+  },
+  "LLD/a4c": {
+   "q": 100,
+   "ed": 100,
+   "fails": [],
+   "line": "chest_wall@0.0 \u2192 soft@1.0 \u2192 diaphragm@1.1 \u2192 soft@2.2 \u2192 pericardium@5.1 \u2192 soft@5.3 \u2192 myocardium@5.6 \u2192 blood@7.5 \u2192 valve@12.3 \u2192 myocardium@12.7 \u2192 soft@15.9 \u2192 pericardium@16.3 \u2192 soft@16.8"
+  },
+  "LLD/a5c": {
+   "q": 90,
+   "ed": 90,
+   "fails": [
+    "shape:lvot_aligned"
+   ],
+   "line": "chest_wall@0.0 \u2192 soft@1.2 \u2192 pericardium@5.1 \u2192 soft@5.4 \u2192 myocardium@5.6 \u2192 blood@7.7 \u2192 valve@13.2 \u2192 blood@13.4 \u2192 vessel_wall@15.4 \u2192 pericardium@15.7 \u2192 soft@16.0 \u2192 pericardium@17.0 \u2192 soft@17.5"
+  },
+  "LLD/subxiphoid_4c": {
+   "q": 87.5,
+   "ed": 81.25,
+   "fails": [
+    "missing:RV_cavity",
+    "missing:RA"
+   ],
+   "line": "liver@0.0 \u2192 pericardium@7.7 \u2192 liver@7.9 \u2192 myocardium@8.1 \u2192 blood@8.7 \u2192 myocardium@10.6 \u2192 blood@11.7 \u2192 myocardium@13.7 \u2192 blood@14.3 \u2192 myocardium@17.6 \u2192 soft@17.9"
+  },
+  "LLD/ivc": {
+   "q": 100,
+   "ed": 90,
+   "fails": [],
+   "line": "liver@0.0 \u2192 vessel_wall@7.7 \u2192 blood@7.9 \u2192 vessel_wall@9.7 \u2192 liver@9.9 \u2192 diaphragm@12.6 \u2192 lung@13.1"
+  }
+ },
+ "renderOnceMs_swiftshader": 7.5,
+ "errors": []
+}
