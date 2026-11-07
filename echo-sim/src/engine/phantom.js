@@ -11,13 +11,13 @@ const PHANTOM = (() => {
   const LABELS = ["", "LV_cavity","RV_cavity","LA","RA","LVOT","RVOT","aortic_root","aortic_root.ascending","PA_main","LAA","pulmonary_veins",
     "coronary_sinus","MV_AML","MV_PML","TV_septal","TV_anterior","AV_cusps.RCC","AV_cusps.LCC","AV_cusps.NCC","PV_cusps",
     "papillary_muscles.ALPM","papillary_muscles.PMPM","moderator_band","IVS","PW","LV_myocardium","RV_free_wall","pericardium","liver",
-    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS"];
+    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall"];
   const LABEL_TEXT = { LV_cavity:"LV", RV_cavity:"RV", LA:"LA", RA:"RA", LVOT:"LVOT", RVOT:"RVOT", aortic_root:"Ao root", "aortic_root.ascending":"Asc. aorta",
     PA_main:"PA", LAA:"LAA", pulmonary_veins:"Pulm. veins", coronary_sinus:"Coronary sinus", MV_AML:"AML", MV_PML:"PML", TV_septal:"TV (septal)",
     TV_anterior:"TV (anterior)", "AV_cusps.RCC":"RCC", "AV_cusps.LCC":"LCC", "AV_cusps.NCC":"NCC", PV_cusps:"PV", "papillary_muscles.ALPM":"ALPM",
     "papillary_muscles.PMPM":"PMPM", moderator_band:"Moderator band", IVS:"IVS", PW:"Posterior wall", LV_myocardium:"LV wall", RV_free_wall:"RV free wall",
     pericardium:"Pericardium", liver:"Liver", diaphragm:"Diaphragm", IVC:"IVC", hepatic_veins:"Hepatic vein", descending_aorta:"Desc. Ao",
-    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS" };
+    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall" };
   const Lb = Object.fromEntries(LABELS.map((t,i)=>[t,i]));
 
   /* ---- cycle: monotone cubic interpolation of keyframes (no overshoot) ---- */
@@ -60,6 +60,11 @@ const PHANTOM = (() => {
     const v3 = a => typeof a === "string" ? `vec3(${L[a].map(f).join(",")})` : `vec3(${a.map(num).join(",")})`;
     const nrm = a => { const l = Math.hypot(...a); return a.map(x=>x/l); };
     const ln = [];   // body lines of scene()
+    /* swept tube along a polyline (heart frame): radius tapers r0 → r1, joints smooth-blended (k) so it reads as one bent vessel */
+    const tube = (pts, r0, r1 = r0, k = 0.25) => { const P = pts.map(v3); let e = "";
+      for (let i = 0; i < P.length-1; i++){ const ra = r0 + (r1-r0)*i/(P.length-1), rb = r0 + (r1-r0)*(i+1)/(P.length-1);
+        const seg = `sdRoundCone(h, ${P[i]}, ${P[i+1]}, ${f(ra)}, ${f(rb)})`; e = e ? `smin(${e}, ${seg}, ${f(k)})` : seg; }
+      return e; };
     const add = s => ln.push("  " + s);
 
     /* -------- body wall first: skin, sternum, ribs, spine, chest wall (they must win over everything deeper) -------- */
@@ -104,14 +109,16 @@ const PHANTOM = (() => {
     add(` vec3 rvC = ${v3(rv.center)}; vec3 rvS = ${v3(rv.semi)};`);
     add(` float rvOut = sdEllipsoid(h - rvC, rvS + vec3(0.4));`);
     add(` float rvCav = max(sdEllipsoid(h - rvC, rvS), -lvOut);`);
-    add(` float rvot  = sdCapsule(h, ${v3(S.RVOT.a)}, ${v3(S.RVOT.b)}, ${num(S.RVOT.r)});`);
+    if (S.RVOT.points) add(` float rvot = ${tube(S.RVOT.points.concat([S.RVOT.b]), S.RVOT.rStart ?? 1.3, S.RVOT.rEnd ?? 1.2, 0.5)} + (${num(S.RVOT.r)} - ${f(S.RVOT.rStart ?? 1.3)});`);   // conus: curved tube TV side → over the aorta → PV
+    else add(` float rvot  = sdCapsule(h, ${v3(S.RVOT.a)}, ${v3(S.RVOT.b)}, ${num(S.RVOT.r)});`);
     add(` rvot = max(rvot, -lvOut);`);                               // RVOT never eats the LV/septum
     add(` float rvotW = rvot - 0.35;`);
     add(` float pa    = sdCapsule(h, ${v3(S.PA_main.a)}, ${v3(S.PA_main.b)}, ${f(S.PA_main.r)});`);
     const la = S.LA, ra = S.RA;
     const LD = la.detail || { vestibuleRadius: 1.4, vestibuleBlend: 0.8, veinBlend: 0.5, laaBlend: 0.4, wobble: 0.15 };
     const RD = ra.detail || { vestibuleRadius: 1.3, vestibuleBlend: 0.8, wobble: 0.15 };
-    add(` float laa   = sdCapsule(h, ${v3(S.LAA.a)}, ${v3(S.LAA.b)}, ${f(S.LAA.r)});`);
+    if (S.LAA.points) add(` float laa = ${tube(S.LAA.points, S.LAA.r, S.LAA.rTip ?? S.LAA.r*0.6, 0.3)};`);   // narrow finger, tapering, curving round the PA
+    else add(` float laa   = sdCapsule(h, ${v3(S.LAA.a)}, ${v3(S.LAA.b)}, ${f(S.LAA.r)});`);
     add(` float pvn = 1e3;`);
     for (const it of S.pulmonary_veins.items) add(` pvn = min(pvn, sdCapsule(h, ${v3(it.a)}, ${v3(it.b)}, ${f(it.r)}));`);
     /* organic LA: ellipsoid + low-frequency wobble + funnel into the MV + PV ostia + LAA, clipped at the annulus plane */
@@ -145,6 +152,12 @@ const PHANTOM = (() => {
     add(` float aoLum = length(h - (aO + aAx*at)) - ${rexpr};`);
     add(` aoLum = max(aoLum, -dot(h - aO, aAx));`);       // starts at the annulus
     add(` float aoWall = aoLum - ${f(ar.wall)};`);
+    if (S.LVOT.anteriorWall){ const aw = S.LVOT.anteriorWall;
+      /* the basal septum runs on into the anterior aortic wall: myocardium round the LVOT on the side away from the mitral valve
+         (the posterior LVOT wall is the AML, in fibrous continuity with the posterior aortic wall) */
+      add(` vec3 dPost = normalize((vec3(0.0) - aO) - aAx*dot(vec3(0.0) - aO, aAx));`);
+      add(` float lvotW = max(max(sdCapsule(h, aO - aAx*${f(aw.length ?? 1.2)}, aO, ${f(S.LVOT.r + aw.thickness)}), dot(h - aO, dPost) - ${f(aw.postOffset ?? 0.3)}), dot(h - aO, aAx) - 0.2);`);
+      add(` lvOut = min(lvOut, lvotW); rvot = max(rvot, -(lvotW + 0.05)); rvCav = max(rvCav, -(lvotW + 0.05));`); }
     add(` rvot = max(rvot, -(aoLum - 0.35)); rvCav = max(rvCav, -(aoLum - 0.35));`);   // keep a wall between RVOT and the aortic root
     add(` laCav = max(laCav, -(aoLum - 0.3)); raCav = max(raCav, -(aoLum - 0.3));`);     // aorto-atrial walls
     add(` laCav = max(laCav, -(lvOut + 0.05)); raCav = max(raCav, -(rvOut + 0.05));`);   // atria never eat ventricular wall
@@ -227,7 +240,7 @@ const PHANTOM = (() => {
     add(` if (pvn < 0.0) { tissue = ${T.blood}; label = ${Lb["pulmonary_veins"]}; return; }`);
     add(` if (aoWall < 0.0 || (pa < 0.15 && pa >= 0.0)) { tissue = ${T.vessel_wall}; label = ${Lb["aortic_root"]}; return; }`);
     add(` if (solid < 0.0) { tissue = ${T.myocardium};`);
-    add(`   label = lvOut < 0.0 ? (rvOut < 0.2 && h.x > 0.5 ? ${Lb["IVS"]} : ${Lb["PW"]}) : (rvOut < 0.0 ? ${Lb["RV_free_wall"]} : (min(laCav,raCav) < 0.6 ? ${Lb["IAS"]} : ${Lb["RV_free_wall"]})); return; }`);
+    add(`   label = lvOut < 0.0 ? (rvOut < 0.2 && h.x > 0.5 ? ${Lb["IVS"]} : ${Lb["PW"]}) : (rvOut < 0.0 ? ${Lb["RV_free_wall"]} : (max(laRaw, raRaw) < 0.55 ? ${Lb["IAS"]} : (laRaw < raRaw ? ${Lb["LA_wall"]} : (raRaw < 0.6 ? ${Lb["RA_wall"]} : ${Lb["RV_free_wall"]})))); return; }`);
     add(` if (effusion < 0.0 && uP[${pidx.effusion_cm}] > 0.01) { tissue = ${T.fluid}; label = ${Lb["pericardium"]}; return; }`);
     add(` if (peri < 0.0) { tissue = ${T.pericardium}; label = ${Lb["pericardium"]}; return; }`);
     add(`}`);

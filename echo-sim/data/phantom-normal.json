@@ -1,18 +1,22 @@
 {
   "_meta": {
     "file": "phantom-normal.json",
-    "version": "0.3.0-draft",
+    "version": "0.4.0-draft",
     "status": "DRAFT — geometry is schematic; validate with an echo-lab fellow/cardiologist (planned after P2/P3). Tune visually with the dev calibration mode described in views.json._calibration.",
     "units": "cm, degrees, time as fraction of RR interval (t=0 at R-wave peak = end-diastole)",
     "references": [
       "Lang RM et al. Recommendations for cardiac chamber quantification. JASE 2015;28:1-39",
       "Mitchell C et al. ASE Guidelines for performing a comprehensive TTE examination in adults. JASE 2019;32:1-64",
-      "POCUS101 Cardiac Ultrasound Made Easy (primary teaching reference)"
+      "POCUS101 Cardiac Ultrasound Made Easy (primary teaching reference)",
+      "Netter, Atlas of Human Anatomy, plates 215–229 (private reference: relations only, no images or text in the app)",
+      "Ramathibodi RAID204 lectures: Heart and great vessels; Lung and mediastinum; Thoracic wall (what learners must identify)",
+      "Non-contrast gated cardiac CT, Kaggle archive (1): base-of-heart position/size only (descending aorta ≈2.4 cm, ≈0.5 cm behind the LA; sternum→spine ≈10 cm at the base)"
     ],
     "supersedes": "Plan v1.1 §1.1/§1.2: LV long-axis orientation refined (≈50° left of sagittal, ≈35° inferior, ≈17° anterior) so that PLAX is reachable with a near-perpendicular beam; LV ES length 7.2 cm with MAPSE 1.3 cm (was 7.5).",
     "changelog": [
       "0.2.0: heart moved 1.2 cm posterior (RV free wall was touching the chest wall; RV now ~2 cm deep in PLAX); descending aorta moved to stay just behind the LA; rib width 1.3→1.0 cm and AP thickness 1.0→0.8 cm (realistic intercostal windows); liver left lobe enlarged (subxiphoid window); lung cardiac notch enlarged (apical window opens in LLD). All found by rendering the views and tracing the centre scan line.",
-      "0.3.0: anatomy realism pass after staff-style review of renders — curved/tapered MV+TV leaflets with free-edge curl, AV cusp belly sag, bullet-shaped LV, organic atria (vestibules, PV ostia, LAA, SVC, RA appendage, carved IAS, LA–aorta wall), thicker pericardium; echo: myocardium/liver mottling. Pericardium thinner except posteriorly; leaflet width-arc (short-axis curvature). LA moved posterior (under the aortic root, as in PLAX); mitral annulus tilted; descending aorta moved posterior-left to stay behind the LA."
+      "0.3.0: anatomy realism pass after staff-style review of renders — curved/tapered MV+TV leaflets with free-edge curl, AV cusp belly sag, bullet-shaped LV, organic atria (vestibules, PV ostia, LAA, SVC, RA appendage, carved IAS, LA–aorta wall), thicker pericardium; echo: myocardium/liver mottling. Pericardium thinner except posteriorly; leaflet width-arc (short-axis curvature). LA moved posterior (under the aortic root, as in PLAX); mitral annulus tilted; descending aorta moved posterior-left to stay behind the LA.",
+      "0.4.0 (P1.5, in progress): 3D heart meshed from the signed distance of the heart's outer surface (gHeartD) at 0.13 cm, bake skips the body wall (the anterior RV had been cut flat by the chest-wall layer). Base of the heart re-laid round the aortic root (clock face from above): LA moved behind the root at sinus level (no false-ASD look in PLAX), PV anterior-left of the AV, RVOT/conus a curved tube from the TV side over the front of the aorta to the PV (PSAX-AV: RV/RVOT wraps the Mercedes sign), LAA a tapering finger beside the PA trunk, LVOT a tube along the aortic axis with the basal IVS continuing into the anterior aortic wall and the AML hinged on the posterior aortic annulus. New label ids LA_wall, RA_wall (IAS now only where both atria meet). Views: PLAX beam ⟂ the LV–aorta bisector; plane3 lateral now lies in the derived plane (side landmark only picks the sign); A4C notch side = LV_lateral_mid."
     ]
   },
   "frames": {
@@ -79,9 +83,9 @@
       -0.28
     ],
     "PV_center": [
-      1.56,
-      -3.37,
-      -0.05
+      2.32,
+      -4.17,
+      0.92
     ],
     "PA_bifurcation": [
       -1.94,
@@ -119,9 +123,9 @@
       7.0
     ],
     "LA_center": [
-      -1.6,
-      0.8,
-      -1.9
+      -1.11,
+      -0.46,
+      -1.88
     ],
     "RA_center": [
       2.9,
@@ -129,9 +133,9 @@
       -2.4
     ],
     "LAA_tip": [
-      -2.8,
-      -1.2,
-      -1.0
+      0.56,
+      -4.79,
+      1.41
     ],
     "CS_lateral": [
       -2.4,
@@ -149,24 +153,24 @@
       -1.2
     ],
     "PVein_LU": [
-      -2.6,
-      0.4,
-      -3.8
+      -2.11,
+      -0.86,
+      -3.78
     ],
     "PVein_LL": [
-      -2.4,
-      1.6,
-      -3.2
+      -1.91,
+      0.34,
+      -3.18
     ],
     "PVein_RU": [
-      0.6,
-      0.2,
-      -4.6
+      1.09,
+      -1.06,
+      -4.58
     ],
     "PVein_RL": [
-      0.8,
-      1.4,
-      -4.2
+      1.29,
+      0.14,
+      -4.18
     ],
     "ALPM_base": [
       -1.7,
@@ -202,6 +206,11 @@
       5.6,
       -0.4,
       5.6
+    ],
+    "LV_lateral_mid": [
+      -3.3,
+      0.0,
+      4.0
     ]
   },
   "axes_heart": {
@@ -244,7 +253,9 @@
       "smoothUnion": "{items, k}",
       "subtract": "{from, minus}",
       "leaflet": "{hinge, dirClosed, length, width, thickness, openAxis, openAngleParam}",
-      "torus": "{center, normal, R, r} (annulus ring)"
+      "torus": "{center, normal, R, r} (annulus ring)",
+      "tube": "{points:[...], r, rTip?} — swept tube along a polyline: round cones between points (radius tapers r → rTip), joints smooth-blended. Used for RVOT/conus, LAA; next: vessels, coronaries.",
+      "envelope": "gHeartD: signed distance to the heart's outer surface, written by scene() and baked for the 3D mesh (not used by the echo)."
     },
     "_animation": "Any numeric value may be replaced by {param:'name'} referencing cycle.params; ED values shown as defaults.",
     "LV_cavity": {
@@ -302,15 +313,25 @@
     "LVOT": {
       "type": "capsule",
       "a": [
-        0.6,
-        -0.6,
-        1.2
+        0.96,
+        -0.52,
+        0.69
       ],
-      "b": "AV_center",
+      "b": [
+        1.53,
+        -1.22,
+        -0.18
+      ],
       "r": 1.0,
       "tissue": "blood",
       "label": "LVOT",
-      "_note": "Unioned with LV_cavity; bounded by IVS and AML."
+      "_note": "Tube along the aortic root axis, 2.0 cm wide (Lang 2015 LVOT ~2.0 cm, verify), bounded by the basal IVS (anterior, continuous with the anterior aortic wall) and the AML (posterior, continuous with the posterior aortic wall).",
+      "anteriorWall": {
+        "thickness": 0.7,
+        "length": 1.2,
+        "postOffset": 0.2,
+        "_note": "aorto-septal continuity: the basal IVS runs on into the anterior aortic wall (only the last 1.2 cm below the annulus)"
+      }
     },
     "LV_myocardium": {
       "type": "subtract",
@@ -451,11 +472,6 @@
     },
     "RVOT": {
       "type": "capsule",
-      "a": [
-        3.0,
-        -1.8,
-        1.5
-      ],
       "b": "PV_center",
       "r": {
         "param": "RVOT_r",
@@ -463,7 +479,27 @@
       },
       "tissue": "blood",
       "label": "RVOT",
-      "wall": 0.35
+      "wall": 0.35,
+      "points": [
+        [
+          3.81,
+          0.05,
+          1.25
+        ],
+        [
+          3.84,
+          -1.51,
+          1.72
+        ],
+        [
+          3.23,
+          -3.11,
+          1.53
+        ]
+      ],
+      "rStart": 1.35,
+      "rEnd": 1.2,
+      "_note": "Conus arteriosus: curved tube from the RV inflow (TV side, 10 o'clock round the AV) over the front of the aortic root to the PV (2 o'clock), so in PSAX-AV the RV/RVOT wraps the Mercedes sign from 9 to 2 o'clock. Netter 220/224/226; Lang 2015 RVOT prox 2.0-3.0 cm (verify)."
     },
     "PA_main": {
       "type": "capsule",
@@ -585,16 +621,25 @@
     },
     "LAA": {
       "type": "capsule",
-      "a": [
-        -1.6,
-        -0.4,
-        -1.6
-      ],
-      "b": "LAA_tip",
-      "r": 0.6,
+      "r": 0.75,
       "tissue": "blood",
       "label": "LAA",
-      "wall": 0.15
+      "wall": 0.15,
+      "points": [
+        [
+          -1.79,
+          -1.77,
+          -0.98
+        ],
+        [
+          -1.68,
+          -3.76,
+          0.11
+        ],
+        "LAA_tip"
+      ],
+      "rTip": 0.45,
+      "_note": "Left auricle: tapering finger, LA → anterior-left, tip beside the PA trunk (Netter 216/218; lecture: left auricle)."
     },
     "pulmonary_veins": {
       "type": "capsules",
@@ -602,9 +647,9 @@
         {
           "a": "PVein_LU",
           "b": [
-            -3.8,
-            0.6,
-            -5.2
+            -3.31,
+            -0.66,
+            -5.18
           ],
           "r": 0.6,
           "label": "LUPV"
@@ -612,9 +657,9 @@
         {
           "a": "PVein_LL",
           "b": [
-            -3.6,
-            2.2,
-            -4.6
+            -3.11,
+            0.94,
+            -4.58
           ],
           "r": 0.6,
           "label": "LLPV"
@@ -622,9 +667,9 @@
         {
           "a": "PVein_RU",
           "b": [
-            0.9,
-            0.0,
-            -6.2
+            1.39,
+            -1.26,
+            -6.18
           ],
           "r": 0.6,
           "label": "RUPV"
@@ -632,9 +677,9 @@
         {
           "a": "PVein_RL",
           "b": [
-            1.2,
-            1.8,
-            -5.8
+            1.69,
+            0.54,
+            -5.78
           ],
           "r": 0.6,
           "label": "RLPV"
@@ -678,9 +723,9 @@
     "MV_AML": {
       "type": "leaflet",
       "hinge": [
-        1.16,
-        -0.95,
-        0.75
+        0.68,
+        -0.86,
+        -1.02
       ],
       "dirClosed": [
         -0.62,
@@ -717,7 +762,8 @@
       ],
       "widthCurl": 0.22,
       "_shapeNote": "Curved, tapered leaflet: centre-line bows toward bowClosed (systole, billowing into the LA) or bowOpen (diastole); widthCurl bends the free edge back toward the annulus so the short-axis cut is an arc (fish mouth).",
-      "arc": 0.3
+      "arc": 0.3,
+      "_continuityNote": "Hinge = posterior aortic annulus (aortomitral curtain), so in PLAX the AML runs on from the posterior aortic wall."
     },
     "MV_PML": {
       "type": "leaflet",
@@ -2215,5 +2261,10 @@
     "IVC": "#6FA8DC",
     "DA": "#E0A458",
     "CS": "#C77DDB"
+  },
+  "_mesh": {
+    "heartVoxelCm": 0.13,
+    "taubinIters": 3,
+    "_note": "3D heart bake (scene.js): voxel size and smoothing. 0.13 cm keeps 0.4 cm walls ≥3 voxels; bake ≈1.3 s in SwiftShader."
   }
 }

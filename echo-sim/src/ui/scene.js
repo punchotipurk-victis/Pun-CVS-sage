@@ -87,11 +87,11 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   /* realistic colours by structure (the teaching palette stays available in the cutaway's "Colours" toggle) */
   const MYO = [.46, .09, .08], REAL = { LV_myocardium: MYO, IVS: MYO, PW: MYO, LVOT: MYO, RVOT: [.5, .12, .1], RV_free_wall: [.52, .13, .11], RV_cavity: [.42, .04, .05], LV_cavity: [.42, .04, .05],
     "papillary_muscles.ALPM": [.5, .12, .11], "papillary_muscles.PMPM": [.5, .12, .11], moderator_band: [.5, .12, .11],
-    LA: [.42, .12, .15], LAA: [.4, .1, .13], RA: [.36, .13, .22], pulmonary_veins: [.52, .2, .22], coronary_sinus: [.34, .22, .38], IAS: [.5, .18, .2],
+    LA: [.42, .12, .15], LAA: [.4, .1, .13], RA: [.36, .13, .22], LA_wall: [.44, .13, .16], RA_wall: [.38, .14, .23], pulmonary_veins: [.52, .2, .22], coronary_sinus: [.34, .22, .38], IAS: [.5, .18, .2],
     aortic_root: [.87, .73, .64], "aortic_root.ascending": [.87, .73, .64], PA_main: [.82, .65, .62],
     MV_AML: [.93, .87, .76], MV_PML: [.93, .87, .76], TV_septal: [.93, .87, .76], TV_anterior: [.93, .87, .76], "AV_cusps.RCC": [.93, .87, .76], "AV_cusps.LCC": [.93, .87, .76], "AV_cusps.NCC": [.93, .87, .76], PV_cusps: [.93, .87, .76],
     liver: [.43, .14, .1], IVC: [.3, .33, .58], hepatic_veins: [.32, .35, .6], descending_aorta: [.78, .25, .21], "descending_aorta.abdominal": [.78, .25, .21] };
-  const FAT = [.9, .74, .43], MUSCLE_L = new Set(["LV_myocardium", "IVS", "PW", "RV_free_wall", "LA", "RA", "LAA", "RVOT", "LVOT", "IAS"]);
+  const FAT = [.9, .74, .43], MUSCLE_L = new Set(["LV_myocardium", "IVS", "PW", "RV_free_wall", "LA", "RA", "LAA", "RVOT", "LVOT", "IAS", "LA_wall", "RA_wall"]);
   const realPal = Array.from({ length: 48 }, (_, i) => new T.Vector3(...(REAL[L[i]] || [0, 0, 0])));
   function colourise(g, lab, mode){
     const P = g.attributes.position, nv = P.count, real = new Float32Array(nv*3), teach = new Float32Array(nv*3), pal = eng.uniforms.uPalette.value;

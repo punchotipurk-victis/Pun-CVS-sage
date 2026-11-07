@@ -137,6 +137,39 @@ def main():
     la_post = tp("LA_center")[2] - 1.6; da_front = da["points"][1][2] + da["r"]
     rng("gap LA posterior wall → descending aorta", la_post - da_front, 0, 2.5, " cm")
 
+    # 5. base of the heart round the aortic root (P1.5): clock face seen from above, 12 = anterior, 3 = patient's left.
+    #    Netter plates 216/218/220/226: PV anterior-left of the AV and higher; TV on the right; LA behind the root; RA right-posterior; LAA left.
+    a = norm(V3(P["axes_heart"]["aortic_root"])); AV = V3(L["AV_center"])
+    toH = lambda v: [dot(v, X), dot(v, Y), dot(v, Z)]
+    ant = toH([0, 0, 1]); ant = norm(sub(ant, mul(a, dot(ant, a)))); left = cross(a, ant)
+    if add(mul(X, left[0]), add(mul(Y, left[1]), mul(Z, left[2])))[0] < 0: left = mul(left, -1)
+    def clk(pt):
+        q = sub(V3(pt), AV); up = dot(q, a); q2 = sub(q, mul(a, up)); ang = deg(math.atan2(dot(q2, left), dot(q2, ant))) % 360
+        return ang/30, math.sqrt(dot(q2, q2)), up
+    def clock_ok(nm, pt, c0, c1, r0, r1):
+        c, r, up = clk(pt); inside = (c0 <= c <= c1) if c0 <= c1 else (c >= c0 or c <= c1)
+        (info if inside and r0 <= r <= r1 else warn)(f"base layout: {nm} at {c:4.1f} o'clock, {r:.1f} cm from the AV (expected {c0}–{c1} o'clock, {r0}–{r1} cm)")
+    S = P["structures"]
+    clock_ok("PV", L["PV_center"], 0.5, 3.0, 2.3, 3.8)
+    clock_ok("LA centre", L["LA_center"], 5.0, 7.0, 2.3, 4.2)
+    clock_ok("RA centre", L["RA_center"], 7.5, 9.8, 2.8, 4.8)
+    clock_ok("TV centre", L["TV_center"], 9.0, 11.5, 2.0, 4.0)
+    clock_ok("LAA tip", L["LAA_tip"], 1.5, 4.5, 3.0, 5.0)
+    if S["RVOT"].get("points"):
+        cs = [clk(q)[0] for q in S["RVOT"]["points"]]
+        (info if cs[0] > 9 and (cs[-1] < 3 or cs[-1] > 11.5) else warn)(f"RVOT conus runs {cs[0]:.1f} → {cs[-1]:.1f} o'clock over the front of the aorta (expected from ~10–11 to ~1)")
+    lv = S["LVOT"]; la_, lb_ = V3(lv["a"]), V3(lv["b"]) if isinstance(lv["b"], list) else AV
+    rng("LVOT axis vs aortic root axis", deg(math.acos(min(1, abs(dot(norm(sub(lb_, la_)), a))))), 0, 15, "°")
+    ah = V3(S["MV_AML"]["hinge"]); c, r, up = clk(ah)
+    rng("AML hinge distance from the AV centre (aortomitral continuity)", r, 0.9, 1.7, " cm")
+    # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
+    import re
+    js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()
+    LBL = set(re.findall(r'"([A-Za-z_.]+)"', re.search(r"const LABELS = \[(.*?)\];", js, re.S).group(1)))
+    for v in views:
+        for r_ in v.get("labels", []):
+            if r_ not in LBL and r_.split(".")[0] not in LBL and not any(x.startswith(r_ + ".") for x in LBL): err(f"{v['id']}: label '{r_}' is not an engine label id (phantom.js LABELS)")
+
     print(f"\n{len(ERR)} error(s), {len(WARN)} warning(s)")
     sys.exit(1 if ERR else 0)
 

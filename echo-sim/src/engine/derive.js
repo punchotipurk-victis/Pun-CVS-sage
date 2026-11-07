@@ -41,9 +41,10 @@ const DERIVE = (() => {
       let b=sub(aim,p);b=norm(sub(b,mul(n,dot(b,n))));
       if(perpAx){ /* beam ⟂ axis inside the plane (e.g. PLAX: LV–aorta horizontal); the aim only has to be inside the fan */
         let bp=norm(cross(n,perpAx)); if(dot(bp,b)<0) bp=mul(bp,-1);
-        if(Math.acos(Math.max(-1,Math.min(1,dot(bp,b))))*180/Math.PI>30) continue; b=bp; }
+        if(Math.acos(Math.max(-1,Math.min(1,dot(bp,b))))*180/Math.PI>30) continue;
+        const q=sub(aim,p), off=Math.hypot(...sub(q,mul(bp,dot(q,bp)))); b=bp; var aimOff=off; }   // how far the aim sits from the fan centre line
       const ang=Math.acos(Math.max(-1,Math.min(1,-dot(b,P.outwardNormal(p)))))*180/Math.PI;
-      const cost=ang+2*Math.hypot(x-seed[0],y-seed[1])+(ribGap(x,y)<=0?40:0)+200*ribPath(p,b);
+      const cost=ang+2*Math.hypot(x-seed[0],y-seed[1])+(ribGap(x,y)<=0?40:0)+200*ribPath(p,b)+(perpAx?6*aimOff:0);
       if(!best||cost<best.cost)best={x,y,cost,b}}
     return best}
   function derive(VJ, ph, position){
@@ -56,9 +57,14 @@ const DERIVE = (() => {
       const side=()=>resolve(ph,toP,d.notchSideLandmark);
       if(d.method==="plane3"){
         const [A,B,C]=d.through.map(n=>resolve(ph,toP,n)), n=norm(cross(sub(B,A),sub(C,A))), aim=resolve(ph,toP,d.aimAt);
-        const s=onPlaneBest(n,A,aim,W,seed,d.beamPerpTo?norm(dir(ph.axes_heart[d.beamPerpTo])):null); if(!s){out[v.id]={error:"plane misses window"};continue}
+        /* beamPerpTo: one heart axis, or a list ("-LV_long", "aortic_root") whose normalised sum is used (PLAX: ⟂ the LV–aorta bisector) */
+        const axOf=nm=>{const neg=nm[0]==="-",v=norm(dir(ph.axes_heart[neg?nm.slice(1):nm]));return neg?mul(v,-1):v};
+        const perp=d.beamPerpTo?(Array.isArray(d.beamPerpTo)?norm(d.beamPerpTo.map(axOf).reduce((s,v)=>add(s,v),[0,0,0])):axOf(d.beamPerpTo)):null;
+        const s=onPlaneBest(n,A,aim,W,seed,perp); if(!s){out[v.id]={error:"plane misses window"};continue}
         const p=P.skinPoint(s.x,s.y);const b=s.b;
-        out[v.id]=finish(s.x,s.y,b,sub(side(),p));
+        /* the notch side only picks the sign: the lateral must lie IN the derived plane (side projected onto it),
+           otherwise a side landmark off the plane silently rotates the image plane (found in P1.5) */
+        const sd=sub(side(),p); out[v.id]=finish(s.x,s.y,b,sub(sd,mul(n,dot(sd,n))));
       } else if(d.method==="fanFromWindow"){
         const sd=W[d.probeAt]||seed, x=sd[0], y=icsCentre(sd[0],sd[1]), p=P.skinPoint(x,y);
         const C=resolve(ph,toP,d.levelCenter), b=norm(sub(C,p));
