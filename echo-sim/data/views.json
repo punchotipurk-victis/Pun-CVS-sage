@@ -787,9 +787,10 @@
       "derivation": {
         "method": "fanFromWindow",
         "probeAt": "seedICS3",
-        "levelCenter": "AV_center",
+        "levelCenter": "AV_coaptation",
         "axisRef": "aortic_root",
-        "notchSideLandmark": "PV_center"
+        "notchSideLandmark": "PV_center",
+        "_levelNote": "Plane through the cusps' coaptation level (0.8 cm above the annulus, mid-sinus), where the closed cusps show the Mercedes Y."
       },
       "seedPose": {
         "skinPoint_patient": [

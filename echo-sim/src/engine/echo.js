@@ -114,7 +114,7 @@ void main(){
     "aortic_root.ascending":"Ao", PA_main:"PA", MV_AML:"valves", MV_PML:"valves", TV_septal:"valves", TV_anterior:"valves", "AV_cusps.RCC":"valves",
     "AV_cusps.LCC":"valves", "AV_cusps.NCC":"valves", PV_cusps:"valves", IVS:"LV_myocardium", PW:"LV_myocardium", LV_myocardium:"LV_myocardium",
     "papillary_muscles.ALPM":"LV_myocardium", "papillary_muscles.PMPM":"LV_myocardium", RV_free_wall:"RV_free_wall", moderator_band:"RV_free_wall",
-    pericardium:"pericardium", liver:"liver", IVC:"IVC", hepatic_veins:"IVC", descending_aorta:"DA", "descending_aorta.abdominal":"DA", coronary_sinus:"CS", LA_wall:"LA_wall", RA_wall:"RA_wall", aortic_arch:"Ao", arch_branches:"Ao", RPA:"PA", LPA:"PA", crista_terminalis:"RA_wall" };
+    pericardium:"pericardium", liver:"liver", IVC:"IVC", hepatic_veins:"IVC", descending_aorta:"DA", "descending_aorta.abdominal":"DA", coronary_sinus:"CS", LA_wall:"LA_wall", RA_wall:"RA_wall", aortic_arch:"Ao", arch_branches:"Ao", RPA:"PA", LPA:"PA", crista_terminalis:"RA_wall", TV_posterior:"valves", TV_annulus:"valves", chordae:"valves", LCA:"Ao", RCA:"Ao", cardiac_veins:"CS", epicardial_fat:"pericardium" };
   function setPalette(pal){ U.uPalette.value.forEach((v,i)=>{ const hex = pal[TINT_KEY[P.LABELS[i]]]; if (hex){ const c = new T.Color(hex); v.set(c.r,c.g,c.b); } else v.set(0,0,0); }); }
   setPalette(ph.palette_anatomyTint);
   setPatientPosition("supine");

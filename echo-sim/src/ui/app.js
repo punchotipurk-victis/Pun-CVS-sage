@@ -202,15 +202,15 @@
         if (k === "body" || k === "face") o.copy(new THREE.Vector3(0, k === "face" ? 1.2 : 4.5, 0).applyMatrix4(S.probeVis.matrixWorld));
         const q = o.project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       pick: (x, y, touch) => input.pick({ clientX: x, clientY: y, pointerType: touch ? "touch" : "mouse" }), setColourMode: m => S.setColourMode(m),
-      heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img,
+      heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img, heartVol: () => S.heartVol(), labelsList: () => PHANTOM.LABELS,
       /* dev: the baked heart alone (front | back | left | cut = A4C plane), for before/after grids. Returns a PNG data URL. */
       heartShot(which, w = 560, h = 560){
         const T = THREE, rt = new T.WebGLRenderTarget(w, h, { samples: 4 }), cam = new T.PerspectiveCamera(30, w/h, 1, 300), hidden = [];
-        S.scene.traverse(o => { if ((o.isMesh || o.isLine || o.isLineSegments || o.isPoints || o.isSprite) && o !== S.heart && o !== S.cutFace && o.visible){ hidden.push(o); o.visible = false; } });
+        S.scene.traverse(o => { if ((o.isMesh || o.isLine || o.isLineSegments || o.isPoints || o.isSprite) && o !== S.heart && o !== S.cutFace && o.parent !== S.coronary && o.visible){ hidden.push(o); o.visible = false; } });
         S.patient.updateMatrixWorld(true); S.syncProbe();
         S.heart.geometry.computeBoundingSphere(); const bs = S.heart.geometry.boundingSphere, hc = bs.center.clone().applyMatrix4(S.heart.matrixWorld), R = bs.radius;
         const dirs = { front: [0, 0, 1], back: [0, 0, -1], left: [1, .15, .1], right: [-1, .15, .1] }, cutOn = which === "cut", frontal = which === "frontal";
-        S.heart.visible = true; S.cutFace.visible = cutOn; cam.layers.enableAll();
+        S.heart.visible = true; S.coronary.visible = !(typeof which === 'object' && which && which.debugPalette); S.cutFace.visible = cutOn; cam.layers.enableAll();
         let quad = null; const skip0 = eng.uniforms.uSkipBody.value; eng.uniforms.uSkipBody.value = 1;
         const cu = S.cutFace.material.uniforms, pal0 = cu.uPalette.value;
         const dbgPal = typeof which === "object" && which && which.debugPalette, tr0 = S.cutFace.material.transparent;

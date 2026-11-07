@@ -25,7 +25,7 @@ function makeScene(APP){
   const bakeMat = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: bakeU,
     vertexShader: `in vec3 position; void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
     fragmentShader: `precision highp float; precision highp int; uniform mat4 uBox; uniform vec3 uO, uN; uniform float uV, uTX;
-${eng.glsl}
+${PHANTOM.compile(ph, { detail: "bake" }).glsl}
 out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   int ix = f.x % n.x, iy = f.y % n.y, iz = (f.x / n.x) + (f.y / n.y)*int(uTX);
   if (iz >= int(uN.z)) { o = vec4(0.0); return; }
@@ -89,7 +89,7 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
     "papillary_muscles.ALPM": [.5, .12, .11], "papillary_muscles.PMPM": [.5, .12, .11], moderator_band: [.5, .12, .11],
     LA: [.42, .12, .15], LAA: [.4, .1, .13], RA: [.36, .13, .22], LA_wall: [.44, .13, .16], RA_wall: [.38, .14, .23], crista_terminalis: [.5, .16, .22], pulmonary_veins: [.52, .2, .22], coronary_sinus: [.34, .22, .38], IAS: [.5, .18, .2],
     aortic_root: [.87, .73, .64], "aortic_root.ascending": [.87, .73, .64], aortic_arch: [.87, .73, .64], arch_branches: [.86, .72, .63], PA_main: [.82, .65, .62], RPA: [.8, .64, .62], LPA: [.8, .64, .62],
-    MV_AML: [.93, .87, .76], MV_PML: [.93, .87, .76], TV_septal: [.93, .87, .76], TV_anterior: [.93, .87, .76], "AV_cusps.RCC": [.93, .87, .76], "AV_cusps.LCC": [.93, .87, .76], "AV_cusps.NCC": [.93, .87, .76], PV_cusps: [.93, .87, .76],
+    MV_AML: [.93, .87, .76], MV_PML: [.93, .87, .76], TV_septal: [.93, .87, .76], TV_anterior: [.93, .87, .76], "AV_cusps.RCC": [.93, .87, .76], "AV_cusps.LCC": [.93, .87, .76], "AV_cusps.NCC": [.93, .87, .76], PV_cusps: [.93, .87, .76], TV_posterior: [.93, .87, .76], TV_annulus: [.9, .84, .74], chordae: [.95, .9, .8], LCA: [.72, .1, .1], RCA: [.72, .1, .1], cardiac_veins: [.25, .2, .45], epicardial_fat: [.9, .75, .42],
     liver: [.43, .14, .1], IVC: [.3, .33, .58], hepatic_veins: [.32, .35, .6], descending_aorta: [.78, .25, .21], "descending_aorta.abdominal": [.78, .25, .21] };
   const FAT = [.9, .74, .43], MUSCLE_L = new Set(["LV_myocardium", "IVS", "PW", "RV_free_wall", "LA", "RA", "LAA", "RVOT", "LVOT", "IAS", "LA_wall", "RA_wall", "crista_terminalis"]);
   const realPal = Array.from({ length: 64 }, (_, i) => new T.Vector3(...(REAL[L[i]] || [0, 0, 0])));
@@ -136,13 +136,28 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
           float along = transformed.z >= 0.0 ? 1.0 - clamp(transformed.z/${apexZ.toFixed(2)}, 0.0, 1.0) : clamp(1.0 + transformed.z/7.0, 0.0, 1.0);
           transformed.z += uBZ*along; }`); };
   const heart = new T.Mesh(new T.BufferGeometry(), heartMat); heart.visible = false; heartGroup.add(heart);
+  /* coronary arteries + cardiac veins in the 3D view: smooth tapered tubes swept from the SAME phantom centrelines and radii that scene()
+     uses (they are 1–4 mm, below the 1.3 mm bake voxel, so a baked surface would only show jagged stitches). Same beat + clip as the heart. */
+  const vesselMat = heartMat.clone(); vesselMat.vertexColors = true; vesselMat.clippingPlanes = clips; vesselMat.onBeforeCompile = heartMat.onBeforeCompile;
+  const coronary = new T.Group(); coronary.visible = false; heartGroup.add(coronary);
+  function sweptTube(pts, r0, r1, col, id){
+    const curve = new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p)), false, "centripetal"), segs = Math.max(8, pts.length*6), rad = 10;
+    const g = new T.TubeGeometry(curve, segs, 1, rad, false), P = g.attributes.position, c = new Float32Array(P.count*3), pt = new T.Vector3();
+    for (let i = 0; i <= segs; i++){ curve.getPointAt(i/segs, pt); const r = r0 + (r1 - r0)*i/segs;
+      for (let j = 0; j <= rad; j++){ const k = i*(rad+1) + j; P.setXYZ(k, pt.x + (P.getX(k)-pt.x)*r, pt.y + (P.getY(k)-pt.y)*r, pt.z + (P.getZ(k)-pt.z)*r); c.set(col, k*3); } }
+    g.setAttribute("color", new T.BufferAttribute(c, 3)); g.computeVertexNormals(); const m = new T.Mesh(g, vesselMat); m.userData = { vessel: id }; return m; }
+  { const CA = ph.structures.coronary_arteries, CV = ph.structures.cardiac_veins;
+    if (CA) for (const a of CA.arteries) coronary.add(sweptTube(a.points, a.r0*1.1, Math.max(a.r1*1.1, .04), [.78, .13, .1], a.id));
+    if (CV) for (const v of CV.veins) coronary.add(sweptTube(v.points, v.r0, v.r1, [.28, .22, .5], v.id)); }
+  let S_heartVol = null;
   function bakeHeart(){
     const v = ph._mesh?.heartVoxelCm ?? .13, lo = ph._mesh?.boxLo ?? [-8.5, -10.5, -9.5], hi = ph._mesh?.boxHi ?? [8, 8, 11], n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
     const h2b = PHANTOM.worldToHeart(ph, "supine", T).clone().invert(), keep = L.filter(x => !NOT_HEART.has(x)), set = labelSet(keep);
     const prev = eng.uniforms.uW2H.value.clone(); eng.uniforms.uW2H.value.copy(PHANTOM.worldToHeart(ph, "supine", T));
     bakeU.uSkipBody.value = 1; const vol = bake(h2b, lo, n, v); bakeU.uSkipBody.value = 0; eng.uniforms.uW2H.value.copy(prev);
+    S_heartVol = { vol, lo, n, v };   // dev/design tools (coronary snapping, mesh export) read the baked heart volume
     const g = meshDistance(vol, lo, n, v, set, ph._mesh?.taubinIters ?? 3); colourise(g, vertexLabels(g, vol, lo, n, v, set), "heart");
-    heart.geometry.dispose(); heart.geometry = g; heart.visible = true; setColourMode(colourMode);
+    heart.geometry.dispose(); heart.geometry = g; heart.visible = true; coronary.visible = true; setColourMode(colourMode);
     return { verts: g.attributes.position.count, tris: g.index.count/3, voxelCm: v, disagree: +g.userData.disagree.toFixed(4) };
   }
   /* lungs and liver: body-fixed organs in a body-frame volume; lungs are re-baked per position (the cardiac notch changes) */
@@ -263,7 +278,7 @@ void main(){ int t, l; scene((uWorldToBody*vec4(vW, 1.0)).xyz, t, l);
     mainCam.layers.disableAll(); mainCam.layers.enable(0); mainCam.layers.enable(1); if (inside) mainCam.layers.enable(3);
     body.skinGroup.visible = b === "skin" || b === "ghost"; body.musGroup.visible = b === "muscle";
     body.skinMesh.material = b === "ghost" ? body.ghostMat : body.skinMat; body.ghostMat.opacity = APP.ghostOpacity;
-    body.skeleton.visible = inside; heart.visible = heartReady() && inside; lungs.visible = liver.visible = vessels.visible = heartReady() && b === "skeleton";
+    body.skeleton.visible = inside; heart.visible = heartReady() && inside; coronary.visible = heart.visible; lungs.visible = liver.visible = vessels.visible = heartReady() && b === "skeleton";
     body.landmarks.visible = APP.landmarks; body.setRibsVisible(APP.landmarks && b === "skin");
     gizmo.visible = APP.mode === "probe";
     fanFill.visible = true; fanEdge.visible = fanMark.visible = true;
@@ -273,5 +288,5 @@ void main(){ int t, l; scene((uWorldToBody*vec4(vW, 1.0)).xyz, t, l);
   }
   return { T, scene, patient, body, skin: body.skinGroup, skeleton: body.skeleton, torsoGeo: body.torsoGeo, heart, heartGroup, lungs, liver, vessels, probeGroup, probeVis, probeParts, gizmo, cap, ring, setGizmoHover,
     fanFill, fanEdge, fanMark, cutFace, clip, elevWorld, originWorld, beamWorld, latWorld, onSkin, onLayer, costalY: body.costalY, ribY: body.ribY, heartReady, drawTo,
-    mainCam, orbit, aimMain, renderMain, syncProbe, setPatientMatrix, animateRoll, updateBeat, bakeHeart, bakeOrgans, setColourMode, colourMode: () => colourMode };
+    mainCam, orbit, aimMain, renderMain, syncProbe, setPatientMatrix, animateRoll, updateBeat, bakeHeart, coronary, heartVol: () => S_heartVol, bakeOrgans, setColourMode, colourMode: () => colourMode };
 }

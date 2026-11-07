@@ -189,6 +189,19 @@ def main():
         (warn if out else info)(f"3D bake box holds the great vessels ({len(out)} points within 1.5 cm of the box edge)")
     if len(LBL_ALL := re.findall(r'"([A-Za-z_.]+)"', re.search(r"const LABELS = \[(.*?)\];", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read(), re.S).group(1))) + 1 > 64:
         err(f"{len(LBL_ALL)} engine labels: the palette arrays hold 64 (raise uPalette in echo.js/scene.js)")
+    CA = S.get("coronary_arteries")
+    if CA:
+        ids_ = {a["id"] for a in CA["arteries"]}
+        for a_ in CA["arteries"]:
+            if a_.get("parent") and a_["parent"] not in ids_: err(f"coronary {a_['id']}: parent {a_['parent']} missing")
+            if a_["r1"] > a_["r0"] + 1e-6: warn(f"coronary {a_['id']} widens downstream (r0 {a_['r0']} < r1 {a_['r1']})")
+            if a_.get("echoPts", 0) > len(a_["points"]): err(f"coronary {a_['id']}: echoPts > number of points")
+        need = {"LM", "LAD", "LCx", "RCA", "PDA", "D1", "OM1", "AM", "PLB", "CB", "SAN", "AVN", "S1"}
+        (err if need - ids_ else info)(f"coronary tree: {len(ids_)} vessels; required branches present: {sorted(need & ids_)}{' MISSING ' + str(sorted(need - ids_)) if need - ids_ else ''}")
+        lad = next(a_ for a_ in CA["arteries"] if a_["id"] == "LAD"); ap = V3(L["LV_apex_epi"]); end = V3(lad["points"][-1])
+        rng("LAD end → LV apex (LAD reaches / wraps the apex)", math.sqrt(dot(sub(end, ap), sub(end, ap))), 0, 3.0, " cm")
+        rca = next(a_ for a_ in CA["arteries"] if a_["id"] == "RCA"); pda = next(a_ for a_ in CA["arteries"] if a_["id"] == "PDA")
+        g_ = sub(V3(rca["points"][-1]), V3(pda["points"][0])); rng("RCA end → PDA origin (right-dominant crux)", math.sqrt(dot(g_, g_)), 0, 1.0, " cm")
     # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
     import re
     js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()
