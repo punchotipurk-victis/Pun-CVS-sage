@@ -21,7 +21,7 @@ function makeScene(APP){
   const onSkin = (x, y, o = .06) => body.surfaceAt(x, y, o).p;
 
   /* ---- bake: scene() → label volume on the GPU (2D atlas of slices), read back once ---- */
-  const bakeU = { ...eng.uniforms, uBox: { value: new T.Matrix4() }, uO: { value: new T.Vector3() }, uV: { value: .2 }, uN: { value: new T.Vector3() }, uTX: { value: 1 } };
+  const bakeU = { ...eng.uniforms, uBox: { value: new T.Matrix4() }, uO: { value: new T.Vector3() }, uV: { value: .2 }, uN: { value: new T.Vector3() }, uTX: { value: 1 }, uSkipBody: { value: 0 } };
   const bakeMat = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: bakeU,
     vertexShader: `in vec3 position; void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
     fragmentShader: `precision highp float; precision highp int; uniform mat4 uBox; uniform vec3 uO, uN; uniform float uV, uTX;
@@ -30,7 +30,8 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   int ix = f.x % n.x, iy = f.y % n.y, iz = (f.x / n.x) + (f.y / n.y)*int(uTX);
   if (iz >= int(uN.z)) { o = vec4(0.0); return; }
   vec3 b = (uBox*vec4(uO + (vec3(float(ix), float(iy), float(iz)) + 0.5)*uV, 1.0)).xyz; int t, l; scene(b, t, l);
-  o = vec4(float(l)/255.0, float(t)/255.0, 0.0, 1.0); }` });
+  float e = floor(clamp((gHeartD + 4.0)/8.0, 0.0, 1.0)*65535.0);          // 16-bit signed distance in B,A (±4 cm)
+  o = vec4(float(l)/255.0, float(t)/255.0, floor(e/256.0)/255.0, mod(e, 256.0)/255.0); }` });
   function bake(boxToBody, o, n, v){
     const tx = Math.ceil(Math.sqrt(n[2])), ty = Math.ceil(n[2]/tx), W = n[0]*tx, H = n[1]*ty;
     const rt = new T.WebGLRenderTarget(W, H, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: false });
@@ -39,10 +40,11 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
     const s = new T.Scene(), q = new T.Mesh(new T.PlaneGeometry(2, 2), bakeMat), c = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1); q.frustumCulled = false; s.add(q);
     const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(s, c);
     const buf = new Uint8Array(W*H*4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf); renderer.setRenderTarget(prev); rt.dispose(); q.geometry.dispose();
-    const out = new Uint8Array(n[0]*n[1]*n[2]);
+    const out = new Uint8Array(n[0]*n[1]*n[2]), dist = new Float32Array(out.length);
     for (let k = 0; k < n[2]; k++) for (let j = 0; j < n[1]; j++) for (let i = 0; i < n[0]; i++){
-      const X = i + (k % tx)*n[0], Y = j + Math.floor(k/tx)*n[1]; out[i + n[0]*(j + n[1]*k)] = buf[(Y*W + X)*4]; }
-    return out;
+      const X = i + (k % tx)*n[0], Y = j + Math.floor(k/tx)*n[1], b = (Y*W + X)*4, c = i + n[0]*(j + n[1]*k);
+      out[c] = buf[b]; dist[c] = (buf[b+2]*256 + buf[b+3])/65535*8 - 4; }
+    out.dist = dist; return out;
   }
   /* occupancy of a label set → twice box-blurred (smooth signed-ish field) → surface nets → Taubin smoothing */
   function meshLabels(vol, o, n, v, set, iters = 6){
@@ -57,6 +59,17 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
     for (let i = 0; i < a.length; i++) a[i] = .5 - a[i];
     const m = K.nets(a, n, [o[0]+v/2, o[1]+v/2, o[2]+v/2], v), adj = K.smooth(m.pos, m.idx, iters);
     const g = K.geometry(m.pos, m.idx); g.userData.adj = adj; return g;
+  }
+  /* heart: mesh the baked signed distance (crisp grooves, thin walls kept), not blurred occupancy.
+     Where the label and the distance disagree (priority overrides in scene()), the label wins with a half-voxel offset. */
+  function meshDistance(vol, o, n, v, set, iters = 3){
+    const d = vol.dist, a = new Float32Array(d.length), h = v*.5; let bad = 0;
+    for (let i = 0; i < a.length; i++){ const inS = !!set[vol[i]], x = d[i];
+      if (inS === (x < 0)) a[i] = x; else { a[i] = inS ? -h : h; bad++; } }
+    const [nx, ny, nz] = n;                                         // close the box faces
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (!i || !j || !k || i === nx-1 || j === ny-1 || k === nz-1) a[i + nx*(j + ny*k)] = h;
+    const m = K.nets(a, n, [o[0]+v/2, o[1]+v/2, o[2]+v/2], v), adj = K.smooth(m.pos, m.idx, iters);
+    const g = K.geometry(m.pos, m.idx); g.userData.adj = adj; g.userData.disagree = bad/a.length; return g;
   }
   /* label under each vertex (nearest voxel of the set) */
   function vertexLabels(g, vol, o, n, v, set){
@@ -124,12 +137,13 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
           transformed.z += uBZ*along; }`); };
   const heart = new T.Mesh(new T.BufferGeometry(), heartMat); heart.visible = false; heartGroup.add(heart);
   function bakeHeart(){
-    const v = .2, lo = [-8, -8.5, -8.5], hi = [8, 8, 11], n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
+    const v = ph._mesh?.heartVoxelCm ?? .13, lo = [-8, -8.5, -8.5], hi = [8, 8, 11], n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
     const h2b = PHANTOM.worldToHeart(ph, "supine", T).clone().invert(), keep = L.filter(x => !NOT_HEART.has(x)), set = labelSet(keep);
     const prev = eng.uniforms.uW2H.value.clone(); eng.uniforms.uW2H.value.copy(PHANTOM.worldToHeart(ph, "supine", T));
-    const vol = bake(h2b, lo, n, v); eng.uniforms.uW2H.value.copy(prev);
-    const g = meshLabels(vol, lo, n, v, set, 8); colourise(g, vertexLabels(g, vol, lo, n, v, set), "heart");
-    heart.geometry.dispose(); heart.geometry = g; heart.visible = true; setColourMode(colourMode); return { verts: g.attributes.position.count, tris: g.index.count/3 };
+    bakeU.uSkipBody.value = 1; const vol = bake(h2b, lo, n, v); bakeU.uSkipBody.value = 0; eng.uniforms.uW2H.value.copy(prev);
+    const g = meshDistance(vol, lo, n, v, set, ph._mesh?.taubinIters ?? 3); colourise(g, vertexLabels(g, vol, lo, n, v, set), "heart");
+    heart.geometry.dispose(); heart.geometry = g; heart.visible = true; setColourMode(colourMode);
+    return { verts: g.attributes.position.count, tris: g.index.count/3, voxelCm: v, disagree: +g.userData.disagree.toFixed(4) };
   }
   /* lungs and liver: body-fixed organs in a body-frame volume; lungs are re-baked per position (the cardiac notch changes) */
   const lungMat = new T.MeshPhysicalMaterial({ vertexColors: true, transparent: true, opacity: .3, roughness: .75, sheen: .5, sheenColor: new T.Color(0xffd0d0), depthWrite: false, side: T.DoubleSide, clippingPlanes: clips });

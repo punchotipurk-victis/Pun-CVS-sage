@@ -67,6 +67,7 @@ const PHANTOM = (() => {
     add(`float skinZ = ${f(cz)} + ${f(hd)}*sqrt(max(0.0, 1.0 - (p.x*p.x)/${f(hw*hw)}));`);
     add(`float depth = skinZ - p.z;`);
     add(`if (depth < 0.0) { tissue = ${T.none}; label = 0; return; }`);
+    add(`if (uSkipBody < 0.5) {`);   // the 3D-heart bake skips the body wall so the heart is meshed whole (the echo never sets this)
     /* sternum */
     const st = E.sternum;
     add(`if (p.y < ${f(st.items[0].yRange[0])} && p.y > ${f(st.items[2].yRange[1])} && p.z < ${f(st.frontZ)} && p.z > ${f(st.frontZ - st.thickness)}) {`);
@@ -82,6 +83,7 @@ const PHANTOM = (() => {
     add(`      tissue = ax_ < cc ? ${T.cartilage} : ${T.bone}; label = ${Lb["ribs"]}; return; } } }`);
     add(`if (abs(p.x) < 2.2 && p.z < -13.5 && p.z > -17.5) { tissue = ${T.bone}; label = 0; return; }`);
     add(`if (depth < ${f(E.chest_wall.thickness)}) { tissue = ${T.chest_wall}; label = ${Lb["chest_wall"]}; return; }`);
+    add(`}`);
     /* -------- heart (heart frame, variable h) -------- */
     const lvc = S.LV_cavity.of, lvm = S.LV_myocardium.from.of;
     add(`vec3 h = (uW2H * vec4(p,1.0)).xyz;`);
@@ -200,6 +202,8 @@ const PHANTOM = (() => {
     add(` float pHalf = ${f(pt)} + ${f(px)}*postW*postW;`);
     add(` float peri = abs(solid - 0.15 - uP[${pidx.effusion_cm}] - pHalf) - pHalf;`);
     add(` float effusion = (solid > 0.0 && solid < 0.15 + uP[${pidx.effusion_cm}]) ? -1.0 : 1.0;`);
+    /* outer envelope of the heart (signed distance, cm): the 3D mesh is cut from this field, so grooves and thin walls stay crisp */
+    add(` gHeartD = min(min(solid, rvotW), min(aoWall, min(pa - 0.15, min(laa - 0.15, min(pvn - 0.1, csv - 0.1)))));`);
     /* ---- priority: first match wins ---- */
     add(` if (avc < 0.0 && aoLum < 0.3) { tissue = ${T.valve}; label = avk; return; }`);
     add(` if (aml < 0.0) { tissue = ${T.valve}; label = ${Lb["MV_AML"]}; return; }`);
@@ -262,6 +266,7 @@ uniform float uP[${names.length}];
 uniform mat4 uW2H;            // patient → heart frame (includes supine/LLD heart offset)
 uniform vec3 uNotchC, uNotchS; // left-lung cardiac notch (supine vs LLD)
 uniform float uRibSpaceScale;
+uniform float uSkipBody;
 float smin(float a, float b, float k){ float h = max(k - abs(a-b), 0.0)/k; return min(a,b) - h*h*k*0.25; }
 float sdEllipsoid(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0-1.0)/max(k1,1e-5); }
 float sdCapsule(vec3 p, vec3 a, vec3 b, float r){ vec3 pa = p-a, ba = b-a; float h = clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h)-r; }
@@ -273,7 +278,9 @@ float wobble(vec3 q, float a){ return a*sin(1.7*q.x + 0.6)*sin(1.3*q.y + 1.9)*si
 float sdTorus(vec3 p, float R, float r){ return length(vec2(length(p.xy)-R, p.z)) - r; }
 float costalY(float ax){ ${(()=>{const cm=[[0,-20.5]].concat(E.ribs.costalMargin_polyline).concat([[16,-26]]);let s="";
   for(let i=1;i<cm.length;i++){const a=cm[i-1],b=cm[i];s+=`if (ax <= ${f(b[0])}) return mix(${f(a[1])}, ${f(b[1])}, (ax - ${f(a[0])})/${f(Math.max(1e-3,b[0]-a[0]))}); `;}return s+`return ${f(cm[cm.length-1][1])};`})()} }
+float gHeartD = 1e3;          // set by scene(): signed distance to the heart's outer surface (only valid near the heart)
 void scene(vec3 p, out int tissue, out int label) {
+  gHeartD = 1e3;
 ${ln.join("\n")}
 }`;
     return { glsl, names, pidx };

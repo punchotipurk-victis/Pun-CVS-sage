@@ -15,7 +15,7 @@ function EchoEngine(renderer, ph, opts = {}) {
   const nTis = P.TISSUES.length;
   const U = {
     uP: { value: new Float32Array(comp.names.length) }, uW2H: { value: new T.Matrix4() },
-    uNotchC: { value: new T.Vector3() }, uNotchS: { value: new T.Vector3(1, 1, 1) }, uRibSpaceScale: { value: 1 },
+    uNotchC: { value: new T.Vector3() }, uNotchS: { value: new T.Vector3(1, 1, 1) }, uRibSpaceScale: { value: 1 }, uSkipBody: { value: 0 },
     uOrigin: { value: new T.Vector3() }, uBeam: { value: new T.Vector3(0, 0, -1) }, uLat: { value: new T.Vector3(1, 0, 0) },
     uDepth: { value: 16 }, uSector: { value: 80 * Math.PI / 180 }, uNL: { value: NL }, uNS: { value: NS },
     uBright: { value: tables.bright }, uTrans: { value: tables.trans }, uGrain: { value: tables.grain }, uEdge: { value: tables.edge },
