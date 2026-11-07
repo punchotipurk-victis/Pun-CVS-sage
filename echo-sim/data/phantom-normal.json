@@ -17,7 +17,8 @@
       "0.2.0: heart moved 1.2 cm posterior (RV free wall was touching the chest wall; RV now ~2 cm deep in PLAX); descending aorta moved to stay just behind the LA; rib width 1.3→1.0 cm and AP thickness 1.0→0.8 cm (realistic intercostal windows); liver left lobe enlarged (subxiphoid window); lung cardiac notch enlarged (apical window opens in LLD). All found by rendering the views and tracing the centre scan line.",
       "0.3.0: anatomy realism pass after staff-style review of renders — curved/tapered MV+TV leaflets with free-edge curl, AV cusp belly sag, bullet-shaped LV, organic atria (vestibules, PV ostia, LAA, SVC, RA appendage, carved IAS, LA–aorta wall), thicker pericardium; echo: myocardium/liver mottling. Pericardium thinner except posteriorly; leaflet width-arc (short-axis curvature). LA moved posterior (under the aortic root, as in PLAX); mitral annulus tilted; descending aorta moved posterior-left to stay behind the LA.",
       "0.4.0 (P1.5, in progress): 3D heart meshed from the signed distance of the heart's outer surface (gHeartD) at 0.13 cm, bake skips the body wall (the anterior RV had been cut flat by the chest-wall layer). Base of the heart re-laid round the aortic root (clock face from above): LA moved behind the root at sinus level (no false-ASD look in PLAX), PV anterior-left of the AV, RVOT/conus a curved tube from the TV side over the front of the aorta to the PV (PSAX-AV: RV/RVOT wraps the Mercedes sign), LAA a tapering finger beside the PA trunk, LVOT a tube along the aortic axis with the basal IVS continuing into the anterior aortic wall and the AML hinged on the posterior aortic annulus. New label ids LA_wall, RA_wall (IAS now only where both atria meet). Views: PLAX beam ⟂ the LV–aorta bisector; plane3 lateral now lies in the derived plane (side landmark only picks the sign); A4C notch side = LV_lateral_mid.",
-      "0.4.0 (P1.5, atria): LA and RA enlarged to Lang 2015 sizes (ED semi LA 2.3/1.8/2.6, RA 2.0/1.8/2.5 cm; verify) and re-placed beside each other near the A4C plane, so A4C shows both atria with the IAS between them; RA gains the IVC inflow (sinus venarum). AML hinge back on the mitral annulus; new aortomitral_curtain (fibrous, label MV_AML) joins it to the posterior aortic annulus. LAA moved lower beside the PA."
+      "0.4.0 (P1.5, atria): LA and RA enlarged to Lang 2015 sizes (ED semi LA 2.3/1.8/2.6, RA 2.0/1.8/2.5 cm; verify) and re-placed beside each other near the A4C plane, so A4C shows both atria with the IAS between them; RA gains the IVC inflow (sinus venarum). AML hinge back on the mitral annulus; new aortomitral_curtain (fibrous, label MV_AML) joins it to the posterior aortic annulus. LAA moved lower beside the PA.",
+      "0.4.0 (P1.5, RV): RV rebuilt as a lofted ellipse along the heart Z axis (RV_cavity.loft): widest at the tricuspid level, power-law taper to an apex at z≈7 (short of the LV apex at 8.5–9.4), shifted toward the diaphragmatic side so the RV forms the inferior border (lecture) and fills the subcostal near field; carved by the LV → crescent in short axis, triangle in A4C. RV base = tricuspid annulus plane, open to the RA (no wall across the TV orifice). Moderator band moved to the lower third (septum → anterior papillary region). RVOT conus starts at 11.4 o'clock (out of the A4C plane). Fossa ovalis: thin membrane in the IAS whose thickness follows the RA phase (0.24 cm ED → 0.12 cm late systole): A4C drop-out is partial and intermittent, never a whole-beat gap."
     ]
   },
   "frames": {
@@ -195,18 +196,18 @@
     ],
     "RV_apex": [
       2.6,
-      -0.4,
-      7.0
+      -0.6,
+      6.9
     ],
     "moderator_band_septal": [
-      3.4,
-      -0.2,
-      5.4
+      3.1,
+      -0.3,
+      4.7
     ],
     "moderator_band_free": [
-      5.6,
-      -0.4,
-      5.6
+      4.4,
+      -0.5,
+      5.2
     ],
     "LV_lateral_mid": [
       -3.3,
@@ -460,7 +461,30 @@
       ],
       "tissue": "blood",
       "label": "RV",
-      "_note": "Inner semi-axes = outer (4.6, 3.0, 4.6) minus free-wall 0.4. Crescent wraps the septum; basal diameter ≈3.4 cm at TV level."
+      "_note": "Inner semi-axes = outer (4.6, 3.0, 4.6) minus free-wall 0.4. Crescent wraps the septum; basal diameter ≈3.4 cm at TV level.",
+      "loft": {
+        "zBase": 0.6,
+        "zApex": 7.2,
+        "taper": 1.6,
+        "centerBase": [
+          4.0,
+          0.6
+        ],
+        "centerApex": [
+          3.0,
+          0.2
+        ],
+        "semiBase": [
+          3.4,
+          4.0
+        ],
+        "semiApex": [
+          0.6,
+          1.5
+        ],
+        "edSemiX": 4.2,
+        "_note": "Outer surface (incl. 0.4 cm free wall). Semi-axes taper as t^1.8 from the TV level to the apex → triangular RV in A4C, crescent in SAX after the LV carve. Targets (Lang 2015, verify): basal diameter 2.5–4.1, mid 1.9–3.5, length 5.9–8.3 cm; RV apex short of the LV apex."
+      }
     },
     "RV_free_wall": {
       "type": "shell",
@@ -483,14 +507,14 @@
       "wall": 0.35,
       "points": [
         [
-          3.81,
-          0.05,
-          1.25
+          3.84,
+          -0.67,
+          1.56
         ],
         [
-          3.84,
-          -1.51,
-          1.72
+          3.72,
+          -1.79,
+          1.8
         ],
         [
           3.23,
@@ -624,13 +648,14 @@
       "thickness": 0.35,
       "fossaOvalis": {
         "center": [
-          1.3,
-          1.4,
-          -2.6
+          1.2,
+          0.45,
+          -2.5
         ],
-        "r": 0.8,
-        "thickness": 0.12,
-        "_note": "Thin → drops out when parallel to beam (A4C false-ASD pitfall)."
+        "r": 0.9,
+        "thicknessED": 0.24,
+        "thicknessES": 0.12,
+        "_note": "Thin membrane (posterior-inferior IAS). Thickness follows the RA phase: 0.24 cm at ED, 0.12 cm in late systole → A4C drop-out is intermittent, never all beat (a whole-beat gap = ASD)."
       },
       "tissue": "myocardium",
       "label": "IAS",

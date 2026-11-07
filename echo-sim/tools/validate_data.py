@@ -168,6 +168,12 @@ def main():
     # atria sizes (ED semi-axes, cm) — Lang 2015 (verify): LA AP 3.0–4.0, RA minor 2.9–4.5
     for k, rng_ in (("LA", (2.7, 4.2)), ("RA", (2.9, 4.6))):
         sx = [s_["ed"] for s_ in S[k]["semi"]]; rng(f"{k} ED short diameter", 2*min(sx), *rng_, " cm")
+    lo = S["RV_cavity"].get("loft")
+    if lo:
+        rng("RV apex short of the LV apex (LV_apex_epi z − RV loft apex z)", L["LV_apex_epi"][2] - lo["zApex"], 1.0, 3.5, " cm")
+        rng("RV basal outer half-width beyond the septum (semiBase x + centre x − LV outer radius)", lo["semiBase"][0] + lo["centerBase"][0] - 3.3, 2.8, 4.8, " cm")
+    fo = S.get("IAS", {}).get("fossaOvalis", {})
+    if fo and fo.get("thicknessES", 1) < 0.1: warn("fossa ovalis thinner than 0.1 cm in systole: it will vanish (reads as an ASD)")
     # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
     import re
     js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()

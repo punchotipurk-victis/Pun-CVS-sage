@@ -106,9 +106,24 @@ const PHANTOM = (() => {
     add(` float lvCav = max(lvShape, -annD);`);
     add(` float lvot  = sdCapsule(h, ${v3(S.LVOT.a)}, ${v3(S.LVOT.b)}, ${f(S.LVOT.r)});`);
     const rv = S.RV_cavity.from;
+    if (S.RV_cavity.loft){ const lo = S.RV_cavity.loft, w = S.RV_free_wall.thickness ?? 0.4;
+      /* RV = lofted ellipse along the heart Z axis: widest at the tricuspid level, tapering (power law) to an apex short of the
+         LV apex; carved by the LV, so short axis = crescent round the septum and long axis = triangle (Netter 220/228; Lang 2015) */
+      add(` float rvK = uP[${pidx.RV_semiX}] / ${f(lo.edSemiX ?? 4.2)};                       // beat: same ED→ES ratio as before`);
+      add(` float rvT = clamp((h.z - ${f(lo.zBase)}) / ${f(lo.zApex - lo.zBase)}, 0.0, 1.0), rvTp = pow(rvT, ${f(lo.taper)});`);
+      add(` vec2 rvCc = mix(vec2(${f(lo.centerBase[0])}, ${f(lo.centerBase[1])}), vec2(${f(lo.centerApex[0])}, ${f(lo.centerApex[1])}), rvT);`);
+      add(` vec2 rvSm = mix(vec2(${f(lo.semiBase[0])}, ${f(lo.semiBase[1])}), vec2(${f(lo.semiApex[0])}, ${f(lo.semiApex[1])}), rvTp) * rvK;`);
+      add(` float rvE = (length((h.xy - rvCc) / rvSm) - 1.0) * min(rvSm.x, rvSm.y);`);
+      /* base of the RV = tricuspid annulus plane (moves with the beat): cavity and wall stop there, open to the RA (no cap wall) */
+      add(` float tvPl = h.z - (${f(L.TV_center[2])} + uP[${pidx.TV_annulusShiftZ}]*0.8);`);
+      /* rounded shoulder at the base (smooth intersection): the RV wall curls into the AV groove instead of ending in a flat face */
+      add(` float rvOut = max(-smin(-rvE, tvPl + 0.3, ${f(lo.baseRound ?? 1.2)}), h.z - ${f(lo.zApex)}*mix(1.0, rvK, 0.5));`);
+      add(` float rvCav = max(max(-smin(-(rvE + ${f(w)}), tvPl + 0.3, ${f((lo.baseRound ?? 1.2)*0.6)}), h.z - (${f(lo.zApex - w - 0.2)})*mix(1.0, rvK, 0.5)), -lvOut);`);
+      add(` vec3 rvC = vec3(rvCc, ${f((lo.zBase+lo.zApex)/2)});`); }
+    else {
     add(` vec3 rvC = ${v3(rv.center)}; vec3 rvS = ${v3(rv.semi)};`);
     add(` float rvOut = sdEllipsoid(h - rvC, rvS + vec3(0.4));`);
-    add(` float rvCav = max(sdEllipsoid(h - rvC, rvS), -lvOut);`);
+    add(` float rvCav = max(sdEllipsoid(h - rvC, rvS), -lvOut);`); }
     if (S.RVOT.points) add(` float rvot = ${tube(S.RVOT.points.concat([S.RVOT.b]), S.RVOT.rStart ?? 1.3, S.RVOT.rEnd ?? 1.2, 0.5)} + (${num(S.RVOT.r)} - ${f(S.RVOT.rStart ?? 1.3)});`);   // conus: curved tube TV side → over the aorta → PV
     else add(` float rvot  = sdCapsule(h, ${v3(S.RVOT.a)}, ${v3(S.RVOT.b)}, ${num(S.RVOT.r)});`);
     add(` rvot = max(rvot, -lvOut);`);                               // RVOT never eats the LV/septum
@@ -137,8 +152,16 @@ const PHANTOM = (() => {
     add(` raRaw = max(raRaw, h.z - (${f(S.TV_annulus.center === "TV_center" ? L.TV_center[2] : 0.8)} + tvzR + 0.1));`);
     /* interatrial septum: each atrium is carved by the other + wall, so a real septum remains between them */
     const iasW = (S.IAS && S.IAS.carve) || 0.35;
-    add(` float laCav = max(laRaw, -(raRaw - ${f(iasW)}));`);
-    add(` float raCav = max(raRaw, -(laRaw - ${f(iasW)}));`);
+    const fo = S.IAS && S.IAS.fossaOvalis;
+    if (fo && fo.thicknessED != null){
+      /* fossa ovalis: thin membrane in the IAS. It is thicker at end-diastole (after atrial contraction) and thinner in systole, so in
+         A4C (beam nearly parallel to it) it drops out for part of the beat but is seen at other times — a wall missing all beat = ASD. */
+      add(` float foT = mix(${f(fo.thicknessED)}, ${f(fo.thicknessES)}, clamp((uP[${pidx.RA_scale}] - 1.0) / 0.06, 0.0, 1.0));`);
+      add(` float foM = 1.0 - smoothstep(${f(fo.r*0.6)}, ${f(fo.r)}, length(h - ${v3(fo.center)}));`);
+      add(` float iasW = mix(${f(iasW)}, foT, foM);`); }
+    else add(` float iasW = ${f(iasW)};`);
+    add(` float laCav = max(laRaw, -(raRaw - iasW));`);
+    add(` float raCav = max(raRaw, -(laRaw - iasW));`);
     const cs = S.coronary_sinus.points;
     add(` float csv = min(sdCapsule(h, ${v3(cs[0])}, ${v3(cs[1])}, ${f(S.coronary_sinus.r)}), sdCapsule(h, ${v3(cs[1])}, ${v3(cs[2])}, ${f(S.coronary_sinus.r)}));`);
     /* aortic root as a lathe: radius profile along the root axis */
@@ -161,7 +184,7 @@ const PHANTOM = (() => {
       add(` lvOut = min(lvOut, lvotW); rvot = max(rvot, -(lvotW + 0.05)); rvCav = max(rvCav, -(lvotW + 0.05));`); }
     add(` rvot = max(rvot, -(aoLum - 0.35)); rvCav = max(rvCav, -(aoLum - 0.35));`);   // keep a wall between RVOT and the aortic root
     add(` laCav = max(laCav, -(aoLum - 0.3)); raCav = max(raCav, -(aoLum - 0.3));`);     // aorto-atrial walls
-    add(` laCav = max(laCav, -(lvOut + 0.05)); raCav = max(raCav, -(rvOut + 0.05));`);   // atria never eat ventricular wall
+    add(` laCav = max(laCav, -(lvOut + 0.05)); raCav = max(raCav, -(max(rvOut, -rvCav) + 0.05));`);   // atria never eat ventricular wall (the RA may meet the RV cavity at the TV orifice)
     add(` float atrWall = min(laRaw, raRaw) - 0.25;`);
     /* heart solid (myocardium + atrial walls) */
     add(` float solid = smin(smin(lvOut, rvOut, 0.6), atrWall, 0.6);`);
