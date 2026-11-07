@@ -19,7 +19,8 @@
       "0.4.0 (P1.5, in progress): 3D heart meshed from the signed distance of the heart's outer surface (gHeartD) at 0.13 cm, bake skips the body wall (the anterior RV had been cut flat by the chest-wall layer). Base of the heart re-laid round the aortic root (clock face from above): LA moved behind the root at sinus level (no false-ASD look in PLAX), PV anterior-left of the AV, RVOT/conus a curved tube from the TV side over the front of the aorta to the PV (PSAX-AV: RV/RVOT wraps the Mercedes sign), LAA a tapering finger beside the PA trunk, LVOT a tube along the aortic axis with the basal IVS continuing into the anterior aortic wall and the AML hinged on the posterior aortic annulus. New label ids LA_wall, RA_wall (IAS now only where both atria meet). Views: PLAX beam ⟂ the LV–aorta bisector; plane3 lateral now lies in the derived plane (side landmark only picks the sign); A4C notch side = LV_lateral_mid.",
       "0.4.0 (P1.5, atria): LA and RA enlarged to Lang 2015 sizes (ED semi LA 2.3/1.8/2.6, RA 2.0/1.8/2.5 cm; verify) and re-placed beside each other near the A4C plane, so A4C shows both atria with the IAS between them; RA gains the IVC inflow (sinus venarum). AML hinge back on the mitral annulus; new aortomitral_curtain (fibrous, label MV_AML) joins it to the posterior aortic annulus. LAA moved lower beside the PA.",
       "0.4.0 (P1.5, RV): RV rebuilt as a lofted ellipse along the heart Z axis (RV_cavity.loft): widest at the tricuspid level, power-law taper to an apex at z≈7 (short of the LV apex at 8.5–9.4), shifted toward the diaphragmatic side so the RV forms the inferior border (lecture) and fills the subcostal near field; carved by the LV → crescent in short axis, triangle in A4C. RV base = tricuspid annulus plane, open to the RA (no wall across the TV orifice). Moderator band moved to the lower third (septum → anterior papillary region). RVOT conus starts at 11.4 o'clock (out of the A4C plane). Fossa ovalis: thin membrane in the IAS whose thickness follows the RA phase (0.24 cm ED → 0.12 cm late systole): A4C drop-out is partial and intermittent, never a whole-beat gap.",
-      "0.4.0 (P1.5, great vessels): aortic root with three sinuses of Valsalva (trefoil bulge at the cusp directions, narrower commissures) and a sinotubular junction; aortic arch as a swept tube from the ascending aorta over the RPA to the descending aorta (overlapping the extracardiac descending aorta so the join stays closed in LLD); three arch branches (brachiocephalic, left common carotid, left subclavian) as 3 cm stumps; PA trunk now bifurcates into RPA (under the arch, behind the ascending aorta and SVC, over the LA roof) and LPA. New label ids aortic_arch, arch_branches, RPA, LPA. Root fix: the sinus term used distance to the infinite axis (the ascending aorta became an endless cylinder); now the clamped axis point. 3D bake box enlarged to hold the branches."
+      "0.4.0 (P1.5, great vessels): aortic root with three sinuses of Valsalva (trefoil bulge at the cusp directions, narrower commissures) and a sinotubular junction; aortic arch as a swept tube from the ascending aorta over the RPA to the descending aorta (overlapping the extracardiac descending aorta so the join stays closed in LLD); three arch branches (brachiocephalic, left common carotid, left subclavian) as 3 cm stumps; PA trunk now bifurcates into RPA (under the arch, behind the ascending aorta and SVC, over the LA roof) and LPA. New label ids aortic_arch, arch_branches, RPA, LPA. Root fix: the sinus term used distance to the infinite axis (the ascending aorta became an endless cylinder); now the clamped axis point. 3D bake box enlarged to hold the branches.",
+      "0.4.0 (P1.5, atria detail): right auricle = broad triangular pouch (two tapering lobes from a wide base: apex over the right side of the aortic root, lower corner along the AV groove); crista terminalis = muscular ridge inside the lateral RA wall from the front of the SVC opening to the front of the IVC opening (new label id crista_terminalis); coronary sinus = tapering tube from the great cardiac vein along the posterior AV groove, widening to an ostium that opens into the RA between the IVC and the TV; fossa ovalis with a thicker limbus rim; four separate pulmonary-vein ostia on the posterior LA wall (superior/inferior × left/right), flared at the opening and running out to the hila (left veins kept in front of the descending aorta). Label palette arrays 48 → 64 (48 labels now)."
     ]
   },
   "frames": {
@@ -156,24 +157,24 @@
       -1.2
     ],
     "PVein_LU": [
-      -2.1,
-      -0.7,
-      -4.15
+      -3.12,
+      -1.07,
+      -2.32
     ],
     "PVein_LL": [
-      -1.9,
-      0.5,
-      -3.55
+      -2.96,
+      0.39,
+      -1.19
     ],
     "PVein_RU": [
-      1.1,
-      -0.9,
-      -4.95
+      -2.08,
+      0.21,
+      -4.42
     ],
     "PVein_RL": [
-      1.3,
-      0.3,
-      -4.55
+      -1.66,
+      1.33,
+      -2.97
     ],
     "ALPM_base": [
       -1.7,
@@ -568,7 +569,7 @@
       "detail": {
         "vestibuleRadius": 1.4,
         "vestibuleBlend": 0.8,
-        "veinBlend": 0.5,
+        "veinBlend": 0.3,
         "laaBlend": 0.4,
         "wobble": 0.15,
         "_note": "Organic atrium: ellipsoid + funnel (vestibule) to the mitral annulus + pulmonary-vein ostia + LAA, low-frequency wobble so it is never a perfect sphere; clipped at the annulus plane."
@@ -613,17 +614,26 @@
           "r": 0.9
         },
         "raa": {
-          "a": [
-            3.67,
-            0.57,
-            -2.34
+          "base": [
+            3.95,
+            0.96,
+            -1.42
           ],
-          "b": [
-            4.7,
-            0.2,
-            -2.3
+          "tip": [
+            4.82,
+            -1.3,
+            -0.18
           ],
-          "r": 0.7
+          "corner": [
+            4.34,
+            0.95,
+            0.58
+          ],
+          "rBase": 1.05,
+          "rTip": 0.35,
+          "rCorner": 0.45,
+          "blend": 0.7,
+          "_note": "Right auricle: broad triangular pouch (two tapering lobes from a wide base: apex over the right side of the aortic root, lower corner along the AV groove), Netter 216/224; lecture: RA appendage."
         },
         "_note": "RA + vestibule to the TV + SVC (toward the head) + broad RA appendage (anterior); IVC joins from below (extracardiac).",
         "ivc": {
@@ -639,6 +649,27 @@
           ],
           "r": 1.05,
           "_note": "Sinus venarum: the IVC opens into the posterior-inferior RA (the extracardiac IVC's last point, heart frame)."
+        },
+        "crista": {
+          "points": [
+            [
+              3.25,
+              0.05,
+              -4.32
+            ],
+            [
+              4.67,
+              1.44,
+              -3.49
+            ],
+            [
+              3.59,
+              2.36,
+              -2.3
+            ]
+          ],
+          "r": 0.36,
+          "_note": "Crista terminalis: smooth ridge inside the lateral RA wall between the smooth sinus venarum (behind) and the pectinate muscles (front); on the outside it matches the sulcus terminalis (Netter 218/224; lecture)."
         }
       },
       "_sizeNote": "ED semi 2.0/1.8/2.5 cm → A4C minor ≈4.0, major ≈5.0 cm, ≈38 mL. Lang 2015 RA minor 2.9–4.5 cm, major ≈4.4–5.3 cm (verify)."
@@ -656,7 +687,12 @@
         "r": 0.9,
         "thicknessED": 0.24,
         "thicknessES": 0.12,
-        "_note": "Thin membrane (posterior-inferior IAS). Thickness follows the RA phase: 0.24 cm at ED, 0.12 cm in late systole → A4C drop-out is intermittent, never all beat (a whole-beat gap = ASD)."
+        "_note": "Thin membrane (posterior-inferior IAS). Thickness follows the RA phase: 0.24 cm at ED, 0.12 cm in late systole → A4C drop-out is intermittent, never all beat (a whole-beat gap = ASD).",
+        "rim": {
+          "extra": 0.18,
+          "widthFactor": 0.45,
+          "_note": "Limbus: thicker muscular rim round the thin fossa (Netter 224)."
+        }
       },
       "tissue": "myocardium",
       "label": "IAS",
@@ -685,63 +721,91 @@
       "_note": "Left auricle: tapering finger, LA → anterior-left, tip beside the PA trunk (Netter 216/218; lecture: left auricle)."
     },
     "pulmonary_veins": {
-      "type": "capsules",
+      "type": "tubes",
       "items": [
         {
-          "a": "PVein_LU",
-          "b": [
-            -3.3,
-            -0.5,
-            -5.55
+          "a": [
+            -3.12,
+            -1.07,
+            -2.32
           ],
-          "r": 0.6,
+          "b": [
+            -4.35,
+            -2.27,
+            -0.94
+          ],
+          "r": 0.72,
+          "rTip": 0.55,
           "label": "LUPV"
         },
         {
-          "a": "PVein_LL",
-          "b": [
-            -3.1,
-            1.1,
-            -4.95
+          "a": [
+            -2.96,
+            0.39,
+            -1.19
           ],
-          "r": 0.6,
+          "b": [
+            -4.12,
+            -0.38,
+            0.52
+          ],
+          "r": 0.72,
+          "rTip": 0.55,
           "label": "LLPV"
         },
         {
-          "a": "PVein_RU",
-          "b": [
-            1.4,
-            -1.1,
-            -6.55
+          "a": [
+            -2.08,
+            0.21,
+            -4.42
           ],
-          "r": 0.6,
+          "b": [
+            -2.52,
+            1.46,
+            -6.66
+          ],
+          "r": 0.72,
+          "rTip": 0.55,
           "label": "RUPV"
         },
         {
-          "a": "PVein_RL",
-          "b": [
-            1.7,
-            0.7,
-            -6.15
+          "a": [
+            -1.66,
+            1.33,
+            -2.97
           ],
-          "r": 0.6,
+          "b": [
+            -1.99,
+            3.24,
+            -4.71
+          ],
+          "r": 0.72,
+          "rTip": 0.55,
           "label": "RLPV"
         }
       ],
       "tissue": "blood",
-      "groupLabel": "Pulm. veins"
+      "groupLabel": "Pulm. veins",
+      "_note": "Four separate ostia on the posterior LA wall (left/right × superior/inferior), each flaring to ≈1.4 cm at the opening (r 0.72 → 0.55 cm), running out to the hila; right veins pass behind the RA/SVC (Netter 218/219; lecture: LA receives 4 pulmonary veins). Teaching sizes (verify)."
     },
     "coronary_sinus": {
       "type": "capsule",
       "points": [
         "CS_lateral",
         "CS_mid",
-        "CS_ostium"
+        "CS_ostium",
+        [
+          2.86,
+          1.34,
+          -1.73
+        ]
       ],
       "r": 0.45,
       "wall": 0.1,
       "tissue": "blood",
-      "label": "Coronary sinus"
+      "label": "Coronary sinus",
+      "rTip": 0.55,
+      "_note": "Great cardiac vein → coronary sinus in the posterior AV groove → ostium in the RA between the IVC opening and the TV (Netter 218/222/224; lecture: coronary sinus empties into the RA)."
     },
     "MV_annulus": {
       "type": "torus",

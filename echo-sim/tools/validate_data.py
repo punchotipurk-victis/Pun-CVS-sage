@@ -137,6 +137,7 @@ def main():
     la_post = tp("LA_center")[2] - 1.6; da_front = da["points"][1][2] + da["r"]
     rng("gap LA posterior wall → descending aorta", la_post - da_front, 0, 2.5, " cm")
 
+    import re
     # 5. base of the heart round the aortic root (P1.5): clock face seen from above, 12 = anterior, 3 = patient's left.
     #    Netter plates 216/218/220/226: PV anterior-left of the AV and higher; TV on the right; LA behind the root; RA right-posterior; LAA left.
     a = norm(V3(P["axes_heart"]["aortic_root"])); AV = V3(L["AV_center"])
@@ -186,6 +187,8 @@ def main():
         allp = [res(q) for q in S["aortic_arch"]["points"]] + [res(q) for it in S["arch_branches"]["items"] + S["PA_branches"]["items"] for q in it["points"]]
         out = [p_ for p_ in allp if any(p_[i] - 1.5 < lo_[i] or p_[i] + 1.5 > hi_[i] for i in range(3))]
         (warn if out else info)(f"3D bake box holds the great vessels ({len(out)} points within 1.5 cm of the box edge)")
+    if len(LBL_ALL := re.findall(r'"([A-Za-z_.]+)"', re.search(r"const LABELS = \[(.*?)\];", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read(), re.S).group(1))) + 1 > 64:
+        err(f"{len(LBL_ALL)} engine labels: the palette arrays hold 64 (raise uPalette in echo.js/scene.js)")
     # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
     import re
     js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()

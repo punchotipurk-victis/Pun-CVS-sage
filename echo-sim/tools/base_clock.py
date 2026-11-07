@@ -17,7 +17,7 @@ for k in ['MV_center', 'TV_center', 'PV_center', 'LA_center', 'RA_center', 'LAA_
 S = ph['structures']
 if 'a' in S['RVOT']: print("RVOT a", clock(np.array(S['RVOT']['a'])))
 print("RA svc a/b", clock(np.array(S['RA']['detail']['svc']['a'])), '|', clock(np.array(S['RA']['detail']['svc']['b'])))
-print("RAA b", clock(np.array(S['RA']['detail']['raa']['b'])))
+print("RAA tip", clock(np.array(S['RA']['detail']['raa'].get('tip') or S['RA']['detail']['raa']['b'])))
 
 def P(clk, r, along):
     t = math.radians(clk*30); return AV + along*a + r*(math.cos(t)*ant + math.sin(t)*left)
