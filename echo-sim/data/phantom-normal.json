@@ -16,7 +16,8 @@
     "changelog": [
       "0.2.0: heart moved 1.2 cm posterior (RV free wall was touching the chest wall; RV now ~2 cm deep in PLAX); descending aorta moved to stay just behind the LA; rib width 1.3→1.0 cm and AP thickness 1.0→0.8 cm (realistic intercostal windows); liver left lobe enlarged (subxiphoid window); lung cardiac notch enlarged (apical window opens in LLD). All found by rendering the views and tracing the centre scan line.",
       "0.3.0: anatomy realism pass after staff-style review of renders — curved/tapered MV+TV leaflets with free-edge curl, AV cusp belly sag, bullet-shaped LV, organic atria (vestibules, PV ostia, LAA, SVC, RA appendage, carved IAS, LA–aorta wall), thicker pericardium; echo: myocardium/liver mottling. Pericardium thinner except posteriorly; leaflet width-arc (short-axis curvature). LA moved posterior (under the aortic root, as in PLAX); mitral annulus tilted; descending aorta moved posterior-left to stay behind the LA.",
-      "0.4.0 (P1.5, in progress): 3D heart meshed from the signed distance of the heart's outer surface (gHeartD) at 0.13 cm, bake skips the body wall (the anterior RV had been cut flat by the chest-wall layer). Base of the heart re-laid round the aortic root (clock face from above): LA moved behind the root at sinus level (no false-ASD look in PLAX), PV anterior-left of the AV, RVOT/conus a curved tube from the TV side over the front of the aorta to the PV (PSAX-AV: RV/RVOT wraps the Mercedes sign), LAA a tapering finger beside the PA trunk, LVOT a tube along the aortic axis with the basal IVS continuing into the anterior aortic wall and the AML hinged on the posterior aortic annulus. New label ids LA_wall, RA_wall (IAS now only where both atria meet). Views: PLAX beam ⟂ the LV–aorta bisector; plane3 lateral now lies in the derived plane (side landmark only picks the sign); A4C notch side = LV_lateral_mid."
+      "0.4.0 (P1.5, in progress): 3D heart meshed from the signed distance of the heart's outer surface (gHeartD) at 0.13 cm, bake skips the body wall (the anterior RV had been cut flat by the chest-wall layer). Base of the heart re-laid round the aortic root (clock face from above): LA moved behind the root at sinus level (no false-ASD look in PLAX), PV anterior-left of the AV, RVOT/conus a curved tube from the TV side over the front of the aorta to the PV (PSAX-AV: RV/RVOT wraps the Mercedes sign), LAA a tapering finger beside the PA trunk, LVOT a tube along the aortic axis with the basal IVS continuing into the anterior aortic wall and the AML hinged on the posterior aortic annulus. New label ids LA_wall, RA_wall (IAS now only where both atria meet). Views: PLAX beam ⟂ the LV–aorta bisector; plane3 lateral now lies in the derived plane (side landmark only picks the sign); A4C notch side = LV_lateral_mid.",
+      "0.4.0 (P1.5, atria): LA and RA enlarged to Lang 2015 sizes (ED semi LA 2.3/1.8/2.6, RA 2.0/1.8/2.5 cm; verify) and re-placed beside each other near the A4C plane, so A4C shows both atria with the IAS between them; RA gains the IVC inflow (sinus venarum). AML hinge back on the mitral annulus; new aortomitral_curtain (fibrous, label MV_AML) joins it to the posterior aortic annulus. LAA moved lower beside the PA."
     ]
   },
   "frames": {
@@ -123,19 +124,19 @@
       7.0
     ],
     "LA_center": [
-      -1.11,
-      -0.46,
-      -1.88
+      -1.1,
+      -0.3,
+      -2.25
     ],
     "RA_center": [
-      2.9,
-      1.8,
-      -2.4
+      3.35,
+      0.75,
+      -2.3
     ],
     "LAA_tip": [
-      0.56,
-      -4.79,
-      1.41
+      -0.05,
+      -4.44,
+      1.59
     ],
     "CS_lateral": [
       -2.4,
@@ -153,24 +154,24 @@
       -1.2
     ],
     "PVein_LU": [
-      -2.11,
-      -0.86,
-      -3.78
+      -2.1,
+      -0.7,
+      -4.15
     ],
     "PVein_LL": [
-      -1.91,
-      0.34,
-      -3.18
+      -1.9,
+      0.5,
+      -3.55
     ],
     "PVein_RU": [
-      1.09,
-      -1.06,
-      -4.58
+      1.1,
+      -0.9,
+      -4.95
     ],
     "PVein_RL": [
-      1.29,
-      0.14,
-      -4.18
+      1.3,
+      0.3,
+      -4.55
     ],
     "ALPM_base": [
       -1.7,
@@ -524,15 +525,15 @@
       "semi": [
         {
           "param": "LA_semiX",
-          "ed": 1.9
+          "ed": 2.3
         },
         {
           "param": "LA_semiY",
-          "ed": 1.5
+          "ed": 1.8
         },
         {
           "param": "LA_semiZ",
-          "ed": 2.2
+          "ed": 2.6
         }
       ],
       "wall": 0.25,
@@ -546,7 +547,8 @@
         "laaBlend": 0.4,
         "wobble": 0.15,
         "_note": "Organic atrium: ellipsoid + funnel (vestibule) to the mitral annulus + pulmonary-vein ostia + LAA, low-frequency wobble so it is never a perfect sphere; clipped at the annulus plane."
-      }
+      },
+      "_sizeNote": "ED (minimum, after atrial kick) semi 2.3/1.8/2.6 cm → A4C width ≈4.6, length ≈5.2, PLAX AP ≈3.6 cm; ES ×1.08 → ≈52 mL + vestibule/veins. Lang 2015 LA AP 3.0–4.0 cm, LAVi max 16–34 mL/m² (verify)."
     },
     "RA": {
       "type": "ellipsoid",
@@ -554,15 +556,15 @@
       "semi": [
         {
           "param": "RA_semiX",
-          "ed": 1.6
+          "ed": 2.0
         },
         {
           "param": "RA_semiY",
-          "ed": 1.6
+          "ed": 1.8
         },
         {
           "param": "RA_semiZ",
-          "ed": 2.1
+          "ed": 2.5
         }
       ],
       "wall": 0.25,
@@ -574,9 +576,9 @@
         "wobble": 0.15,
         "svc": {
           "a": [
-            2.9,
-            1.8,
-            -2.4
+            3.35,
+            0.75,
+            -2.3
           ],
           "b": [
             2.4,
@@ -587,9 +589,9 @@
         },
         "raa": {
           "a": [
-            3.4,
-            1.2,
-            -2.4
+            3.67,
+            0.57,
+            -2.34
           ],
           "b": [
             4.7,
@@ -598,8 +600,23 @@
           ],
           "r": 0.7
         },
-        "_note": "RA + vestibule to the TV + SVC (toward the head) + broad RA appendage (anterior); IVC joins from below (extracardiac)."
-      }
+        "_note": "RA + vestibule to the TV + SVC (toward the head) + broad RA appendage (anterior); IVC joins from below (extracardiac).",
+        "ivc": {
+          "a": [
+            3.09,
+            3.24,
+            -1.07
+          ],
+          "b": [
+            3.35,
+            1.2,
+            -2.0
+          ],
+          "r": 1.05,
+          "_note": "Sinus venarum: the IVC opens into the posterior-inferior RA (the extracardiac IVC's last point, heart frame)."
+        }
+      },
+      "_sizeNote": "ED semi 2.0/1.8/2.5 cm → A4C minor ≈4.0, major ≈5.0 cm, ≈38 mL. Lang 2015 RA minor 2.9–4.5 cm, major ≈4.4–5.3 cm (verify)."
     },
     "IAS": {
       "type": "derived",
@@ -627,14 +644,14 @@
       "wall": 0.15,
       "points": [
         [
-          -1.79,
-          -1.77,
-          -0.98
+          -1.84,
+          -1.57,
+          -0.73
         ],
         [
-          -1.68,
-          -3.76,
-          0.11
+          -1.85,
+          -2.89,
+          0.03
         ],
         "LAA_tip"
       ],
@@ -647,9 +664,9 @@
         {
           "a": "PVein_LU",
           "b": [
-            -3.31,
-            -0.66,
-            -5.18
+            -3.3,
+            -0.5,
+            -5.55
           ],
           "r": 0.6,
           "label": "LUPV"
@@ -657,9 +674,9 @@
         {
           "a": "PVein_LL",
           "b": [
-            -3.11,
-            0.94,
-            -4.58
+            -3.1,
+            1.1,
+            -4.95
           ],
           "r": 0.6,
           "label": "LLPV"
@@ -667,9 +684,9 @@
         {
           "a": "PVein_RU",
           "b": [
-            1.39,
-            -1.26,
-            -6.18
+            1.4,
+            -1.1,
+            -6.55
           ],
           "r": 0.6,
           "label": "RUPV"
@@ -677,9 +694,9 @@
         {
           "a": "PVein_RL",
           "b": [
-            1.69,
-            0.54,
-            -5.78
+            1.7,
+            0.7,
+            -6.15
           ],
           "r": 0.6,
           "label": "RLPV"
@@ -723,9 +740,9 @@
     "MV_AML": {
       "type": "leaflet",
       "hinge": [
-        0.68,
-        -0.86,
-        -1.02
+        1.03,
+        -0.84,
+        0.69
       ],
       "dirClosed": [
         -0.62,
@@ -762,8 +779,7 @@
       ],
       "widthCurl": 0.22,
       "_shapeNote": "Curved, tapered leaflet: centre-line bows toward bowClosed (systole, billowing into the LA) or bowOpen (diastole); widthCurl bends the free edge back toward the annulus so the short-axis cut is an arc (fish mouth).",
-      "arc": 0.3,
-      "_continuityNote": "Hinge = posterior aortic annulus (aortomitral curtain), so in PLAX the AML runs on from the posterior aortic wall."
+      "arc": 0.3
     },
     "MV_PML": {
       "type": "leaflet",
@@ -1035,6 +1051,23 @@
         "AV_groove",
         "RV_free_wall_anterior"
       ]
+    },
+    "aortomitral_curtain": {
+      "type": "capsule",
+      "a": [
+        0.68,
+        -0.86,
+        -1.02
+      ],
+      "b": [
+        1.03,
+        -0.84,
+        0.69
+      ],
+      "r": 0.16,
+      "tissue": "fibrous",
+      "label": "MV_AML",
+      "_note": "Fibrous continuity between the posterior aortic annulus (NCC/LCC) and the AML hinge on the mitral annulus (~1-1.5 cm). Seals the LVOT from the LA; in PLAX the AML runs on from the posterior aortic wall. Netter 226/227."
     }
   },
   "extracardiac_patient": {
@@ -1973,9 +2006,9 @@
           1.0
         ]
       ],
-      "LA_semiX": "1.9 * LA_scale",
-      "LA_semiY": "1.5 * LA_scale",
-      "LA_semiZ": "2.2 * LA_scale",
+      "LA_semiX": "2.3 * LA_scale",
+      "LA_semiY": "1.8 * LA_scale",
+      "LA_semiZ": "2.6 * LA_scale",
       "RA_scale": [
         [
           0,
@@ -2006,9 +2039,9 @@
           1.0
         ]
       ],
-      "RA_semiX": "1.6 * RA_scale",
-      "RA_semiY": "1.6 * RA_scale",
-      "RA_semiZ": "2.1 * RA_scale",
+      "RA_semiX": "2.0 * RA_scale",
+      "RA_semiY": "1.8 * RA_scale",
+      "RA_semiZ": "2.5 * RA_scale",
       "MV_open": [
         [
           0,

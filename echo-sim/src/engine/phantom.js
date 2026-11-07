@@ -133,6 +133,7 @@ const PHANTOM = (() => {
     add(` raRaw = smin(raRaw, sdCapsule(h, raC, ${v3(S.TV_annulus.center)} + vec3(0.0,0.0,tvzR - 0.3), ${f(RD.vestibuleRadius)}), ${f(RD.vestibuleBlend)});`);
     if (RD.svc) add(` raRaw = smin(raRaw, sdCapsule(h, ${v3(RD.svc.a)}, ${v3(RD.svc.b)}, ${f(RD.svc.r)}), 0.6);`);
     if (RD.raa) add(` raRaw = smin(raRaw, sdCapsule(h, ${v3(RD.raa.a)}, ${v3(RD.raa.b)}, ${f(RD.raa.r)}), 0.6);`);
+    if (RD.ivc) add(` raRaw = smin(raRaw, sdCapsule(h, ${v3(RD.ivc.a)}, ${v3(RD.ivc.b)}, ${f(RD.ivc.r)}), 0.6);`);   // sinus venarum: IVC inflow into the RA
     add(` raRaw = max(raRaw, h.z - (${f(S.TV_annulus.center === "TV_center" ? L.TV_center[2] : 0.8)} + tvzR + 0.1));`);
     /* interatrial septum: each atrium is carved by the other + wall, so a real septum remains between them */
     const iasW = (S.IAS && S.IAS.carve) || 0.35;
@@ -225,6 +226,8 @@ const PHANTOM = (() => {
     add(` if (tva < 0.0) { tissue = ${T.valve}; label = ${Lb["TV_anterior"]}; return; }`);
     add(` if (pvc < 0.0 && pa < 0.2) { tissue = ${T.valve}; label = ${Lb["PV_cusps"]}; return; }`);
     add(` if (mvAnn < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);
+    if (S.aortomitral_curtain){ const c = S.aortomitral_curtain;
+      add(` if (sdCapsule(h, ${v3(c.a)} + vec3(0.0,0.0,0.6*mvz), ${v3(c.b)} + vec3(0.0,0.0,mvz), ${f(c.r)}) < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`); }
     add(` if (pap < 0.0 && lvCav < 0.3) { tissue = ${T.myocardium}; label = papA < papP ? ${Lb["papillary_muscles.ALPM"]} : ${Lb["papillary_muscles.PMPM"]}; return; }`);
     add(` if (mb < 0.0 && rvCav < 0.3) { tissue = ${T.myocardium}; label = ${Lb["moderator_band"]}; return; }`);
     add(` if (aoLum < 0.0) { tissue = ${T.blood}; label = at < 2.4 ? ${Lb["aortic_root"]} : ${Lb["aortic_root.ascending"]}; return; }`);

@@ -160,8 +160,14 @@ def main():
         (info if cs[0] > 9 and (cs[-1] < 3 or cs[-1] > 11.5) else warn)(f"RVOT conus runs {cs[0]:.1f} → {cs[-1]:.1f} o'clock over the front of the aorta (expected from ~10–11 to ~1)")
     lv = S["LVOT"]; la_, lb_ = V3(lv["a"]), V3(lv["b"]) if isinstance(lv["b"], list) else AV
     rng("LVOT axis vs aortic root axis", deg(math.acos(min(1, abs(dot(norm(sub(lb_, la_)), a))))), 0, 15, "°")
-    ah = V3(S["MV_AML"]["hinge"]); c, r, up = clk(ah)
-    rng("AML hinge distance from the AV centre (aortomitral continuity)", r, 0.9, 1.7, " cm")
+    if "aortomitral_curtain" in S:
+        cu = S["aortomitral_curtain"]; c, r, up = clk(cu["a"])
+        rng("aortomitral curtain: top on the posterior aortic annulus (distance from the root axis)", r, 0.9, 1.7, " cm")
+        rng("aortomitral curtain length (posterior aortic annulus → AML hinge)", math.sqrt(dot(sub(V3(cu["b"]), V3(cu["a"])), sub(V3(cu["b"]), V3(cu["a"])))), 0.6, 2.0, " cm")
+    else: warn("no aortomitral_curtain: the LVOT may open into the LA in PLAX")
+    # atria sizes (ED semi-axes, cm) — Lang 2015 (verify): LA AP 3.0–4.0, RA minor 2.9–4.5
+    for k, rng_ in (("LA", (2.7, 4.2)), ("RA", (2.9, 4.6))):
+        sx = [s_["ed"] for s_ in S[k]["semi"]]; rng(f"{k} ED short diameter", 2*min(sx), *rng_, " cm")
     # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
     import re
     js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()
