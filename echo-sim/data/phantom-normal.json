@@ -24,7 +24,8 @@
       "0.4.0 (P1.5, LV): LV cavity rebuilt as a chain of round cones through a radius profile (shoulder below the annulus, widest at 30 % of the length, bullet taper; exact distances so the wall stays even to the apex; same ED size 4.8 × 8.5 cm) instead of an ellipsoid smooth-unioned with a cone (removed the seam); light apical trabeculation of the endocardium; papillary muscles = tapered bodies rooted in the mid-LV wall with 2–3 heads each, tips raised to ≈2.5 cm below the annulus, moving with the wall; chordae tendineae (new label id chordae, fibrous, 0.12 cm) from every head to the nearer half of both mitral leaflets' free edges, following the leaflets through the beat.",
       "0.4.0 (P1.5, valves): mitral orifice opened (the LV wall had formed a 0.3 cm muscle plate across the orifice above the annulus); leaflet SDF fixed (the commissural arc was not removed before projecting, so every leaflet had ~half its width); MV leaflets rebuilt from the annulus (hinges on a saddle-shaped annulus 0.6 cm high, closed direction at a coaptation point in the posterior third 0.55 cm into the LV, +0.3 cm coaptation overlap: closed MV now seals); PML scallops P1–P3, shallow A1–A3; third tricuspid leaflet (posterior) and all three TV leaflets aimed at a central coaptation point, TV annulus ring; aortic and pulmonary cusps rebuilt as bellies with vertical coaptation walls along the Y (closed) that tilt into the sinuses (open), commissural posts; PSAX-AV plane now at AV_coaptation (0.8 cm above the annulus). New label ids TV_posterior, TV_annulus.",
       "0.4.0 (P1.5, surface): coronary arteries (19 vessels, right-dominant, SCCT segment numbers and territories: LM, LAD with D1/D2, septal perforators S1–S3 and apical wrap; LCx with OM1/OM2; RCA with conus, SA nodal, RV branches, acute marginal, AV nodal, PDA, posterolateral), cardiac veins (great, middle, small → coronary sinus) and epicardial fat in the AV and interventricular grooves, designed on the baked heart's grooves by tools/coronary_design.py and snapped to the surface. Detail levels: echo/cut face = proximal coronaries + AV-groove fat; 3D bake = + all groove fat; the full tree is swept as smooth tubes from the same centrelines in the 3D view and the mesh export. Pericardium follows the heart + fat. New label ids LCA, RCA, cardiac_veins, epicardial_fat.",
-      "0.4.0 (P1.5, export): vessels drawn thicker in the 3D heart (×2.2, ≥0.32 cm wide, lifted onto the surface) so they can be tapped; true radii unchanged for echo/angiography. tools/export_heart_mesh.py writes export/heart-mesh.json (positions, normals, index; per vertex: structure label, wall class, AHA 17 segment, standard and model coronary territory, nearest artery + position along it, motion weight; artery/vein centrelines with true and display radii; heart→body and heart→heart-3d-model matrices). export/heart-mesh-loader.js decodes it for the other labs (mesh, tappable tubes, colourBy, pick, infarctDownstream)."
+      "0.4.0 (P1.5, export): vessels drawn thicker in the 3D heart (×2.2, ≥0.32 cm wide, lifted onto the surface) so they can be tapped; true radii unchanged for echo/angiography. tools/export_heart_mesh.py writes export/heart-mesh.json (positions, normals, index; per vertex: structure label, wall class, AHA 17 segment, standard and model coronary territory, nearest artery + position along it, motion weight; artery/vein centrelines with true and display radii; heart→body and heart→heart-3d-model matrices). export/heart-mesh-loader.js decodes it for the other labs (mesh, tappable tubes, colourBy, pick, infarctDownstream).",
+      "0.4.0 (P1.5, PLAX fix 8 Nov): aortomitral curtain is a 2.6 cm sheet from the posterior aortic annulus; AML hinge moved onto the line of the posterior aortic wall (0.6 cm below the annulus; closed leaflet re-aimed at the same coaptation point); anterior ±60° of the mitral ring removed (D-shaped annulus); LVOT clipped to the ventricular side of the curtain; LA kept off the LVOT by a fibrous band. Fixes the PLAX hole between LA and LVOT and the narrow LVOT. Sources: Netter 226/227 (aortomitral continuity), lecture; curtain length teaching (verify)."
     ]
   },
   "frames": {
@@ -889,21 +890,23 @@
         ],
         "_note": "Saddle-shaped (hyperbolic paraboloid) annulus: anterior (aortic) and posterior points 0.3 cm toward the atrium, commissures 0.3 cm toward the LV → annular height ≈0.6 cm, AHCWR ≈20 % (normal ~15–25 %; teaching, verify).",
         "_leafletNote": "Leaflet hinges follow half the ring's saddle (0.15 cm): the leaflet hinge line sits just ventricular of the ring crest, and a full 0.3 cm lift took the PML out of the PSAX-MV plane."
-      }
+      },
+      "anteriorGapDeg": 60.0,
+      "_gapNote": "No ring over the anterior ±50°: the anterior mitral annulus is the aortomitral curtain (fibrous continuity), the ring is C-shaped posteriorly (Netter; teaching, verify)."
     },
     "MV_AML": {
       "type": "leaflet",
       "hinge": [
-        1.013,
-        -0.826,
-        0.51
+        0.406,
+        -0.525,
+        -0.604
       ],
       "dirClosed": [
-        -0.769,
-        0.626,
-        -0.129
+        -0.596,
+        0.605,
+        0.527
       ],
-      "length": 2.34,
+      "length": 1.91,
       "width": 3.0,
       "thickness": 0.3,
       "openToward": [
@@ -949,7 +952,8 @@
         "cleftWidth": 0.25,
         "_note": "A1/A2/A3: no true clefts, only shallow indentations facing P1/P2/P3."
       },
-      "_closureNote": "Hinge on the annulus, closed direction aimed at the coaptation point (posterior third of the orifice, 0.55 cm into the LV: normal tenting), length = hinge→coaptation + 0.3 cm coaptation overlap, so the closed leaflets seal the orifice."
+      "_closureNote": "Hinge on the annulus, closed direction aimed at the coaptation point (posterior third of the orifice, 0.55 cm into the LV: normal tenting), length = hinge→coaptation + 0.3 cm coaptation overlap, so the closed leaflets seal the orifice.",
+      "_hingeNote": "P1.5 fix (PLAX): hinge on the line of the posterior aortic wall, 0.6 cm below the posterior aortic annulus (aortomitral curtain), so the posterior aortic wall runs on into the AML and the LVOT keeps its width. It sits inside the old ring: the anterior side of the D-shaped mitral annulus is the aortomitral continuity. Closed direction re-aimed at the same coaptation point."
     },
     "MV_PML": {
       "type": "leaflet",
@@ -1298,21 +1302,25 @@
       "_posteriorNote": "Posterior (AV-groove / inferolateral) pericardium is thicker and brighter, as in the PLAX far field; elsewhere it stays thin so chambers don't get white rims."
     },
     "aortomitral_curtain": {
-      "type": "capsule",
+      "type": "sheet",
       "a": [
         0.68,
         -0.86,
         -1.02
       ],
       "b": [
-        1.03,
-        -0.84,
-        0.69
+        0.406,
+        -0.525,
+        -0.604
       ],
-      "r": 0.12,
       "tissue": "fibrous",
       "label": "MV_AML",
-      "_note": "Fibrous continuity between the posterior aortic annulus (NCC/LCC) and the AML hinge on the mitral annulus (~1-1.5 cm). Seals the LVOT from the LA; in PLAX the AML runs on from the posterior aortic wall. Netter 226/227."
+      "_note": "Fibrous continuity between the posterior aortic annulus (NCC/LCC) and the AML hinge on the mitral annulus (~1-1.5 cm). Seals the LVOT from the LA; in PLAX the AML runs on from the posterior aortic wall. Netter 226/227.",
+      "width": 2.6,
+      "thickness": 0.2,
+      "reach": 1.8,
+      "_sheetNote": "Sheet a→b, 2.6 cm wide between the fibrous trigones, 0.2 cm thick. The LVOT is clipped to its ventricular side and the LA carved behind it (P1.5 fix: PLAX hole between LA and LVOT).",
+      "overlap": 0.25
     },
     "aortic_arch": {
       "type": "tube",

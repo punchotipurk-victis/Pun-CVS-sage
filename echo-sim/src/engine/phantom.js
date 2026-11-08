@@ -226,6 +226,21 @@ const PHANTOM = (() => {
     add(` laCav = max(laCav, -(aoLum - 0.3)); raCav = max(raCav, -(aoLum - 0.3));`);     // aorto-atrial walls
     add(` laCav = max(laCav, -(min(rpa, lpa) - 0.25)); raCav = max(raCav, -(min(rpa, lpa) - 0.25));`);   // RPA passes over the LA roof and behind the SVC
     add(` laCav = max(laCav, -(lvOut + 0.05)); raCav = max(raCav, -(max(rvOut, -rvCav) + 0.05));`);   // atria never eat ventricular wall (the RA may meet the RV cavity at the TV orifice)
+    if (S.aortomitral_curtain){ const c = S.aortomitral_curtain, A0 = c.a, B0 = c.b, LAc = L.LA_center;
+      /* aortomitral curtain = a fibrous SHEET (not a thin rod) from the posterior aortic annulus to the AML hinge, ~2.6 cm wide between
+         the trigones. It is the posterior wall of the LVOT: the LVOT never crosses it and the LA stays behind it (found in P1.5: a rod
+         left a blood–blood gap between LA and LVOT in PLAX, read as a hole, and the LVOT tube bulged into the LA). */
+      const sub3 = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]], cr = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]], dt = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+      const u = nrm(sub3(B0, A0)), mid = A0.map((x,i) => (x + B0[i])/2), toLA = sub3(LAc, mid), w = nrm(cr(u, toLA)); let n = nrm(cr(w, u)); if (dt(n, toLA) < 0) n = n.map(x => -x);
+      const Lc = Math.hypot(...sub3(B0, A0)) + (c.overlap ?? 0.25), W = c.width ?? 2.6, t = c.thickness ?? 0.2;   // runs 0.25 cm on under the AML hinge: no gap at the junction
+      add(` vec3 cmA = ${v3(A0)} + vec3(0.0,0.0,0.6*mvz), cmB = ${v3(B0)} + vec3(0.0,0.0,mvz); float cmD = dot(h - cmA, ${v3(n)});`);
+      add(` float cmS; { vec3 q = h - cmA; float s_ = dot(q, ${v3(u)}), w_ = dot(q, ${v3(w)}); vec3 bq = vec3(abs(s_ - ${f(Lc/2)}) - ${f(Lc/2)}, abs(w_) - ${f(W/2)}, abs(cmD) - ${f(t/2)}); cmS = length(max(bq, 0.0)) + min(max(bq.x, max(bq.y, bq.z)), 0.0); }`);
+      add(` float lvBehind = max(lvot, ${f(t/2 + 0.05)} - cmD);`);                                         // old LVOT tube behind the curtain…
+      add(` lvot = max(lvot, cmD + ${f(t/2)});`);                                                          // LVOT on the ventricular side of the curtain
+      add(` float lvlaW = max(laCav, max(-lvot, lvot - 0.15));`);                                          // the band carved out of the LA round the LVOT…
+      add(` laCav = max(laCav, -(lvot + 0.15));`);                                                           // never blood–blood between LA and LVOT: a thin wall at least
+      add(` laCav = min(laCav, max(lvBehind, annD + 0.1));`);                                              // …is LA (atrial side of the mitral annulus): the curtain alone separates LA and LVOT
+    } else add(` float cmS = 1e3, lvlaW = 1e3;`);
     add(` float atrWall = min(laRaw, raRaw) - 0.25;`);
     /* heart solid (myocardium + atrial walls) */
     add(` float solid = smin(smin(lvOut, rvOut, 0.6), atrWall, 0.6);`);
@@ -262,6 +277,7 @@ const PHANTOM = (() => {
     if (ma.saddle){ const e0 = nrm(ma.saddle.highDir);   // saddle: high (atrial) points anterior (aortic) and posterior, low at the commissures
       add(` vec3 qa = h - vec3(0.0,0.0,mvz); vec3 qaP = qa - nA*dot(qa,nA); vec3 sE1 = normalize(${v3(e0)} - nA*dot(${v3(e0)}, nA)), sE2 = cross(nA, sE1);`);
       add(` float sTh = atan(dot(qaP, sE2), dot(qaP, sE1)); float mvAnn = length(vec2(length(qaP) - ${f(ma.R)}, dot(qa,nA) + ${f(ma.saddle.amp)}*cos(2.0*sTh))) - ${f(ma.r)};`); }
+    if (ma.anteriorGapDeg) add(` mvAnn = max(mvAnn, (cos(sTh) - ${f(Math.cos(ma.anteriorGapDeg*Math.PI/180))})*${f(ma.R)});`);   // anterior annulus = aortomitral curtain, not a ring
     else add(` vec3 qa = h - vec3(0.0,0.0,mvz); float mvAnn = length(vec2(length(qa - nA*dot(qa,nA)) - ${f(ma.R)}, dot(qa,nA))) - ${f(ma.r)};`);
     { const ta = S.TV_annulus, tn = nrm(ta.normal);   // tricuspid annulus: fibrous ring at the RV base (moves with the TV plane)
       add(` vec3 qt = h - (${v3(L.TV_center)} + vec3(0.0,0.0,tvz)); vec3 tn = ${v3(tn)}; float tvAnn = length(vec2(length(qt - tn*dot(qt,tn)) - ${f(ta.R)}, dot(qt,tn))) - ${f(ta.r)};`); }
@@ -385,8 +401,8 @@ const PHANTOM = (() => {
     add(` if (mvAnn < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);
     add(` if (tvAnn < 0.0 && rvOut < 0.4) { tissue = ${T.fibrous}; label = ${Lb["TV_annulus"]}; return; }`);
     add(` if (avCom < 0.0 && aoLum < 0.35) { tissue = ${T.fibrous}; label = ${Lb["aortic_root"]}; return; }`);
-    if (S.aortomitral_curtain){ const c = S.aortomitral_curtain;
-      add(` if (sdCapsule(h, ${v3(c.a)} + vec3(0.0,0.0,0.6*mvz), ${v3(c.b)} + vec3(0.0,0.0,mvz), ${f(c.r)}) < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`); }
+    add(` if (cmS < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);
+    add(` if (lvlaW < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);   // …is fibrous wall (posterior LVOT wall), never empty   // aortomitral curtain (fibrous continuity AV–AML)
     add(` if (chd < 0.0 && lvCav < 0.0) { tissue = ${T.fibrous}; label = ${Lb["chordae"]}; return; }`);
     add(` if (pap < 0.0 && lvCav < 0.3) { tissue = ${T.myocardium}; label = papA < papP ? ${Lb["papillary_muscles.ALPM"]} : ${Lb["papillary_muscles.PMPM"]}; return; }`);
     add(` if (mb < 0.0 && rvCav < 0.3) { tissue = ${T.myocardium}; label = ${Lb["moderator_band"]}; return; }`);
