@@ -21,18 +21,38 @@
 
 At 0.2 cm voxels the export is about 26 500 vertices and 1 MB. Use `--voxel 0.25` if a lab must stay small.
 
-## Using it in the existing labs (next task; not done here)
-- **3D heart lab (`heart3d`)**: `HeartMesh.load(json, THREE, {frame: "H3"})` puts the mesh in that lab's axes. Picking returns `{kind:'wall', aha, ahaName, territory, …}` or `{kind:'vessel', id, name, scct}`.
-- **MI lab (`mi`)**: map its regions onto AHA segments, then paint with `infarctDownstream(vesselId, t)` (everything downstream of a clot at fraction `t`, branches included).
-  - ANTSEP 2, 8
-  - ANT 1, 7, 13
-  - APEX 17 (+13–16)
-  - HILAT 6
-  - LAT 12, 16
-  - INF 4, 10, 15
-  - POST 5, 11
-  - RV = `wall 2`
-- **Angiogram lab**: use `vessels.arteries` centrelines with the true radii. `tools/coronary_map.py` already draws RAO caudal, LAO cranial and right-system projections.
+## In the site (done: `tools/integrate_heart_mesh.py`)
+```bash
+python tools/build_lab.py .
+python tools/integrate_heart_mesh.py <site index.html> [--out OUT] --echo dist/echo-sim.html   # re-runnable
+python tools/test_embed.py <copy of the output>
+```
+- The mesh JSON is stored **once** in the site page (`<script id="pun-heart-mesh" type="application/json">`, lazy getter
+  `window.PUN_HEART_MESH`). The labs are same-origin `srcdoc` iframes and read it from `parent`. A lab opened on its own
+  finds nothing and keeps its built-in H3 heart.
+- `export/neo-heart-adapter.js` (`NEO`) is injected after each lab's `H3` module, plus 6 one-line hooks in `HeartScene`
+  (marked `/*NEO-HOOK*/`): `buildHeart` (intact heart → refined mesh), `showHeart` (swap vessel sets), vessel build,
+  `setCulprit` (grey refined vessels + extra branches), label layout, and `classifyOther` (Heart Conduction lab only).
+- **Intact heart** (`showHeart({})`): refined mesh + refined coronaries. **Cut or lesion views** (`cut`, `vsd`, `papRupt`,
+  `aneurysm`, `thrombus`, `rupture`, `rvDil`) keep the legacy H3 SDF heart, because the export is an outer surface only.
+- The labs' vessel keys map onto the tree: LM; LADp/m/d = LAD 0–28 / 28–62 / 62–100 %; D1; LCxp/d = LCx 0–45 / 45–100 %;
+  OM = OM1; PL = PLB; RCAp/m/d = RCA thirds; AM; PDA. `H3.VESSELS[k].pts` is replaced **in place** (callers keep the array).
+  D2, OM2, conus, SA-nodal and RV branches, the cardiac veins and caval stubs are drawn too, not tappable, and grey with their
+  parent segment.
+- Walls: AHA → lab region (`ANT` 1, 7, 13 · `ANTSEP` 2, 8, 14 · `INF` 3, 4, 9, 10, 15 · `POST` 5, 11 · `HILAT` 6 · `LAT` 12, 16 ·
+  `APEX` 17); `wall 2` → `RV`. The Heart Conduction lab's atrial class comes from `wall 3`.
+- **Heart Conduction lab**: its conduction network, labels and cut view are built in H3 coordinates around the legacy (larger,
+  more rightward) atria, so `NEO_CFG.warpToLegacy` bends the refined mesh with a smooth Gaussian RBF through 5 landmark pairs
+  (RA, SVC top, IVC, LA, AV) with the ventricles pinned. The MI lab shows the unwarped geometry.
+- `frames.heartToH3` (v1.1): body axes tilted by the smallest rotation (≈27°) that lays the LV long axis on H3's. v1 took the
+  roll from H3's cut plane and swung the arch ≈22° to the right. Mesh data did not change.
+
+## Still to do
+- Angiogram lab: use `vessels.arteries` centrelines with the true radii. `tools/coronary_map.py` already draws RAO caudal,
+  LAO cranial and right-system projections.
+- MI lab: paint from the model's own tree with `infarctDownstream(vesselId, t)` (today it still paints the lab's 8 regions).
+- Rebuild the Heart Conduction network on the refined atria, then drop the warp.
+- A cut / lesion export (or clip plane + cap) so the complication views use the refined heart too.
 
 ## Known limits
 - Only the outer surface is exported, so septal segments show only where the septum reaches the surface. The basal anteroseptal segment (AHA 2) sits under the RVOT and has no surface vertices. A 4-chamber cut needs a clip plane plus a cap, or a second export.

@@ -21,6 +21,7 @@ Branch `echo-sim/p1.5-heart`, draft PR #3 into `echo-sim/p1-scene-ui`. Do not me
    - 19 coronary arteries (right-dominant, SCCT segments, territories), 3 cardiac veins and groove fat, designed on the baked heart by `tools/coronary_design.py`.
    - Detail levels: the echo and cut face show only the proximal coronaries and AV-groove fat. The 3D view sweeps the full tree as tubes from the same centrelines, drawn thicker than life (×2.2) so they can be tapped.
 10. **Export.** `tools/export_heart_mesh.py` writes `export/heart-mesh.json`, and `export/heart-mesh-loader.js` loads it. Format in `docs/HEART-MESH-EXPORT.md`.
+11. **In the site.** `tools/integrate_heart_mesh.py` puts the mesh once in `index.html` and switches the Heart Conduction and MI labs to it for the intact heart (cut and lesion views keep the old heart). It also refreshes `LABS.echo` with the v0.4 phantom. `heartToH3` roll fixed (the arch had swung ≈22° right). Details in `docs/HEART-MESH-EXPORT.md`.
 
 ## Checks (last run)
 - `validate_data.py`: 0 errors, 0 warnings.
@@ -28,6 +29,7 @@ Branch `echo-sim/p1.5-heart`, draft PR #3 into `echo-sim/p1-scene-ui`. Do not me
 - Supine: every view scores 100 at target.
 - LLD: PSAX-MV 86, S4C 88, all other views 100.
 - Every view drops below 60 at 25° off target.
+- `test_embed.py` on the integrated `index.html`: 0 failures (all 6 routes). Click-through of every MI 3D button and every Heart Conduction button: no errors.
 
 ## Performance (SwiftShader, CPU) — still to measure on a real GPU and Windows Intel Arc
 | Measure | Before P1.5 | After coronaries |

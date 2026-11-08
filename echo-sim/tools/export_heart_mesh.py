@@ -88,9 +88,12 @@ async def main():
     # heart-3d-model (H3) frame: arbitrary units, +x left, +y cranial, +z anterior; LV_B → LV_A long axis, SEPT toward the RV
     LV_B = np.array([.2, .36, -.2]); LV_A = np.array([.66, -.72, .26]); RV_B = np.array([-.4, .2, .22]); AX = nz(LV_A - LV_B)
     CUTN = nz(np.array([.46, .42, .78])); SEPT = nz(np.cross(CUTN, AX)); SEPT = SEPT if SEPT @ (RV_B - LV_B) > 0 else -SEPT
-    SEPT = nz(SEPT - AX*(SEPT @ AX)); Yh = np.cross(AX, SEPT)                 # H3 directions for heart X (septum), Y, Z (long axis)
     sc = np.linalg.norm(LV_A - LV_B)/(z1*0.95)                                 # their LV base→apex length ↔ our MV centre → apex
-    Rm = np.stack([SEPT, Yh, AX], 1)                                           # columns: images of our X, Y, Z
+    # H3 axes = body axes (+x left, +y head, +z anterior). Keep our body orientation and tilt it by the smallest rotation that
+    # lays our LV long axis on theirs (≈27°). (v1 used their cut-plane septum for the roll: ≈22° off, the arch swung right.)
+    Zb = M[2]; v = np.cross(Zb, AX); sn, cs = np.linalg.norm(v), Zb @ AX
+    Kx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]]); Rmin = np.eye(3) + Kx + Kx @ Kx*((1 - cs)/sn**2)
+    Rm = Rmin @ M.T                                                            # columns: images of our X, Y, Z
     h2h3 = np.eye(4); h2h3[:3, :3] = Rm*sc; h2h3[:3, 3] = LV_B
     # ---- quantise
     cen = (P.max(0) + P.min(0))/2; rngv = (P.max(0) - P.min(0))/2 + 1e-6
