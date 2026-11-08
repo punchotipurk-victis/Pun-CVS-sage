@@ -271,6 +271,8 @@
         const q = o.project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       pick: (x, y, touch) => input.pick({ clientX: x, clientY: y, pointerType: touch ? "touch" : "mouse" }), setColourMode: m => S.setColourMode(m),
       heartMatrix: () => S.heartGroup.matrix.elements.slice(), roll: () => S.patient.rotation.y, img: APP.img, heartVol: () => S.heartVol(), labelsList: () => PHANTOM.LABELS,
+      /* dev/export: label volume (+ outer signed distance) at a voxel size and cycle phase, heart frame; box = {lo, hi} in cm (optional) */
+      bakeVolume: (voxelCm = 0.13, phase = 0, box) => S.bakeVolume(voxelCm, phase, box),
       /* dev/export: re-bake the heart at an export voxel size (does not touch the displayed heart); arrays in the heart frame (cm) */
       exportHeart(voxelCm = 0.2){ const r = S.bakeHeart(voxelCm), g = r.geometry, P = g.attributes.position.array, N = g.attributes.normal.array;
         return { voxelCm, positions: Array.from(P, x => +x.toFixed(3)), normals: Array.from(N, x => +x.toFixed(3)), index: Array.from(g.index.array), labels: Array.from(g.userData.labels), labelNames: PHANTOM.LABELS }; },

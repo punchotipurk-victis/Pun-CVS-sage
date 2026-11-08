@@ -11,13 +11,15 @@ const PHANTOM = (() => {
   const LABELS = ["", "LV_cavity","RV_cavity","LA","RA","LVOT","RVOT","aortic_root","aortic_root.ascending","PA_main","LAA","pulmonary_veins",
     "coronary_sinus","MV_AML","MV_PML","TV_septal","TV_anterior","AV_cusps.RCC","AV_cusps.LCC","AV_cusps.NCC","PV_cusps",
     "papillary_muscles.ALPM","papillary_muscles.PMPM","moderator_band","IVS","PW","LV_myocardium","RV_free_wall","pericardium","liver",
-    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall","aortic_arch","arch_branches","RPA","LPA","crista_terminalis","chordae","TV_posterior","TV_annulus","LCA","RCA","cardiac_veins","epicardial_fat"];
+    "diaphragm","IVC","hepatic_veins","descending_aorta","descending_aorta.abdominal","ribs","sternum","lungs","stomach_gas","chest_wall","IAS","LA_wall","RA_wall","aortic_arch","arch_branches","RPA","LPA","crista_terminalis","chordae","TV_posterior","TV_annulus","LCA","RCA","cardiac_veins","epicardial_fat",
+    "SVC","pectinate_muscles","eustachian_valve","thebesian_valve","todaro_tendon","membranous_septum","central_fibrous_body"];
   const LABEL_TEXT = { LV_cavity:"LV", RV_cavity:"RV", LA:"LA", RA:"RA", LVOT:"LVOT", RVOT:"RVOT", aortic_root:"Ao root", "aortic_root.ascending":"Asc. aorta",
     PA_main:"PA", LAA:"LAA", pulmonary_veins:"Pulm. veins", coronary_sinus:"Coronary sinus", MV_AML:"AML", MV_PML:"PML", TV_septal:"TV (septal)",
     TV_anterior:"TV (anterior)", "AV_cusps.RCC":"RCC", "AV_cusps.LCC":"LCC", "AV_cusps.NCC":"NCC", PV_cusps:"PV", "papillary_muscles.ALPM":"ALPM",
     "papillary_muscles.PMPM":"PMPM", moderator_band:"Moderator band", IVS:"IVS", PW:"Posterior wall", LV_myocardium:"LV wall", RV_free_wall:"RV free wall",
     pericardium:"Pericardium", liver:"Liver", diaphragm:"Diaphragm", IVC:"IVC", hepatic_veins:"Hepatic vein", descending_aorta:"Desc. Ao",
-    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall", aortic_arch:"Aortic arch", arch_branches:"Arch branch", RPA:"RPA", LPA:"LPA", crista_terminalis:"Crista terminalis", chordae:"Chordae", TV_posterior:"TV (posterior)", TV_annulus:"TV annulus", LCA:"Left coronary", RCA:"Right coronary", cardiac_veins:"Cardiac vein", epicardial_fat:"Epicardial fat" };
+    "descending_aorta.abdominal":"Abd. aorta", ribs:"Rib", sternum:"Sternum", lungs:"Lung", stomach_gas:"Stomach gas", chest_wall:"Chest wall", IAS:"IAS", LA_wall:"LA wall", RA_wall:"RA wall", aortic_arch:"Aortic arch", arch_branches:"Arch branch", RPA:"RPA", LPA:"LPA", crista_terminalis:"Crista terminalis", chordae:"Chordae", TV_posterior:"TV (posterior)", TV_annulus:"TV annulus", LCA:"Left coronary", RCA:"Right coronary", cardiac_veins:"Cardiac vein", epicardial_fat:"Epicardial fat",
+    SVC:"SVC", pectinate_muscles:"Pectinate muscles", eustachian_valve:"Eustachian valve", thebesian_valve:"Thebesian valve", todaro_tendon:"Tendon of Todaro", membranous_septum:"Membranous septum", central_fibrous_body:"Central fibrous body" };
   const Lb = Object.fromEntries(LABELS.map((t,i)=>[t,i]));
 
   /* ---- cycle: monotone cubic interpolation of keyframes (no overshoot) ---- */
@@ -222,6 +224,24 @@ const PHANTOM = (() => {
     if (RD.crista){ add(` float crista = ${tube(RD.crista.points, RD.crista.r, RD.crista.r*0.8, 0.3)};`);
       add(` raCav = max(raCav, -crista);`); }   // crista terminalis: muscular ridge standing out of the lateral RA wall
     else add(` float crista = 1e3;`);
+    /* ---- fine right-heart landmarks (phantom 0.5, designed by tools/landmark_design.py from the existing anatomy) ---- */
+    if (RD.svc && RD.svc_label){   // SVC: the svc capsule outside the RA body (label only, geometry unchanged)
+      add(` float svcD = sdCapsule(h, ${v3(RD.svc.a)}, ${v3(RD.svc.b)}, ${f(RD.svc.r)}); float raEll = sdEllipsoid(h - raC, ${v3(ra.semi)});`);
+      add(` bool inSVC = svcD < 0.0 && raEll > ${f(RD.svc_label.insideEllipsoidMargin)}; bool svcW = svcD < 0.6 && raEll > ${f(RD.svc_label.insideEllipsoidMargin)};`); }
+    else add(` bool inSVC = false; bool svcW = false;`);
+    if (RD.pectinate){ const pc = RD.pectinate;   // ridges on the anterior RA wall, kept within wallBand of the wall
+      add(` float pect = 1e3;`); for (const rd of pc.ridges) add(` pect = min(pect, ${tube(rd, pc.r, pc.r*0.75, 0.12)});`);
+      add(` pect = max(pect, -(raRaw + ${f(pc.wallBand)}));`); }
+    else add(` float pect = 1e3;`);
+    const sheet = (o, name) => {   // thin oriented half-ellipsoid fold: local axes (a, b, c), kept on the b > -0.05 side
+      add(` vec3 ${name}Q = vec3(dot(h - ${v3(o.c)}, ${v3(o.a)}), dot(h - ${v3(o.c)}, ${v3(o.b)}), dot(h - ${v3(o.c)}, ${v3(o.n)}));`);
+      add(` float ${name} = max(sdEllipsoid(${name}Q, ${v3(o.semi)}), -(${name}Q.y + 0.05));`); };
+    if (RD.eustachian){ const e = RD.eustachian; sheet({ c: e.center, a: e.t, b: e.axis, n: e.u, semi: e.semi }, "eus"); } else add(` float eus = 1e3;`);
+    if (RD.thebesian){ const e = RD.thebesian, n = nrm(e.normal), d = nrm(e.down), a = [n[1]*d[2]-n[2]*d[1], n[2]*d[0]-n[0]*d[2], n[0]*d[1]-n[1]*d[0]];
+      sheet({ c: e.center, a, b: d, n, semi: e.semi }, "thb"); } else add(` float thb = 1e3;`);
+    add(` float tod = ${RD.todaro ? tube(RD.todaro.points, RD.todaro.r, RD.todaro.r, 0.1) : "1e3"};`);
+    add(` float cfb = ${S.central_fibrous_body ? `length(h - ${v3(S.central_fibrous_body.center)}) - ${f(S.central_fibrous_body.r)}` : "1e3"};`);
+    add(` float msep = ${S.membranous_septum ? `length(h - ${v3(S.membranous_septum.center)}) - ${f(S.membranous_septum.r)}` : "1e3"};`);
     const cs = S.coronary_sinus.points;
     add(` float csv = ${tube(cs, S.coronary_sinus.r*0.75, S.coronary_sinus.rTip ?? S.coronary_sinus.r, 0.3)};`);   // great cardiac vein → CS widening to its RA ostium
     /* aortic root as a lathe: radius profile along the root axis */
@@ -424,6 +444,9 @@ const PHANTOM = (() => {
     add(` if (tva < 0.0) { tissue = ${T.valve}; label = ${Lb["TV_anterior"]}; return; }`);
     add(` if (tvp < 0.0) { tissue = ${T.valve}; label = ${Lb["TV_posterior"]}; return; }`);
     add(` if (pvc < 0.0 && pa < 0.2) { tissue = ${T.valve}; label = ${Lb["PV_cusps"]}; return; }`);
+    add(` if (eus < 0.0 && raRaw < 0.0 && laCav > 0.0) { tissue = ${T.fibrous}; label = ${Lb["eustachian_valve"]}; return; }`);    // Eustachian valve (IVC orifice)
+    add(` if (thb < 0.0 && raRaw < 0.1 && laCav > 0.0) { tissue = ${T.fibrous}; label = ${Lb["thebesian_valve"]}; return; }`);  // Thebesian valve (CS ostium)
+    add(` if (pect < 0.0 && raRaw < 0.3 && laCav > 0.0 && rvCav > 0.0) { tissue = ${T.myocardium}; label = ${Lb["pectinate_muscles"]}; return; }`);
     add(` if (mvAnn < 0.0) { tissue = ${T.fibrous}; label = ${Lb["MV_AML"]}; return; }`);
     add(` if (tvAnn < 0.0 && rvOut < 0.4) { tissue = ${T.fibrous}; label = ${Lb["TV_annulus"]}; return; }`);
     add(` if (avCom < 0.0 && aoLum < 0.35) { tissue = ${T.fibrous}; label = ${Lb["aortic_root"]}; return; }`);
@@ -443,16 +466,19 @@ const PHANTOM = (() => {
     add(` if (csv < 0.0 && raCav > 0.0) { tissue = ${T.blood}; label = ${Lb["coronary_sinus"]}; return; }`);   // inside the RA the CS lumen is RA: its ostium opens in the RA wall
     add(` if (laa < 0.0) { tissue = ${T.blood}; label = ${Lb["LAA"]}; return; }`);
     add(` if (laCav < 0.0) { tissue = ${T.blood}; label = ${Lb["LA"]}; return; }`);
-    add(` if (raCav < 0.0) { tissue = ${T.blood}; label = ${Lb["RA"]}; return; }`);
+    add(` if (raCav < 0.0) { tissue = ${T.blood}; label = inSVC ? ${Lb["SVC"]} : ${Lb["RA"]}; return; }`);
     add(` if (pvn < 0.0) { tissue = ${T.blood}; label = ${Lb["pulmonary_veins"]}; return; }`);
     add(` if (aoWall < 0.0 || (pa < 0.15 && pa >= 0.0)) { tissue = ${T.vessel_wall}; label = pa < 0.15 && pa >= 0.0 ? ${Lb["PA_main"]} : ${Lb["aortic_root"]}; return; }`);
     add(` if (arch < ${f(ach?.wall ?? 0.2)} || archB < 0.12) { tissue = ${T.vessel_wall}; label = arch < ${f(ach?.wall ?? 0.2)} ? ${Lb["aortic_arch"]} : ${Lb["arch_branches"]}; return; }`);
     add(` if (cLCA < 0.0) { tissue = ${T.vessel_wall}; label = ${Lb["LCA"]}; return; }`);
     add(` if (cRCA < 0.0) { tissue = ${T.vessel_wall}; label = ${Lb["RCA"]}; return; }`);
     add(` if (cVein < 0.0 && solid > -0.05) { tissue = ${T.vessel_wall}; label = ${Lb["cardiac_veins"]}; return; }`);
+    add(` if (cfb < 0.0 && solid < 0.0) { tissue = ${T.fibrous}; label = ${Lb["central_fibrous_body"]}; return; }`);
+    add(` if (msep < 0.0 && solid < 0.0) { tissue = ${T.fibrous}; label = ${Lb["membranous_septum"]}; return; }`);
+    add(` if (tod < 0.0 && solid < 0.0) { tissue = ${T.fibrous}; label = ${Lb["todaro_tendon"]}; return; }`);
     add(` if (crista < 0.0 && raRaw < 0.3) { tissue = ${T.myocardium}; label = ${Lb["crista_terminalis"]}; return; }`);
     add(` if (solid < 0.0) { tissue = ${T.myocardium};`);
-    add(`   label = lvOut < 0.0 ? (rvOut < 0.2 && h.x > 0.5 ? ${Lb["IVS"]} : ${Lb["PW"]}) : (rvOut < 0.0 ? ${Lb["RV_free_wall"]} : (max(laRaw, raRaw) < 0.55 ? ${Lb["IAS"]} : (laRaw < raRaw ? ${Lb["LA_wall"]} : (raRaw < 0.6 ? ${Lb["RA_wall"]} : ${Lb["RV_free_wall"]})))); return; }`);
+    add(`   label = lvOut < 0.0 ? (rvOut < 0.2 && h.x > 0.5 ? ${Lb["IVS"]} : ${Lb["PW"]}) : (rvOut < 0.0 ? ${Lb["RV_free_wall"]} : (max(laRaw, raRaw) < 0.55 ? ${Lb["IAS"]} : (laRaw < raRaw ? ${Lb["LA_wall"]} : (raRaw < 0.6 ? (svcW ? ${Lb["SVC"]} : ${Lb["RA_wall"]}) : ${Lb["RV_free_wall"]})))); return; }`);
     add(` if (cFat < 0.0 && solid >= 0.0) { tissue = ${T.fat}; label = ${Lb["epicardial_fat"]}; return; }`);
     add(` if (effusion < 0.0 && uP[${pidx.effusion_cm}] > 0.01) { tissue = ${T.fluid}; label = ${Lb["pericardium"]}; return; }`);
     add(` if (peri < 0.0) { tissue = ${T.pericardium}; label = ${Lb["pericardium"]}; return; }`);

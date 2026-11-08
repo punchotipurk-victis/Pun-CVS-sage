@@ -725,6 +725,236 @@
           ],
           "r": 0.36,
           "_note": "Crista terminalis: smooth ridge inside the lateral RA wall between the smooth sinus venarum (behind) and the pectinate muscles (front); on the outside it matches the sulcus terminalis (Netter 218/224; lecture)."
+        },
+        "svc_label": {
+          "insideEllipsoidMargin": 0.25,
+          "_note": "SVC = the svc capsule where it lies outside the RA ellipsoid by > 0.25 cm (label only; geometry unchanged)."
+        },
+        "pectinate": {
+          "ridges": [
+            [
+              [
+                3.675,
+                0.395,
+                -3.695
+              ],
+              [
+                4.065,
+                0.655,
+                -3.435
+              ],
+              [
+                4.975,
+                -0.125,
+                -2.005
+              ],
+              [
+                5.105,
+                0.135,
+                -1.095
+              ]
+            ],
+            [
+              [
+                3.935,
+                0.655,
+                -3.565
+              ],
+              [
+                4.195,
+                0.915,
+                -3.305
+              ],
+              [
+                5.105,
+                0.135,
+                -1.745
+              ],
+              [
+                5.105,
+                0.265,
+                -0.835
+              ]
+            ],
+            [
+              [
+                4.325,
+                1.045,
+                -3.305
+              ],
+              [
+                4.325,
+                1.435,
+                -2.915
+              ],
+              [
+                5.235,
+                0.525,
+                -1.485
+              ],
+              [
+                4.975,
+                0.395,
+                -0.315
+              ]
+            ],
+            [
+              [
+                4.585,
+                1.305,
+                -3.045
+              ],
+              [
+                4.845,
+                1.695,
+                -2.265
+              ],
+              [
+                5.105,
+                1.305,
+                -1.225
+              ],
+              [
+                4.975,
+                0.915,
+                -0.315
+              ]
+            ],
+            [
+              [
+                4.195,
+                1.695,
+                -2.655
+              ],
+              [
+                4.065,
+                1.825,
+                -2.395
+              ],
+              [
+                4.975,
+                1.435,
+                -0.835
+              ],
+              [
+                4.845,
+                1.045,
+                0.075
+              ]
+            ],
+            [
+              [
+                3.935,
+                2.085,
+                -2.265
+              ],
+              [
+                4.455,
+                2.215,
+                -1.615
+              ],
+              [
+                4.585,
+                1.825,
+                -0.705
+              ],
+              [
+                4.715,
+                1.305,
+                0.075
+              ]
+            ]
+          ],
+          "r": 0.16,
+          "wallBand": 0.45,
+          "_note": "Pectinate muscles: parallel ridges from the crista terminalis across the anterior RA wall into the appendage (Netter 224). Snapped onto the RA endocardium by tools/landmark_design.py; kept within 0.45 cm of the wall. teaching (verify)."
+        },
+        "eustachian": {
+          "center": [
+            2.245,
+            2.475,
+            -1.095
+          ],
+          "u": [
+            -0.364,
+            -0.915,
+            -0.177
+          ],
+          "t": [
+            -0.422,
+            0.331,
+            -0.844
+          ],
+          "axis": [
+            0.83,
+            -0.232,
+            -0.507
+          ],
+          "semi": [
+            1.1,
+            0.7,
+            0.07
+          ],
+          "_note": "Eustachian valve: crescentic fold on the anterior-medial rim of the IVC orifice (where the IVC axis enters the RA body), shelving across the orifice toward the CS ostium and the fossa limbus (Netter 224). Centre on the rim (RA endocardium); half-ellipsoid spanned by t (along the rim) and axis (rim → across the orifice, tilted into the RA); RA side only. Designed by tools/landmark_design.py. teaching (verify)."
+        },
+        "thebesian": {
+          "center": [
+            2.474,
+            2.065,
+            -0.819
+          ],
+          "normal": [
+            0.512,
+            -0.624,
+            -0.59
+          ],
+          "down": [
+            0.409,
+            0.782,
+            -0.471
+          ],
+          "semi": [
+            0.5,
+            0.45,
+            0.06
+          ],
+          "_note": "Thebesian valve: thin semilunar fold over the inferior-posterior half of the CS ostium (Netter 224). Designed by tools/landmark_design.py. teaching (verify)."
+        },
+        "todaro": {
+          "points": [
+            [
+              2.044,
+              1.612,
+              -0.751
+            ],
+            [
+              2.047,
+              1.335,
+              -0.481
+            ],
+            [
+              2.052,
+              1.06,
+              -0.214
+            ],
+            [
+              2.054,
+              0.787,
+              -0.081
+            ],
+            [
+              2.195,
+              0.515,
+              0.183
+            ],
+            [
+              2.199,
+              0.245,
+              0.444
+            ]
+          ],
+          "r": 0.09,
+          "_note": "Tendon of Todaro: subendocardial fibrous cord from the Eustachian–Thebesian commissure to the central fibrous body; with the CS ostium and the TV septal hinge it bounds Koch's triangle, whose apex holds the compact AV node (Anderson; Netter 224). Snapped 0.12 cm under the RA septal endocardium. teaching (verify)."
         }
       },
       "_sizeNote": "ED semi 2.0/1.8/2.5 cm → A4C minor ≈4.0, major ≈5.0 cm, ≈38 mL. Lang 2015 RA minor 2.9–4.5 cm, major ≈4.4–5.3 cm (verify)."
@@ -3407,6 +3637,30 @@
         }
       ],
       "_note": "Fat filling the AV and interventricular grooves (vessels run inside it). Echo: faint, mid-grey; 3D: yellow in the grooves."
+    },
+    "central_fibrous_body": {
+      "type": "derived_sphere",
+      "center": [
+        1.985,
+        0.135,
+        0.465
+      ],
+      "r": 0.38,
+      "tissue": "fibrous",
+      "label": "central_fibrous_body",
+      "_note": "Right fibrous trigone: where the MV, TV and aortic annuli meet; pierced by the His bundle (Netter 226; Anderson). Designed by tools/landmark_design.py: centroid of the RCC–NCC commissure (0.4 cm below the annulus), the MV-ring point nearest the TV and the TV-ring point nearest the MV, moved 0.3 cm into tissue. Relabels wall tissue only. teaching (verify)."
+    },
+    "membranous_septum": {
+      "type": "derived_sphere",
+      "center": [
+        2.375,
+        -0.385,
+        -0.055
+      ],
+      "r": 0.42,
+      "tissue": "fibrous",
+      "label": "membranous_septum",
+      "_note": "Thin fibrous septum under the RCC–NCC commissure; the TV septal leaflet hinge divides it into AV and interventricular parts; the His bundle runs along its lower edge (Netter 226). Designed by tools/landmark_design.py: wall tissue nearest the RCC–NCC commissure 0.4 cm below the annulus. Relabels wall tissue only. teaching (verify)."
     }
   },
   "extracardiac_patient": {
@@ -4649,5 +4903,35 @@
       11
     ],
     "_boxNote": "Heart-frame bake box (cm); must contain the arch branches and PA branches (validator checks)."
+  },
+  "_design": {
+    "right_heart_landmarks": {
+      "koch_apex": [
+        2.245,
+        0.265,
+        0.335
+      ],
+      "cs_ostium_endo": [
+        2.375,
+        1.955,
+        -0.705
+      ],
+      "et_commissure": [
+        2.115,
+        1.565,
+        -0.835
+      ],
+      "ivc_orifice": [
+        3.193,
+        2.432,
+        -1.438
+      ],
+      "rcc_ncc_commissure": [
+        2.314,
+        -0.357,
+        0.008
+      ],
+      "_note": "Reference points from tools/landmark_design.py (exported landmarks are recomputed by export_heart_mesh.py --interior)."
+    }
   }
 }
