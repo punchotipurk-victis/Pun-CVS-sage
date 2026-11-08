@@ -46,7 +46,10 @@ Targets: 50 fps echo and a bake under 2 s on a laptop GPU.
 - Pericardium does not cover the roots of the great vessels.
 - In A4C the chest wall still enters the near field.
 - LLD PSAX-MV and S4C scores.
-- Next task: wire the export into the heart3d and MI labs (map MI regions to AHA segments, use `infarctDownstream`), then the angiogram lab.
+- MI lab still paints its 8 regions; next: paint from the model's tree with `infarctDownstream`.
+- Cut and lesion views (VSD, papillary rupture, aneurysm, free-wall rupture, RV dilation) still use the old heart: needs a cut export.
+- Heart Conduction lab: the conduction network should be rebuilt on the refined atria, then the warp dropped.
+- Angiogram lab (new): build from `vessels.arteries` with the true radii.
 
 ## Tools added
 | Tool | Purpose |
@@ -58,3 +61,4 @@ Targets: 50 fps echo and a bake under 2 s on a laptop GPU.
 | `tools/coronary_design.py`, `coronary_map.py` | Coronary design and map |
 | `tools/shots.py` | Before/after grids |
 | `tools/export_heart_mesh.py`, `build_export_preview.py`, `export_shots.py` | Mesh export and its preview |
+| `tools/integrate_heart_mesh.py`, `export/neo-heart-adapter.js` | Put the heart into `index.html` and the Heart Conduction / MI labs |
