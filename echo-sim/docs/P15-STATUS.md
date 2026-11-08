@@ -21,9 +21,9 @@ Branch `echo-sim/p1.5-heart`, draft PR #3 into `echo-sim/p1-scene-ui`. Do not me
    - 19 coronary arteries (right-dominant, SCCT segments, territories), 3 cardiac veins and groove fat, designed on the baked heart by `tools/coronary_design.py`.
    - Detail levels: the echo and cut face show only the proximal coronaries and AV-groove fat. The 3D view sweeps the full tree as tubes from the same centrelines, drawn thicker than life (×2.2) so they can be tapped.
 10. **Export.** `tools/export_heart_mesh.py` writes `export/heart-mesh.json`, and `export/heart-mesh-loader.js` loads it. Format in `docs/HEART-MESH-EXPORT.md`.
+11. **In the site.** `tools/integrate_heart_mesh.py` puts the mesh once in `index.html` and switches the Heart Conduction and MI labs to it for the intact heart (cut and lesion views keep the old heart). It also refreshes `LABS.echo` with the v0.4 phantom. `heartToH3` roll fixed (the arch had swung ≈22° right). Details in `docs/HEART-MESH-EXPORT.md`.
 12. **PLAX fix (8 Nov).** The aortomitral curtain is a 2.6 cm fibrous sheet; the AML hinge sits on the line of the posterior aortic wall (0.6 cm below the annulus); the mitral ring has no anterior ±60° (D-shaped annulus); the LVOT is clipped to the curtain and the LA kept off it by a fibrous band. No more LA–LVOT hole; LVOT width restored.
 13. **Blender round trip.** `tools/mesh_to_gltf.py` (→ .glb, metres, body frame, attributes kept) and `tools/gltf_to_mesh.py` (back, attributes by nearest vertex). Skill: refined-heart-model.
-11. **In the site.** `tools/integrate_heart_mesh.py` puts the mesh once in `index.html` and switches the Heart Conduction and MI labs to it for the intact heart (cut and lesion views keep the old heart). It also refreshes `LABS.echo` with the v0.4 phantom. `heartToH3` roll fixed (the arch had swung ≈22° right). Details in `docs/HEART-MESH-EXPORT.md`.
 
 ## Checks (last run)
 - `validate_data.py`: 0 errors, 0 warnings.
