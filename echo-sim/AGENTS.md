@@ -14,6 +14,8 @@ Super App's `index.html` (`LABS.echo`, route `#echo`).
 ## Non-negotiable rules
 1. **One source of truth.** Anatomy only lives in `data/phantom-normal.json` → `PHANTOM.compile()` → GLSL `scene()`.
    The echo, the Heart-cutaway cut face and the 3D heart mesh all come from `scene()`. Never hand-copy anatomy.
+   One documented exception (P1.5): coronary arteries/veins are thinner than a bake voxel, so the 3D view sweeps tubes from the
+   SAME phantom centrelines (`structures.coronary_arteries/cardiac_veins`) at a display radius; `scene()` uses the same data (detail levels).
 2. **Units and frames.** cm. Body frame: +x patient's LEFT, +y HEAD, +z ANTERIOR, origin at the suprasternal-notch skin.
    Probe pose `{x,y,notchDeg,tiltDeg,rockDeg}` + `pressCm` is stored in the BODY frame; LLD body roll is display only.
    notchDeg 0 = 12 o'clock (head), +90 = 3 o'clock (patient's left).
