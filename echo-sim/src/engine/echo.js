@@ -12,7 +12,8 @@ function EchoEngine(renderer, ph, opts = {}) {
   /* rtA tissue/label ids (nearest; scoring + labels) · rtB raw RF-like signal (I, Q, coherent) · rtD after lateral PSF ·
      rtE envelope after axial PSF (linear, sampled bicubic in Pass C) */
   const rtA = mkRT(T.UnsignedByteType), rtB = mkRT(T.HalfFloatType), rtD = mkRT(T.HalfFloatType), rtE = mkRT(T.HalfFloatType);
-  for (const r of [rtB, rtD, rtE]) r.texture.minFilter = r.texture.magFilter = T.LinearFilter;
+  const rtP = [mkRT(T.HalfFloatType), mkRT(T.HalfFloatType)];      // persistence history (ping-pong)
+  for (const r of [rtB, rtD, rtE, ...rtP]) r.texture.minFilter = r.texture.magFilter = T.LinearFilter;
   const ID = ph.imaging_defaults;
   const quad = new T.Mesh(new T.PlaneGeometry(2, 2)), cam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), scn = new T.Scene(); scn.add(quad);
   const nTis = P.TISSUES.length;
@@ -25,7 +26,7 @@ function EchoEngine(renderer, ph, opts = {}) {
     uTime: { value: 0 }, uFreq: { value: ph.imaging_defaults.frequencyMHz }, uAtt: { value: ph.imaging_defaults.attenuation_dB_per_cm_MHz },
     uTissue: { value: rtA.texture }, uBeamTex: { value: rtE.texture }, uRaw: { value: rtB.texture }, uLatTex: { value: rtD.texture },
     uFocus: { value: 0.6 }, uLatK: { value: ID.lateralBlur_cm_per_cm_depth ?? 0.012 }, uLat0: { value: 0.045 }, uAx: { value: 0.05 },
-    uDecor: { value: 0.35 },
+    uDecor: { value: 0.35 }, uCur: { value: rtE.texture }, uPrev: { value: rtP[0].texture }, uKeep: { value: 0 },
     uGain: { value: 0 }, uDR: { value: ph.imaging_defaults.dynamicRange_dB }, uMarkerRight: { value: 1 }, uTint: { value: 0 },
     uPalette: { value: new Array(64).fill(0).map(() => new T.Vector3()) }, uAspect: { value: 1 }
   };
@@ -112,6 +113,11 @@ void main(){
     vec3 v = texture(uRaw, vec2((i + x)/uNL, j/uNS)).rgb; acc += v*w; w1 += w; w2 += w*w; }
   o = vec4(acc.rg/sqrt(w2), acc.b/w1, 1.0);
 }` });
+  /* Pass F: persistence (frame averaging) on the envelope, before scan conversion, as scanners do. keep = persistence^(dt·50):
+     the setting means "fraction kept per frame at 50 fps", so the look does not change with the frame rate. */
+  const matF = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `precision highp float;
+uniform sampler2D uCur, uPrev; uniform float uKeep, uNL, uNS; out vec4 o;
+void main(){ vec2 uv = gl_FragCoord.xy/vec2(uNL, uNS); o = vec4(mix(texture(uCur, uv).r, texture(uPrev, uv).r, uKeep), 0.0, 0.0, 1.0); }` });
   /* Pass E: axial PSF (pulse length) then envelope detection |I + coherent, Q|. */
   const matE = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `${psfCommon}
 uniform sampler2D uLatTex; out vec4 o;
@@ -171,16 +177,30 @@ void main(){
   function setProbe(fr, pressCm=0){ const o=[fr.p[0]-fr.normal[0]*pressCm, fr.p[1]-fr.normal[1]*pressCm, fr.p[2]-fr.normal[2]*pressCm]; U.uOrigin.value.set(...o); U.uBeam.value.set(...fr.beam); U.uLat.value.set(...fr.lateral); }
   function setImaging(o){ if (o.depthCm) U.uDepth.value = o.depthCm; if (o.sectorDeg) U.uSector.value = o.sectorDeg*Math.PI/180;
     if (o.gainDb != null) U.uGain.value = o.gainDb; if (o.drDb) U.uDR.value = o.drDb; if (o.markerRight != null) U.uMarkerRight.value = o.markerRight ? 1 : 0;
-    if (o.focus != null) U.uFocus.value = o.focus;                 // focal depth as a fraction of depth (0.2–0.9)
+    if (o.focus != null) U.uFocus.value = o.focus;
+    if (o.persistence != null) persistence = Math.max(0, Math.min(0.95, o.persistence));                 // focal depth as a fraction of depth (0.2–0.9)
     if (o.tint != null) U.uTint.value = o.tint === 'tissue' ? 2 : (o.tint ? 1 : 0); }
   /* render: phase t (0–1 of RR), tr (respiratory phase), time (s) → draws the fan into `target` (null = canvas) */
-  function render(t, tr, time, target, aspect){
+  /* persistence state: only the LIVE echo passes {persist:true}; the ideal image, scoring renders and test frames do not,
+     so they never blend with (or disturb) the live history. */
+  let persistence = ID.persistence ?? 0.3, pIdx = 0, pTime = null;
+  function resetPersistence(){ pTime = null; }
+  function render(t, tr, time, target, aspect, ro = {}){
     U.uP.value.set(paramEval(t, tr)); U.uTime.value = time; U.uAspect.value = aspect || 1;
     const prevT = renderer.getRenderTarget();
     quad.material = matA; renderer.setRenderTarget(rtA); renderer.render(scn, cam);
     quad.material = matB; renderer.setRenderTarget(rtB); renderer.render(scn, cam);
     quad.material = matD; renderer.setRenderTarget(rtD); renderer.render(scn, cam);
     quad.material = matE; renderer.setRenderTarget(rtE); renderer.render(scn, cam);
+    U.uBeamTex.value = rtE.texture;
+    if (ro.persist && persistence > 0){
+      const dt = pTime == null ? null : time - pTime; pTime = time;
+      if (dt == null || dt > 0.5 || dt < 0) U.uKeep.value = 0;                     // first frame / after a pause: start fresh
+      else U.uKeep.value = Math.pow(persistence, Math.max(dt, 1/240)*50);
+      U.uPrev.value = rtP[pIdx].texture; pIdx ^= 1;
+      quad.material = matF; renderer.setRenderTarget(rtP[pIdx]); renderer.render(scn, cam);
+      U.uBeamTex.value = rtP[pIdx].texture;
+    } else if (ro.persist) pTime = null;
     quad.material = matC; renderer.setRenderTarget(target || null); renderer.render(scn, cam);
     renderer.setRenderTarget(prevT);
   }
@@ -204,5 +224,5 @@ void main(){
   }
   function tissueLine(i){ renderer.readRenderTargetPixels(rtA, i, 0, 1, NS, buf); const out=[]; let last=-1;
     for(let j=0;j<NS;j++){ const t=buf[j*4]; if(t!==last){ out.push(P.TISSUES[t]+"@"+((j+.5)*U.uDepth.value/NS).toFixed(1)); last=t; } } return out.join(" → "); }
-  return { tissueLine, render, setProbe, setImaging, setPatientPosition, setPalette, readLabels, uniforms: U, names: comp.names, glsl: comp.glsl, NL, NS };
+  return { tissueLine, render, resetPersistence, setProbe, setImaging, setPatientPosition, setPalette, readLabels, uniforms: U, names: comp.names, glsl: comp.glsl, NL, NS };
 }

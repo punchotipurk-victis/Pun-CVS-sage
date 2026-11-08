@@ -17,7 +17,9 @@ function makePanels(APP){
       { id: "sector", label: "Sector", min: 30, max: 90, step: 1, unit: "°", get: () => APP.img.sectorDeg, set: v => APP.setImg({ sectorDeg: v }) },
       { id: "gain", label: "Gain", min: -20, max: 20, step: 1, unit: " dB", get: () => APP.img.gainDb, set: v => APP.setImg({ gainDb: v }) },
       { id: "dr", label: "Dynamic range", min: 30, max: 80, step: 1, unit: " dB", get: () => APP.img.drDb, set: v => APP.setImg({ drDb: v }) },
-      { id: "hr", label: "Heart rate", min: 40, max: 140, step: 1, unit: " bpm", get: () => APP.hr, set: v => { APP.hr = v; drawEcgTrace(); drawOverlay(true); } } ] };
+      { id: "persist", label: "Persistence", min: 0, max: .9, step: .05, unit: "", get: () => APP.img.persistence, set: v => APP.setImg({ persistence: v }), note: () => APP.img.persistence < .05 ? "off" : APP.img.persistence < .45 ? "low" : APP.img.persistence < .7 ? "medium" : "high" },
+      { id: "hr", label: "Heart rate", min: 40, max: 140, step: 1, unit: " bpm", get: () => APP.hr, set: v => { APP.hr = v; drawEcgTrace(); drawOverlay(true); },
+        note: () => { const w = APP.warp(); return `systole ${Math.round(w.systoleMs)} ms (${Math.round(100*w.systoleMs/w.rrMs)}% of RR)`; } } ] };
   const rows = {};
   for (const [tab, list] of Object.entries(SL)){ const host = $(tab === "probe" ? "probeSliders" : "imageSliders");
     for (const s of list){ const r = document.createElement("label"); r.className = "sl";
@@ -101,15 +103,15 @@ function makePanels(APP){
     const b = ecg.getBoundingClientRect(), pr = Math.min(devicePixelRatio || 1, 2), W = Math.max(1, Math.round(b.width*pr)), H = Math.max(1, Math.round(b.height*pr));
     ecg.width = trace.width = W; ecg.height = trace.height = H; const c = trace.getContext("2d"), base = H*.68, A = H*.5;
     c.fillStyle = "#06090a"; c.fillRect(0, 0, W, H); c.strokeStyle = "#143028"; c.lineWidth = pr; c.beginPath(); for (let x = 0; x < W; x += 24*pr){ c.moveTo(x, 0); c.lineTo(x, H); } c.stroke();
-    c.strokeStyle = "#66f0a8"; c.lineWidth = 1.5*pr; c.beginPath(); for (let x = 0; x < W; x++){ const t = (x/W-.12+1)%1, y = base-ecgAt(t)*A; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
-    const mk = (t, lab, col) => { const x = ((t+.12)%1)*W; c.strokeStyle = col; c.lineWidth = pr; c.setLineDash([3*pr, 3*pr]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.font = `${10*pr}px "JetBrains Mono",monospace`; c.fillText(lab, x+3*pr, 11*pr); };
+    c.strokeStyle = "#66f0a8"; c.lineWidth = 1.5*pr; c.beginPath(); const wp = APP.warp(); for (let x = 0; x < W; x++){ const t = wp.toT((x/W-.12+1)%1), y = base-ecgAt(t)*A; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+    const mk = (t, lab, col) => { const x = ((wp.fromT(t)+.12)%1)*W; c.strokeStyle = col; c.lineWidth = pr; c.setLineDash([3*pr, 3*pr]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.font = `${10*pr}px "JetBrains Mono",monospace`; c.fillText(lab, x+3*pr, 11*pr); };
     mk(ph.cycle.markers.ED, "ED", "#7fe9f0"); mk(ph.cycle.markers.ES, "ES", "#ffb066");
     ecgSize = W;
   }
-  let ecgSize = 0, ecgW = 0;
+  let ecgSize = 0, ecgW = 0, ecgHr = 0;
   function drawEcg(){
-    const w = ecg.getBoundingClientRect().width; if (w && w !== ecgW){ ecgW = w; drawEcgTrace(); } if (!ecgSize) return;
-    ectx.drawImage(trace, 0, 0); const x = ((APP.phase+.12)%1)*ecg.width; ectx.fillStyle = "#ffffff"; ectx.fillRect(x-1, 0, 2, ecg.height);
+    const w = ecg.getBoundingClientRect().width; if (w && (w !== ecgW || APP.hr !== ecgHr)){ ecgW = w; ecgHr = APP.hr; drawEcgTrace(); } if (!ecgSize) return;
+    ectx.drawImage(trace, 0, 0); const x = ((APP.warp().fromT(APP.phase)+.12)%1)*ecg.width; ectx.fillStyle = "#ffffff"; ectx.fillRect(x-1, 0, 2, ecg.height);
   }
 
   /* ---- echo overlay: depth scale and marker dot, using the same mapping as Pass C ---- */

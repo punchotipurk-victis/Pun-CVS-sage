@@ -51,6 +51,32 @@ const PHANTOM = (() => {
     };
   }
 
+
+  /* Heart-rate scaling of the cycle (cycle.HR_scaling): every param curve is defined once, on the canonical phase t at
+     HR_default. At another HR the beat fraction u (time since R / RR) is warped to t: systole keeps an absolute duration
+     systoleMs = sys70 − 1.6·(HR − 70) (clamped 300–420 ms; Weissler-type LVET/HR regression, teaching (verify)), and the
+     diastolic shortening is taken from diastasis first, then rapid filling (down to half), then late diastole from P-wave onset
+     (atrial contraction, down to half), then all of diastole proportionally. Piecewise linear, so toT(fromT(t)) = t exactly.
+     makeCycleWarp(ph)(hr) → { toT(u), fromT(t), rrMs, systoleMs, seg: {sys, E, diastasis, A} (ms) } */
+  function makeCycleWarp(ph){
+    const C = ph.cycle, hr0 = C.HR_default || 70, ph_ = C.phases || [], end = n => (ph_.find(p => p.name.startsWith(n)) || {}).t;
+    const tSys = (end("isovolumic relaxation") || [0, .47])[1], tE = (end("rapid filling") || [0, .62])[1];
+    /* the atrial segment starts at P-wave ONSET (centre − 3·width), not at the A-wave: when diastasis is squeezed out at
+       high HR the clock then lands before the P wave (no step in the ECG trace) */
+    const Pw = ((C.ecg && C.ecg.waves) || []).find(w => w.name === "P"), tD = Math.min((end("diastasis") || [0, .86])[1], Pw ? Pw.center - 3*Pw.width : 1);
+    const rr0 = 60000/hr0, T = [0, tSys, tE, tD, 1];
+    const sys0 = tSys*rr0, e0 = (tE - tSys)*rr0, d0 = (tD - tE)*rr0, a0 = (1 - tD)*rr0, cache = {};
+    return hr => {
+      hr = Math.max(20, Math.min(250, hr)); const key = hr.toFixed(2); if (cache[key]) return cache[key];
+      const rr = 60000/hr, sys = Math.min(420, Math.max(300, sys0 - 1.6*(hr - hr0))), D = Math.max(1, rr - sys);
+      let E = e0, A = a0, S = D - E - A;
+      if (S < 0){ S = 0; E = Math.max(.5*e0, D - A); if (E + A > D){ A = Math.max(.5*a0, D - E); if (E + A > D){ const k = D/(E + A); E *= k; A *= k; } } }
+      const U = [0, sys, sys + E, sys + E + S, rr].map(x => x/rr);
+      const map = (x, a, b) => { x = ((x % 1) + 1) % 1; for (let i = 0; i < 4; i++) if (x <= a[i+1] || i === 3){ const w = a[i+1] - a[i]; return b[i] + (w > 1e-9 ? (x - a[i])/w : 0)*(b[i+1] - b[i]); } };
+      return cache[key] = { toT: u => map(u, U, T), fromT: t => map(t, T, U), rrMs: rr, systoleMs: sys, seg: { sys, E, diastasis: S, A } };
+    };
+  }
+
   /* ---- GLSL generation helpers ---- */
   const f = x => (Number.isInteger(x) ? x.toFixed(1) : (+x).toFixed(4));
   /* detail: 'echo' (default: what TTE can show — proximal coronaries, AV-groove fat), 'bake' (echo + all groove fat) or 'full' (whole coronary tree + veins + all
@@ -502,5 +528,5 @@ ${ln.join("\n")}
     bright[T.soft] = .07; trans[T.soft] = .985; edge[T.soft] = .05;
     return { bright, trans, grain, edge };
   }
-  return { compile, makeParamEval, worldToHeart, tissueTables, TISSUES, T, LABELS, LABEL_TEXT };
+  return { compile, makeParamEval, makeCycleWarp, worldToHeart, tissueTables, TISSUES, T, LABELS, LABEL_TEXT };
 })();

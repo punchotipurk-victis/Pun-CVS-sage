@@ -295,6 +295,32 @@ const PHANTOM = (() => {
     };
   }
 
+
+  /* Heart-rate scaling of the cycle (cycle.HR_scaling): every param curve is defined once, on the canonical phase t at
+     HR_default. At another HR the beat fraction u (time since R / RR) is warped to t: systole keeps an absolute duration
+     systoleMs = sys70 − 1.6·(HR − 70) (clamped 300–420 ms; Weissler-type LVET/HR regression, teaching (verify)), and the
+     diastolic shortening is taken from diastasis first, then rapid filling (down to half), then late diastole from P-wave onset
+     (atrial contraction, down to half), then all of diastole proportionally. Piecewise linear, so toT(fromT(t)) = t exactly.
+     makeCycleWarp(ph)(hr) → { toT(u), fromT(t), rrMs, systoleMs, seg: {sys, E, diastasis, A} (ms) } */
+  function makeCycleWarp(ph){
+    const C = ph.cycle, hr0 = C.HR_default || 70, ph_ = C.phases || [], end = n => (ph_.find(p => p.name.startsWith(n)) || {}).t;
+    const tSys = (end("isovolumic relaxation") || [0, .47])[1], tE = (end("rapid filling") || [0, .62])[1];
+    /* the atrial segment starts at P-wave ONSET (centre − 3·width), not at the A-wave: when diastasis is squeezed out at
+       high HR the clock then lands before the P wave (no step in the ECG trace) */
+    const Pw = ((C.ecg && C.ecg.waves) || []).find(w => w.name === "P"), tD = Math.min((end("diastasis") || [0, .86])[1], Pw ? Pw.center - 3*Pw.width : 1);
+    const rr0 = 60000/hr0, T = [0, tSys, tE, tD, 1];
+    const sys0 = tSys*rr0, e0 = (tE - tSys)*rr0, d0 = (tD - tE)*rr0, a0 = (1 - tD)*rr0, cache = {};
+    return hr => {
+      hr = Math.max(20, Math.min(250, hr)); const key = hr.toFixed(2); if (cache[key]) return cache[key];
+      const rr = 60000/hr, sys = Math.min(420, Math.max(300, sys0 - 1.6*(hr - hr0))), D = Math.max(1, rr - sys);
+      let E = e0, A = a0, S = D - E - A;
+      if (S < 0){ S = 0; E = Math.max(.5*e0, D - A); if (E + A > D){ A = Math.max(.5*a0, D - E); if (E + A > D){ const k = D/(E + A); E *= k; A *= k; } } }
+      const U = [0, sys, sys + E, sys + E + S, rr].map(x => x/rr);
+      const map = (x, a, b) => { x = ((x % 1) + 1) % 1; for (let i = 0; i < 4; i++) if (x <= a[i+1] || i === 3){ const w = a[i+1] - a[i]; return b[i] + (w > 1e-9 ? (x - a[i])/w : 0)*(b[i+1] - b[i]); } };
+      return cache[key] = { toT: u => map(u, U, T), fromT: t => map(t, T, U), rrMs: rr, systoleMs: sys, seg: { sys, E, diastasis: S, A } };
+    };
+  }
+
   /* ---- GLSL generation helpers ---- */
   const f = x => (Number.isInteger(x) ? x.toFixed(1) : (+x).toFixed(4));
   /* detail: 'echo' (default: what TTE can show — proximal coronaries, AV-groove fat), 'bake' (echo + all groove fat) or 'full' (whole coronary tree + veins + all
@@ -746,7 +772,7 @@ ${ln.join("\n")}
     bright[T.soft] = .07; trans[T.soft] = .985; edge[T.soft] = .05;
     return { bright, trans, grain, edge };
   }
-  return { compile, makeParamEval, worldToHeart, tissueTables, TISSUES, T, LABELS, LABEL_TEXT };
+  return { compile, makeParamEval, makeCycleWarp, worldToHeart, tissueTables, TISSUES, T, LABELS, LABEL_TEXT };
 })();
 
 </script>
@@ -921,7 +947,8 @@ function EchoEngine(renderer, ph, opts = {}) {
   /* rtA tissue/label ids (nearest; scoring + labels) · rtB raw RF-like signal (I, Q, coherent) · rtD after lateral PSF ·
      rtE envelope after axial PSF (linear, sampled bicubic in Pass C) */
   const rtA = mkRT(T.UnsignedByteType), rtB = mkRT(T.HalfFloatType), rtD = mkRT(T.HalfFloatType), rtE = mkRT(T.HalfFloatType);
-  for (const r of [rtB, rtD, rtE]) r.texture.minFilter = r.texture.magFilter = T.LinearFilter;
+  const rtP = [mkRT(T.HalfFloatType), mkRT(T.HalfFloatType)];      // persistence history (ping-pong)
+  for (const r of [rtB, rtD, rtE, ...rtP]) r.texture.minFilter = r.texture.magFilter = T.LinearFilter;
   const ID = ph.imaging_defaults;
   const quad = new T.Mesh(new T.PlaneGeometry(2, 2)), cam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), scn = new T.Scene(); scn.add(quad);
   const nTis = P.TISSUES.length;
@@ -934,7 +961,7 @@ function EchoEngine(renderer, ph, opts = {}) {
     uTime: { value: 0 }, uFreq: { value: ph.imaging_defaults.frequencyMHz }, uAtt: { value: ph.imaging_defaults.attenuation_dB_per_cm_MHz },
     uTissue: { value: rtA.texture }, uBeamTex: { value: rtE.texture }, uRaw: { value: rtB.texture }, uLatTex: { value: rtD.texture },
     uFocus: { value: 0.6 }, uLatK: { value: ID.lateralBlur_cm_per_cm_depth ?? 0.012 }, uLat0: { value: 0.045 }, uAx: { value: 0.05 },
-    uDecor: { value: 0.35 },
+    uDecor: { value: 0.35 }, uCur: { value: rtE.texture }, uPrev: { value: rtP[0].texture }, uKeep: { value: 0 },
     uGain: { value: 0 }, uDR: { value: ph.imaging_defaults.dynamicRange_dB }, uMarkerRight: { value: 1 }, uTint: { value: 0 },
     uPalette: { value: new Array(64).fill(0).map(() => new T.Vector3()) }, uAspect: { value: 1 }
   };
@@ -1021,6 +1048,11 @@ void main(){
     vec3 v = texture(uRaw, vec2((i + x)/uNL, j/uNS)).rgb; acc += v*w; w1 += w; w2 += w*w; }
   o = vec4(acc.rg/sqrt(w2), acc.b/w1, 1.0);
 }` });
+  /* Pass F: persistence (frame averaging) on the envelope, before scan conversion, as scanners do. keep = persistence^(dt·50):
+     the setting means "fraction kept per frame at 50 fps", so the look does not change with the frame rate. */
+  const matF = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `precision highp float;
+uniform sampler2D uCur, uPrev; uniform float uKeep, uNL, uNS; out vec4 o;
+void main(){ vec2 uv = gl_FragCoord.xy/vec2(uNL, uNS); o = vec4(mix(texture(uCur, uv).r, texture(uPrev, uv).r, uKeep), 0.0, 0.0, 1.0); }` });
   /* Pass E: axial PSF (pulse length) then envelope detection |I + coherent, Q|. */
   const matE = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `${psfCommon}
 uniform sampler2D uLatTex; out vec4 o;
@@ -1080,16 +1112,30 @@ void main(){
   function setProbe(fr, pressCm=0){ const o=[fr.p[0]-fr.normal[0]*pressCm, fr.p[1]-fr.normal[1]*pressCm, fr.p[2]-fr.normal[2]*pressCm]; U.uOrigin.value.set(...o); U.uBeam.value.set(...fr.beam); U.uLat.value.set(...fr.lateral); }
   function setImaging(o){ if (o.depthCm) U.uDepth.value = o.depthCm; if (o.sectorDeg) U.uSector.value = o.sectorDeg*Math.PI/180;
     if (o.gainDb != null) U.uGain.value = o.gainDb; if (o.drDb) U.uDR.value = o.drDb; if (o.markerRight != null) U.uMarkerRight.value = o.markerRight ? 1 : 0;
-    if (o.focus != null) U.uFocus.value = o.focus;                 // focal depth as a fraction of depth (0.2–0.9)
+    if (o.focus != null) U.uFocus.value = o.focus;
+    if (o.persistence != null) persistence = Math.max(0, Math.min(0.95, o.persistence));                 // focal depth as a fraction of depth (0.2–0.9)
     if (o.tint != null) U.uTint.value = o.tint === 'tissue' ? 2 : (o.tint ? 1 : 0); }
   /* render: phase t (0–1 of RR), tr (respiratory phase), time (s) → draws the fan into `target` (null = canvas) */
-  function render(t, tr, time, target, aspect){
+  /* persistence state: only the LIVE echo passes {persist:true}; the ideal image, scoring renders and test frames do not,
+     so they never blend with (or disturb) the live history. */
+  let persistence = ID.persistence ?? 0.3, pIdx = 0, pTime = null;
+  function resetPersistence(){ pTime = null; }
+  function render(t, tr, time, target, aspect, ro = {}){
     U.uP.value.set(paramEval(t, tr)); U.uTime.value = time; U.uAspect.value = aspect || 1;
     const prevT = renderer.getRenderTarget();
     quad.material = matA; renderer.setRenderTarget(rtA); renderer.render(scn, cam);
     quad.material = matB; renderer.setRenderTarget(rtB); renderer.render(scn, cam);
     quad.material = matD; renderer.setRenderTarget(rtD); renderer.render(scn, cam);
     quad.material = matE; renderer.setRenderTarget(rtE); renderer.render(scn, cam);
+    U.uBeamTex.value = rtE.texture;
+    if (ro.persist && persistence > 0){
+      const dt = pTime == null ? null : time - pTime; pTime = time;
+      if (dt == null || dt > 0.5 || dt < 0) U.uKeep.value = 0;                     // first frame / after a pause: start fresh
+      else U.uKeep.value = Math.pow(persistence, Math.max(dt, 1/240)*50);
+      U.uPrev.value = rtP[pIdx].texture; pIdx ^= 1;
+      quad.material = matF; renderer.setRenderTarget(rtP[pIdx]); renderer.render(scn, cam);
+      U.uBeamTex.value = rtP[pIdx].texture;
+    } else if (ro.persist) pTime = null;
     quad.material = matC; renderer.setRenderTarget(target || null); renderer.render(scn, cam);
     renderer.setRenderTarget(prevT);
   }
@@ -1113,7 +1159,7 @@ void main(){
   }
   function tissueLine(i){ renderer.readRenderTargetPixels(rtA, i, 0, 1, NS, buf); const out=[]; let last=-1;
     for(let j=0;j<NS;j++){ const t=buf[j*4]; if(t!==last){ out.push(P.TISSUES[t]+"@"+((j+.5)*U.uDepth.value/NS).toFixed(1)); last=t; } } return out.join(" → "); }
-  return { tissueLine, render, setProbe, setImaging, setPatientPosition, setPalette, readLabels, uniforms: U, names: comp.names, glsl: comp.glsl, NL, NS };
+  return { tissueLine, render, resetPersistence, setProbe, setImaging, setPatientPosition, setPalette, readLabels, uniforms: U, names: comp.names, glsl: comp.glsl, NL, NS };
 }
 
 </script>
@@ -2014,7 +2060,9 @@ function makePanels(APP){
       { id: "sector", label: "Sector", min: 30, max: 90, step: 1, unit: "°", get: () => APP.img.sectorDeg, set: v => APP.setImg({ sectorDeg: v }) },
       { id: "gain", label: "Gain", min: -20, max: 20, step: 1, unit: " dB", get: () => APP.img.gainDb, set: v => APP.setImg({ gainDb: v }) },
       { id: "dr", label: "Dynamic range", min: 30, max: 80, step: 1, unit: " dB", get: () => APP.img.drDb, set: v => APP.setImg({ drDb: v }) },
-      { id: "hr", label: "Heart rate", min: 40, max: 140, step: 1, unit: " bpm", get: () => APP.hr, set: v => { APP.hr = v; drawEcgTrace(); drawOverlay(true); } } ] };
+      { id: "persist", label: "Persistence", min: 0, max: .9, step: .05, unit: "", get: () => APP.img.persistence, set: v => APP.setImg({ persistence: v }), note: () => APP.img.persistence < .05 ? "off" : APP.img.persistence < .45 ? "low" : APP.img.persistence < .7 ? "medium" : "high" },
+      { id: "hr", label: "Heart rate", min: 40, max: 140, step: 1, unit: " bpm", get: () => APP.hr, set: v => { APP.hr = v; drawEcgTrace(); drawOverlay(true); },
+        note: () => { const w = APP.warp(); return `systole ${Math.round(w.systoleMs)} ms (${Math.round(100*w.systoleMs/w.rrMs)}% of RR)`; } } ] };
   const rows = {};
   for (const [tab, list] of Object.entries(SL)){ const host = $(tab === "probe" ? "probeSliders" : "imageSliders");
     for (const s of list){ const r = document.createElement("label"); r.className = "sl";
@@ -2098,15 +2146,15 @@ function makePanels(APP){
     const b = ecg.getBoundingClientRect(), pr = Math.min(devicePixelRatio || 1, 2), W = Math.max(1, Math.round(b.width*pr)), H = Math.max(1, Math.round(b.height*pr));
     ecg.width = trace.width = W; ecg.height = trace.height = H; const c = trace.getContext("2d"), base = H*.68, A = H*.5;
     c.fillStyle = "#06090a"; c.fillRect(0, 0, W, H); c.strokeStyle = "#143028"; c.lineWidth = pr; c.beginPath(); for (let x = 0; x < W; x += 24*pr){ c.moveTo(x, 0); c.lineTo(x, H); } c.stroke();
-    c.strokeStyle = "#66f0a8"; c.lineWidth = 1.5*pr; c.beginPath(); for (let x = 0; x < W; x++){ const t = (x/W-.12+1)%1, y = base-ecgAt(t)*A; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
-    const mk = (t, lab, col) => { const x = ((t+.12)%1)*W; c.strokeStyle = col; c.lineWidth = pr; c.setLineDash([3*pr, 3*pr]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.font = `${10*pr}px "JetBrains Mono",monospace`; c.fillText(lab, x+3*pr, 11*pr); };
+    c.strokeStyle = "#66f0a8"; c.lineWidth = 1.5*pr; c.beginPath(); const wp = APP.warp(); for (let x = 0; x < W; x++){ const t = wp.toT((x/W-.12+1)%1), y = base-ecgAt(t)*A; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+    const mk = (t, lab, col) => { const x = ((wp.fromT(t)+.12)%1)*W; c.strokeStyle = col; c.lineWidth = pr; c.setLineDash([3*pr, 3*pr]); c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.font = `${10*pr}px "JetBrains Mono",monospace`; c.fillText(lab, x+3*pr, 11*pr); };
     mk(ph.cycle.markers.ED, "ED", "#7fe9f0"); mk(ph.cycle.markers.ES, "ES", "#ffb066");
     ecgSize = W;
   }
-  let ecgSize = 0, ecgW = 0;
+  let ecgSize = 0, ecgW = 0, ecgHr = 0;
   function drawEcg(){
-    const w = ecg.getBoundingClientRect().width; if (w && w !== ecgW){ ecgW = w; drawEcgTrace(); } if (!ecgSize) return;
-    ectx.drawImage(trace, 0, 0); const x = ((APP.phase+.12)%1)*ecg.width; ectx.fillStyle = "#ffffff"; ectx.fillRect(x-1, 0, 2, ecg.height);
+    const w = ecg.getBoundingClientRect().width; if (w && (w !== ecgW || APP.hr !== ecgHr)){ ecgW = w; ecgHr = APP.hr; drawEcgTrace(); } if (!ecgSize) return;
+    ectx.drawImage(trace, 0, 0); const x = ((APP.warp().fromT(APP.phase)+.12)%1)*ecg.width; ectx.fillStyle = "#ffffff"; ectx.fillRect(x-1, 0, 2, ecg.height);
   }
 
   /* ---- echo overlay: depth scale and marker dot, using the same mapping as Pass C ---- */
@@ -2297,7 +2345,7 @@ function makeInput(APP, S){
 
     /* ---- state ---- */
     const APP = window.APP = { ph, VJ, eng, renderer, paramEval, position: "supine", conv: "ASE", mode: "probe", body: "skin", ghostOpacity: .25, fine: false, frozen: false, hr: ph.cycle.HR_default,
-      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB }, phase: 0, resp: 0, time: 0,
+      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB, persistence: ph.imaging_defaults.persistence ?? 0.3 }, phase: 0, resp: 0, time: 0,
       pose: { x: 3, y: -8.9, notchDeg: -30, tiltDeg: 0, rockDeg: 0, pressCm: 0 }, pressAuto: true, frame: null, edOuterXY: 1, colors: {}, targets: {}, paneDragged: false,
       landmarks: true, refView: null, refShown: false, refSplit: false, tween: null };
     try { const v = localStorage.getItem("echoLandmarks"); if (v != null) APP.landmarks = v === "1"; } catch (e) {}
@@ -2319,7 +2367,8 @@ function makeInput(APP, S){
       if (d.dNotch) p.notchDeg = wrap(p.notchDeg+d.dNotch); if (d.dTilt) p.tiltDeg = clamp(p.tiltDeg+d.dTilt, -75, 75); if (d.dRock) p.rockDeg = clamp(p.rockDeg+d.dRock, -50, 50);
       if (d.dPress){ APP.pressAuto = false; p.pressCm = clamp(p.pressCm+d.dPress, 0, 3); } applyPose(); };
     APP.setPress = v => { APP.pressAuto = false; APP.pose.pressCm = clamp(v, 0, 3); applyPose(); };
-    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, markerRight: APP.conv === "ASE", tint: false });
+    const cycleWarp = PHANTOM.makeCycleWarp(ph); APP.warp = () => cycleWarp(APP.hr);
+    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, persistence: APP.img.persistence, markerRight: APP.conv === "ASE", tint: false });
     APP.setImg = o => { Object.assign(APP.img, o); pushImaging(); clearBeat(); dirty = true; };
 
     /* ---- view targets: derived per position, expert overrides on top, POCUS = same beam with the notch reversed ---- */
@@ -2329,7 +2378,7 @@ function makeInput(APP, S){
       const f = PROBE.frame(t), a = PROBE.anglesFrom(t.x, t.y, f.beam, PROBE.v.mul(f.lateral, -1)); return { ...t, ...a }; };
     APP.target = target;
 
-    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
+    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.resetPersistence(); eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
       if (S.heartReady()) S.bakeOrgans(pos); inset && inset.layoutZones(pos); refLabelsDirty = true; if (snap) S.animateRoll(ph.positions[pos].bodyRollDeg, true); clearBeat(); applyPose(); syncAll();
       if (panels && !snap && pos === "LLD") panels.toast(ph.positions.LLD.teachingTooltip); };
     APP.setConvention = c => { if (c === APP.conv) return; APP.conv = c; pushImaging(); clearBeat(); refLabelsDirty = true; syncAll();
@@ -2341,7 +2390,7 @@ function makeInput(APP, S){
     APP.setLandmarks = on => { APP.landmarks = on; try { localStorage.setItem("echoLandmarks", on ? "1" : "0"); } catch (e) {} syncAll(); };
     /* go to a view: the probe glides to the computed target (so the learner sees the hand movement) and the ideal image opens */
     const ease = t => t < .5 ? 2*t*t : 1 - (-2*t + 2)**2/2;
-    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return;
+    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return; if (instant) eng.resetPersistence();
       APP.refView = id; APP.refShown = true; APP.pressAuto = true; APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg });
       if (instant) APP.snapTo(id); else APP.tween = { from: { ...APP.pose }, to: { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }, t0: performance.now(), dur: 900 };
       refLabelsDirty = true; syncAll(); };
@@ -2351,7 +2400,7 @@ function makeInput(APP, S){
       for (const a of ["x", "y", "tiltDeg", "rockDeg"]) P[a] = w.from[a] + (w.to[a] - w.from[a])*e;
       P.notchDeg = wrap(w.from.notchDeg + wrap(w.to.notchDeg - w.from.notchDeg)*e);
       applyPose(); clearBeat(); if (k >= 1) APP.tween = null; }
-    APP.snapTo = id => { const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
+    APP.snapTo = id => { eng.resetPersistence(); const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
       APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg }); applyPose(); clearBeat(); syncAll(); };
 
     /* ---- theme: panels follow the app's tokens, the echo and cutaway stay dark ---- */
@@ -2421,7 +2470,7 @@ function makeInput(APP, S){
         const key = [rRef.w, rRef.h, APP.conv, APP.refView].join(); if (key !== refLabelKey){ refLabelKey = key; panels.placeRefLabels(refLabelList, APP.conv, VJ.views.find(x => x.id === APP.refView).image); $("refTitle").textContent = "Ideal " + (panels.VIEW_NAMES[APP.refView] || APP.refView); } }
       /* echo: always computed (labels depend on it), Pass C drawn into the echo viewport */
       S.drawTo(vis(rEcho) ? rEcho : { x: 0, y: 0, w: 1, h: 1 }, H, 0);
-      eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h));
+      eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h), { persist: !force });
       S.updateBeat();
       if (showRef){ S.drawTo(rRef, H, 0); blitQ.material.uniforms.t.value = refRT.texture; renderer.render(blitS, blitC); }
       if (vis(rMain)) S.renderMain(rMain, H);
@@ -2432,9 +2481,11 @@ function makeInput(APP, S){
     let lastPose = "";
     function frame(now){
       requestAnimationFrame(frame);
+      if (APP.loopPaused) { last = now; return; }                                   // test hook: frames are stepped by ECHO.stepLive
       const host = $("app").getBoundingClientRect(); if (!host.width || !host.height || document.hidden) { last = now; return; }     // hidden lab iframe: nothing to draw
       const dt = Math.min(.1, (now-last)/1000); last = now; APP.time += dt; frameDt = dt;
-      if (!APP.frozen){ APP.phase = (APP.phase + dt*APP.hr/60)%1; APP.resp = (APP.resp + dt*14/60)%1; }
+      if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60);   // HR-scaled cycle: systole shortens less than diastole
+         APP.resp = (APP.resp + dt*14/60)%1; }
       stepTween(now);
       drawAll(now);
       if (now-lastScore > 200){ lastScore = now; score(now); $("readout").textContent = panels.readout(); }
@@ -2464,7 +2515,9 @@ function makeInput(APP, S){
       setPose(p){ Object.assign(APP.pose, p); applyPose(); clearBeat(); }, pose: () => ({ ...APP.pose }), press: APP.press, frameOf: () => APP.frame,
       setPosition: p => APP.setPosition(p, true), setConvention: c => APP.setConvention(c), snap: APP.snapTo, target,
       setPhase(t){ APP.phase = t; }, freeze: f => APP.setFrozen(f), setBody(b){ APP.body = b; syncAll(); }, body: () => APP.body,
-      renderOnce(){ drawAll(performance.now(), true); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
+      renderOnce(){ drawAll(performance.now(), true); },
+      pauseLoop(on){ APP.loopPaused = !!on; },
+      stepLive(dt = 1/50){ APP.time += dt; if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60); APP.resp = (APP.resp + dt*14/60)%1; } drawAll(performance.now(), false); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
       labels: () => eng.readLabels(), tissueLine: i => eng.tissueLine(i), NL: eng.NL, readout: () => panels.readout(), inset: inset.st, swap: inset.swap, orbit: S.orbit, chip: () => $("chip").textContent,
       probeScreen(){ const r = document.getElementById("stage").getBoundingClientRect(); S.aimMain({ w: r.width, h: r.height }); const q = new THREE.Vector3(0, 3, 0).applyMatrix4(S.probeGroup.matrixWorld).project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       zoneCentre: id => inset.zoneCentre(id),

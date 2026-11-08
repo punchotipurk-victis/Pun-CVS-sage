@@ -24,7 +24,7 @@
 
     /* ---- state ---- */
     const APP = window.APP = { ph, VJ, eng, renderer, paramEval, position: "supine", conv: "ASE", mode: "probe", body: "skin", ghostOpacity: .25, fine: false, frozen: false, hr: ph.cycle.HR_default,
-      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB }, phase: 0, resp: 0, time: 0,
+      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB, persistence: ph.imaging_defaults.persistence ?? 0.3 }, phase: 0, resp: 0, time: 0,
       pose: { x: 3, y: -8.9, notchDeg: -30, tiltDeg: 0, rockDeg: 0, pressCm: 0 }, pressAuto: true, frame: null, edOuterXY: 1, colors: {}, targets: {}, paneDragged: false,
       landmarks: true, refView: null, refShown: false, refSplit: false, tween: null };
     try { const v = localStorage.getItem("echoLandmarks"); if (v != null) APP.landmarks = v === "1"; } catch (e) {}
@@ -46,7 +46,8 @@
       if (d.dNotch) p.notchDeg = wrap(p.notchDeg+d.dNotch); if (d.dTilt) p.tiltDeg = clamp(p.tiltDeg+d.dTilt, -75, 75); if (d.dRock) p.rockDeg = clamp(p.rockDeg+d.dRock, -50, 50);
       if (d.dPress){ APP.pressAuto = false; p.pressCm = clamp(p.pressCm+d.dPress, 0, 3); } applyPose(); };
     APP.setPress = v => { APP.pressAuto = false; APP.pose.pressCm = clamp(v, 0, 3); applyPose(); };
-    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, markerRight: APP.conv === "ASE", tint: false });
+    const cycleWarp = PHANTOM.makeCycleWarp(ph); APP.warp = () => cycleWarp(APP.hr);
+    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, persistence: APP.img.persistence, markerRight: APP.conv === "ASE", tint: false });
     APP.setImg = o => { Object.assign(APP.img, o); pushImaging(); clearBeat(); dirty = true; };
 
     /* ---- view targets: derived per position, expert overrides on top, POCUS = same beam with the notch reversed ---- */
@@ -56,7 +57,7 @@
       const f = PROBE.frame(t), a = PROBE.anglesFrom(t.x, t.y, f.beam, PROBE.v.mul(f.lateral, -1)); return { ...t, ...a }; };
     APP.target = target;
 
-    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
+    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.resetPersistence(); eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
       if (S.heartReady()) S.bakeOrgans(pos); inset && inset.layoutZones(pos); refLabelsDirty = true; if (snap) S.animateRoll(ph.positions[pos].bodyRollDeg, true); clearBeat(); applyPose(); syncAll();
       if (panels && !snap && pos === "LLD") panels.toast(ph.positions.LLD.teachingTooltip); };
     APP.setConvention = c => { if (c === APP.conv) return; APP.conv = c; pushImaging(); clearBeat(); refLabelsDirty = true; syncAll();
@@ -68,7 +69,7 @@
     APP.setLandmarks = on => { APP.landmarks = on; try { localStorage.setItem("echoLandmarks", on ? "1" : "0"); } catch (e) {} syncAll(); };
     /* go to a view: the probe glides to the computed target (so the learner sees the hand movement) and the ideal image opens */
     const ease = t => t < .5 ? 2*t*t : 1 - (-2*t + 2)**2/2;
-    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return;
+    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return; if (instant) eng.resetPersistence();
       APP.refView = id; APP.refShown = true; APP.pressAuto = true; APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg });
       if (instant) APP.snapTo(id); else APP.tween = { from: { ...APP.pose }, to: { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }, t0: performance.now(), dur: 900 };
       refLabelsDirty = true; syncAll(); };
@@ -78,7 +79,7 @@
       for (const a of ["x", "y", "tiltDeg", "rockDeg"]) P[a] = w.from[a] + (w.to[a] - w.from[a])*e;
       P.notchDeg = wrap(w.from.notchDeg + wrap(w.to.notchDeg - w.from.notchDeg)*e);
       applyPose(); clearBeat(); if (k >= 1) APP.tween = null; }
-    APP.snapTo = id => { const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
+    APP.snapTo = id => { eng.resetPersistence(); const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
       APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg }); applyPose(); clearBeat(); syncAll(); };
 
     /* ---- theme: panels follow the app's tokens, the echo and cutaway stay dark ---- */
@@ -148,7 +149,7 @@
         const key = [rRef.w, rRef.h, APP.conv, APP.refView].join(); if (key !== refLabelKey){ refLabelKey = key; panels.placeRefLabels(refLabelList, APP.conv, VJ.views.find(x => x.id === APP.refView).image); $("refTitle").textContent = "Ideal " + (panels.VIEW_NAMES[APP.refView] || APP.refView); } }
       /* echo: always computed (labels depend on it), Pass C drawn into the echo viewport */
       S.drawTo(vis(rEcho) ? rEcho : { x: 0, y: 0, w: 1, h: 1 }, H, 0);
-      eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h));
+      eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h), { persist: !force });
       S.updateBeat();
       if (showRef){ S.drawTo(rRef, H, 0); blitQ.material.uniforms.t.value = refRT.texture; renderer.render(blitS, blitC); }
       if (vis(rMain)) S.renderMain(rMain, H);
@@ -159,9 +160,11 @@
     let lastPose = "";
     function frame(now){
       requestAnimationFrame(frame);
+      if (APP.loopPaused) { last = now; return; }                                   // test hook: frames are stepped by ECHO.stepLive
       const host = $("app").getBoundingClientRect(); if (!host.width || !host.height || document.hidden) { last = now; return; }     // hidden lab iframe: nothing to draw
       const dt = Math.min(.1, (now-last)/1000); last = now; APP.time += dt; frameDt = dt;
-      if (!APP.frozen){ APP.phase = (APP.phase + dt*APP.hr/60)%1; APP.resp = (APP.resp + dt*14/60)%1; }
+      if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60);   // HR-scaled cycle: systole shortens less than diastole
+         APP.resp = (APP.resp + dt*14/60)%1; }
       stepTween(now);
       drawAll(now);
       if (now-lastScore > 200){ lastScore = now; score(now); $("readout").textContent = panels.readout(); }
@@ -191,7 +194,9 @@
       setPose(p){ Object.assign(APP.pose, p); applyPose(); clearBeat(); }, pose: () => ({ ...APP.pose }), press: APP.press, frameOf: () => APP.frame,
       setPosition: p => APP.setPosition(p, true), setConvention: c => APP.setConvention(c), snap: APP.snapTo, target,
       setPhase(t){ APP.phase = t; }, freeze: f => APP.setFrozen(f), setBody(b){ APP.body = b; syncAll(); }, body: () => APP.body,
-      renderOnce(){ drawAll(performance.now(), true); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
+      renderOnce(){ drawAll(performance.now(), true); },
+      pauseLoop(on){ APP.loopPaused = !!on; },
+      stepLive(dt = 1/50){ APP.time += dt; if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60); APP.resp = (APP.resp + dt*14/60)%1; } drawAll(performance.now(), false); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
       labels: () => eng.readLabels(), tissueLine: i => eng.tissueLine(i), NL: eng.NL, readout: () => panels.readout(), inset: inset.st, swap: inset.swap, orbit: S.orbit, chip: () => $("chip").textContent,
       probeScreen(){ const r = document.getElementById("stage").getBoundingClientRect(); S.aimMain({ w: r.width, h: r.height }); const q = new THREE.Vector3(0, 3, 0).applyMatrix4(S.probeGroup.matrixWorld).project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       zoneCentre: id => inset.zoneCentre(id),
