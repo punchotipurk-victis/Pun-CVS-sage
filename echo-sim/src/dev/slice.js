@@ -4,7 +4,8 @@
   const W = 520, H = 400, cv = document.createElement("canvas"); cv.width = W; cv.height = H; document.body.appendChild(cv);
   const renderer = new THREE.WebGLRenderer({ canvas: cv, preserveDrawingBuffer: true }); renderer.setSize(W, H, false);
   let shaderErr = null; renderer.debug.onShaderError = (gl, prog, vs, fs) => { shaderErr = (gl.getShaderInfoLog(fs) || "") + (gl.getProgramInfoLog(prog) || ""); };
-  const eng = EchoEngine(renderer, ph, { lines: 160, samples: 320 });
+  const RES = (/res=(\d+)x(\d+)/.exec(location.search) || [0, 160, 320]).slice(1).map(Number);
+  const eng = EchoEngine(renderer, ph, { lines: RES[0], samples: RES[1] });
   const ctx = { trueLVLength: 8.5, ivcRadius: 0.9, landmarkInImage: () => null };
   const T = {}; for (const p of ["supine", "LLD"]) T[p] = DERIVE.derive(VJ, ph, p);
   window.SL = { _eng: eng, _renderer: renderer, ready: true, views: VJ.views.map(v => v.id), err: () => shaderErr, targets: T,

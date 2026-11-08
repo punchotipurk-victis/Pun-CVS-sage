@@ -9,8 +9,11 @@ function EchoEngine(renderer, ph, opts = {}) {
   const T = THREE, P = PHANTOM, comp = P.compile(ph), tables = P.tissueTables(ph), paramEval = P.makeParamEval(ph);
   const NL = opts.lines || 160, NS = opts.samples || 320;          // mobile: 128 × 256
   const mkRT = (type) => new T.WebGLRenderTarget(NL, NS, { type, format: T.RGBAFormat, minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: false });
-  const rtA = mkRT(T.UnsignedByteType), rtB = mkRT(T.HalfFloatType);
-  rtB.texture.minFilter = rtB.texture.magFilter = T.LinearFilter;  // linear lateral interpolation = natural lateral blur
+  /* rtA tissue/label ids (nearest; scoring + labels) · rtB raw RF-like signal (I, Q, coherent) · rtD after lateral PSF ·
+     rtE envelope after axial PSF (linear, sampled bicubic in Pass C) */
+  const rtA = mkRT(T.UnsignedByteType), rtB = mkRT(T.HalfFloatType), rtD = mkRT(T.HalfFloatType), rtE = mkRT(T.HalfFloatType);
+  for (const r of [rtB, rtD, rtE]) r.texture.minFilter = r.texture.magFilter = T.LinearFilter;
+  const ID = ph.imaging_defaults;
   const quad = new T.Mesh(new T.PlaneGeometry(2, 2)), cam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), scn = new T.Scene(); scn.add(quad);
   const nTis = P.TISSUES.length;
   const U = {
@@ -20,7 +23,9 @@ function EchoEngine(renderer, ph, opts = {}) {
     uDepth: { value: 16 }, uSector: { value: 80 * Math.PI / 180 }, uNL: { value: NL }, uNS: { value: NS },
     uBright: { value: tables.bright }, uTrans: { value: tables.trans }, uGrain: { value: tables.grain }, uEdge: { value: tables.edge },
     uTime: { value: 0 }, uFreq: { value: ph.imaging_defaults.frequencyMHz }, uAtt: { value: ph.imaging_defaults.attenuation_dB_per_cm_MHz },
-    uTissue: { value: rtA.texture }, uBeamTex: { value: rtB.texture },
+    uTissue: { value: rtA.texture }, uBeamTex: { value: rtE.texture }, uRaw: { value: rtB.texture }, uLatTex: { value: rtD.texture },
+    uFocus: { value: 0.6 }, uLatK: { value: ID.lateralBlur_cm_per_cm_depth ?? 0.012 }, uLat0: { value: 0.045 }, uAx: { value: 0.05 },
+    uDecor: { value: 0.35 },
     uGain: { value: 0 }, uDR: { value: ph.imaging_defaults.dynamicRange_dB }, uMarkerRight: { value: 1 }, uTint: { value: 0 },
     uPalette: { value: new Array(64).fill(0).map(() => new T.Vector3()) }, uAspect: { value: 1 }
   };
@@ -35,7 +40,7 @@ out vec4 o; void main(){ int t, l; scene(samplePos(floor(gl_FragCoord.x), floor(
   o = vec4(float(t)/255.0, float(l)/255.0, 0.0, 1.0); }` });
   const matB = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `${common}
 uniform sampler2D uTissue; uniform float uBright[${nTis}], uTrans[${nTis}], uGrain[${nTis}], uEdge[${nTis}];
-uniform float uTime, uFreq, uAtt;
+uniform float uTime, uFreq, uAtt, uDecor; uniform mat4 uW2H;
 float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float vnoise(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
   return mix(mix(mix(hash(i), hash(i+vec3(1,0,0)), f.x), mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
@@ -44,14 +49,14 @@ int tis(int i, int j){ return int(texelFetch(uTissue, ivec2(clamp(i,0,int(uNL)-1
 out vec4 o;
 void main(){
   int i = int(gl_FragCoord.x), j = int(gl_FragCoord.y);
-  float dr = uDepth/uNS, Tr = 1.0, blockedAt = -1.0;
+  float dr = uDepth/uNS, Tr = 1.0, blockedAt = -1.0, TrPre = 1.0;
   int prev = tis(i, 0);
   for (int k = 1; k < ${NS}; k++){                   // bound = NS (small constant loop: fast to compile on Windows/ANGLE); transmission from the probe down to this sample
     if (k >= j) break;
     int t = tis(i, k);
     if (t != prev){                               // interface: reflection takes a little energy
       Tr *= 1.0 - 0.15*uEdge[t];
-      if (uTrans[t] < 0.01 && blockedAt < 0.0) blockedAt = float(k)*dr;   // air: nothing beyond
+      if (uTrans[t] < 0.01 && blockedAt < 0.0) { blockedAt = float(k)*dr; TrPre = Tr; }   // air: nothing beyond
     }
     Tr *= pow(uTrans[t], dr);                     // per-cm transmission (bone 0.04/cm → shadow)
     prev = t;
@@ -59,31 +64,76 @@ void main(){
   float r = (float(j)+0.5)*dr;
   int t = tis(i, j), tp = tis(i, j-1);
   vec3 wp = samplePos(float(i), float(j));
-  /* speckle: Rayleigh amplitude from a hash of the WORLD position, so it sticks to tissue; slow shimmer */
-  float g = uGrain[t]; float ph = uTime*6.0; float s0 = hash(floor(wp/g) + floor(ph)), s1 = hash(floor(wp/g) + floor(ph) + 1.0);
-  float u = mix(s0, s1, fract(ph)); float speck = sqrt(-2.0*log(max(u, 1e-4)))*0.62;
-  float amp = uBright[t]*speck;
-  if (t == 2 || t == 8) amp *= 0.7 + 0.6*vnoise(wp*1.4);   // myocardium/liver: coarse mottling (fibre texture), not flat grey
+  /* Scatterers: a zero-mean random field anchored to the HEART-frame position (so speckle sticks to tissue and moves with
+     the heart in LLD), interpolated in space (no blocky cells) and split into I/Q components. The PSF passes (D, E) blur
+     I and Q and take the envelope → genuine Rayleigh speckle whose grain size is set by the beam, as on a real scanner.
+     A small, slowly rotating second field gives the gentle shimmer of live tissue without changing brightness. */
+  vec3 hp = (uW2H*vec4(wp, 1.0)).xyz;
+  float cell = clamp(uGrain[t]*0.6, 0.025, 0.07); vec3 q = hp/cell;
+  float n1 = vnoise(q) - 0.5, n2 = vnoise(q + vec3(17.3, 5.1, 9.7)) - 0.5;
+  float ph = uTime*0.8, th = uDecor;
+  vec3 qd = q + vec3(31.0, 47.0, 13.0)*floor(ph); vec3 qe = qd + vec3(31.0, 47.0, 13.0);
+  float fr = fract(ph), cs = cos(fr*1.5708), sn = sin(fr*1.5708);
+  float d1 = (vnoise(qd) - 0.5)*cs + (vnoise(qe) - 0.5)*sn, d2 = (vnoise(qd + 7.7) - 0.5)*cs + (vnoise(qe + 7.7) - 0.5)*sn;
+  n1 = n1*cos(th) + d1*sin(th); n2 = n2*cos(th) + d2*sin(th);
+  float diff = uBright[t]*0.62*3.0;                     // ×3 ≈ 1/std of interpolated value noise → unit-variance components
+  if (t == 2 || t == 8) diff *= 0.7 + 0.6*vnoise(hp*1.4);   // myocardium/liver: coarse mottling (fibre texture), not flat grey
+  float coh = 0.0;
   /* specular interface: strongest when the boundary faces the beam. Estimate the boundary tilt from where
      the same transition sits on the neighbouring scan line (in-plane slope). Parallel boundaries (thin IAS in A4C) drop out. */
   if (t != tp){
     int jn = -1; for (int d = 0; d < 9; d++){ if (tis(i+1, j+d) != tis(i+1, j+d-1)) { jn = j+d; break; } if (tis(i+1, j-d) != tis(i+1, j-d-1)) { jn = j-d; break; } }
     float c = 0.3;
     if (jn >= 0){ float slope = float(jn - j)*dr / max(r*uSector/uNL, 1e-3); c = 1.0/sqrt(1.0 + slope*slope); }
-    amp += max(uEdge[t], uEdge[tp]) * c*c * 1.2;
+    coh += max(uEdge[t], uEdge[tp]) * c*c * 1.2 * (0.05/dr);   // energy per cm, independent of the sample spacing
   }
-  amp *= Tr;
   if (blockedAt > 0.0){                           // lung/gas: reverberation A-lines at multiples of the pleural depth
-    float n = r/blockedAt, fr = abs(fract(n + 0.5) - 0.5)*blockedAt;
-    amp = (fr < 0.12 ? 0.55*pow(0.6, floor(n + 0.5) - 1.0) : 0.004*speck);
+    float n = r/blockedAt, fa = abs(fract(n + 0.5) - 0.5)*blockedAt;
+    coh = (fa < 0.06 ? 0.55*pow(0.6, floor(n + 0.5) - 1.0)*2.0 : 0.0); diff = 0.004*3.0;
   }
   float att = pow(10.0, -uAtt*uFreq*2.0*r/20.0); // round-trip attenuation (dB/cm/MHz)
   float tgc = pow(10.0, 0.8*uAtt*uFreq*2.0*r/20.0); // default TGC compensates 80%
-  o = vec4(amp*att*tgc, 0.0, 0.0, 1.0);
+  float g = (blockedAt > 0.0 ? TrPre : Tr)*att*tgc;
+  o = vec4(diff*n1*g, diff*n2*g, coh*g, 1.0);
+}` });
+  /* Pass D: lateral point-spread function. Beam width (σ, cm) is narrowest at the focus and widens with depth, so far-field
+     structures smear sideways and speckle grains elongate laterally. The kernel is applied across scan lines (σ in lines =
+     σ_cm / arc length between lines), with a stride so the near field (lines very close together) stays cheap.
+     Random channels (I, Q) are normalised by √Σw² (keeps speckle statistics), the coherent channel by Σw (keeps brightness). */
+  const psfCommon = `precision highp float; precision highp int; uniform float uDepth, uSector, uNL, uNS, uFocus, uLatK, uLat0, uAx;`;
+  const matD = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `${psfCommon}
+uniform sampler2D uRaw; out vec4 o;
+void main(){
+  float i = gl_FragCoord.x, j = gl_FragCoord.y, r = j/uNS*uDepth + 1e-3, fz = uFocus*uDepth;
+  float sig = uLat0 + 0.75*uLatK*r + 0.008*abs(r - fz);
+  float sL = clamp(sig/(r*uSector/uNL), 0.35, 64.0), st = max(1.0, 2.6*sL/8.0);
+  vec3 acc = vec3(0.0); float w1 = 0.0, w2 = 0.0;
+  for (int k = -8; k <= 8; k++){ float x = float(k)*st, w = exp(-0.5*x*x/(sL*sL));
+    vec3 v = texture(uRaw, vec2((i + x)/uNL, j/uNS)).rgb; acc += v*w; w1 += w; w2 += w*w; }
+  o = vec4(acc.rg/sqrt(w2), acc.b/w1, 1.0);
+}` });
+  /* Pass E: axial PSF (pulse length) then envelope detection |I + coherent, Q|. */
+  const matE = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `${psfCommon}
+uniform sampler2D uLatTex; out vec4 o;
+void main(){
+  float i = gl_FragCoord.x, j = gl_FragCoord.y, sS = max(0.35, uAx/(uDepth/uNS)), st = max(1.0, 2.6*sS/6.0);
+  vec3 acc = vec3(0.0); float w1 = 0.0, w2 = 0.0;
+  for (int k = -6; k <= 6; k++){ float y = float(k)*st, w = exp(-0.5*y*y/(sS*sS));
+    vec3 v = texture(uLatTex, vec2(i/uNL, (j + y)/uNS)).rgb; acc += v*w; w1 += w; w2 += w*w; }
+  vec2 iq = acc.rg/sqrt(w2); float c = acc.b/w1;
+  o = vec4(length(vec2(iq.x + c, iq.y))*0.62, 0.0, 0.0, 1.0);   // 0.62: same mean level as the P1 speckle
 }` });
   const matC = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `precision highp float;
 uniform sampler2D uBeamTex, uTissue; uniform float uSector, uGain, uDR, uMarkerRight, uTint, uAspect; uniform vec3 uPalette[64];
 in vec2 vUv; out vec4 o;
+/* cubic B-spline reconstruction from 4 bilinear taps: smooth (C2) scan conversion, no polar stair steps, no ringing */
+float bspline(sampler2D tx, vec2 uv){
+  vec2 sz = vec2(textureSize(tx, 0)), p = uv*sz - 0.5, f = fract(p), b = floor(p) + 0.5;
+  vec2 f2 = f*f, f3 = f2*f, w0 = (1.0 - 3.0*f + 3.0*f2 - f3)/6.0, w1 = (4.0 - 6.0*f2 + 3.0*f3)/6.0, w2 = (1.0 + 3.0*f + 3.0*f2 - 3.0*f3)/6.0, w3 = f3/6.0;
+  vec2 g0 = w0 + w1, g1 = w2 + w3, h0 = (b - 1.0 + w1/g0)/sz, h1 = (b + 1.0 + w3/g1)/sz;
+  return g0.y*(g0.x*texture(tx, vec2(h0.x, h0.y)).r + g1.x*texture(tx, vec2(h1.x, h0.y)).r)
+       + g1.y*(g0.x*texture(tx, vec2(h0.x, h1.y)).r + g1.x*texture(tx, vec2(h1.x, h1.y)).r);
+}
 void main(){
   /* screen: apex at top-centre; x to the marker side = the probe's notch (lateral) side */
   vec2 q = vec2((vUv.x - 0.5)*uAspect, 1.0 - vUv.y);          // 1 unit = screen height on BOTH axes (isotropic, so a round LV stays round)
@@ -92,7 +142,7 @@ void main(){
   float R = 0.97, r = length(q)/R, a = atan(q.x, q.y);
   if (r > 1.0 || abs(a) > uSector*0.5) { o = vec4(0.0,0.0,0.0,1.0); return; }
   vec2 tc = vec2(a/uSector + 0.5, r);
-  float A = texture(uBeamTex, tc).r;
+  float A = max(bspline(uBeamTex, tc), 0.0);
   float dB = 20.0*log(max(A, 1e-5))/log(10.0) + uGain;
   float gray = clamp((dB + uDR)/uDR, 0.0, 1.0);
   vec3 col = vec3(gray);
@@ -121,6 +171,7 @@ void main(){
   function setProbe(fr, pressCm=0){ const o=[fr.p[0]-fr.normal[0]*pressCm, fr.p[1]-fr.normal[1]*pressCm, fr.p[2]-fr.normal[2]*pressCm]; U.uOrigin.value.set(...o); U.uBeam.value.set(...fr.beam); U.uLat.value.set(...fr.lateral); }
   function setImaging(o){ if (o.depthCm) U.uDepth.value = o.depthCm; if (o.sectorDeg) U.uSector.value = o.sectorDeg*Math.PI/180;
     if (o.gainDb != null) U.uGain.value = o.gainDb; if (o.drDb) U.uDR.value = o.drDb; if (o.markerRight != null) U.uMarkerRight.value = o.markerRight ? 1 : 0;
+    if (o.focus != null) U.uFocus.value = o.focus;                 // focal depth as a fraction of depth (0.2–0.9)
     if (o.tint != null) U.uTint.value = o.tint === 'tissue' ? 2 : (o.tint ? 1 : 0); }
   /* render: phase t (0–1 of RR), tr (respiratory phase), time (s) → draws the fan into `target` (null = canvas) */
   function render(t, tr, time, target, aspect){
@@ -128,6 +179,8 @@ void main(){
     const prevT = renderer.getRenderTarget();
     quad.material = matA; renderer.setRenderTarget(rtA); renderer.render(scn, cam);
     quad.material = matB; renderer.setRenderTarget(rtB); renderer.render(scn, cam);
+    quad.material = matD; renderer.setRenderTarget(rtD); renderer.render(scn, cam);
+    quad.material = matE; renderer.setRenderTarget(rtE); renderer.render(scn, cam);
     quad.material = matC; renderer.setRenderTarget(target || null); renderer.render(scn, cam);
     renderer.setRenderTarget(prevT);
   }

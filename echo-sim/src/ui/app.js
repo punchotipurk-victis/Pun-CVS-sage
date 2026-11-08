@@ -19,7 +19,7 @@
     const small = Math.min(screen.width, innerWidth) < 760;
 
     say("Compiling the echo engine…"); await wait();
-    const eng = EchoEngine(renderer, ph, small ? { lines: 128, samples: 256 } : { lines: 160, samples: 320 });
+    const eng = EchoEngine(renderer, ph, small ? { lines: 160, samples: 320 } : { lines: 256, samples: 512 });
     const paramEval = PHANTOM.makeParamEval(ph);
 
     /* ---- state ---- */

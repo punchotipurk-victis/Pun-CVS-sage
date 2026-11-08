@@ -99,13 +99,18 @@ A 3-pass GPU pipeline that works like a real scanner: beams → envelope → log
 - **Pass B, beam (polar):** walks each scan line from the probe, accumulating transmission.
   - Bone multiplies by 0.04 per cm, which makes the rib shadow.
   - Lung or gas stops the beam, and the image shows A-lines at multiples of the pleural depth instead.
-  - Speckle is Rayleigh noise hashed from the **world** position, so it sticks to tissue and shimmers slowly.
+  - (P2) Outputs a complex scatterer signal, not a grey level: `R,G = I,Q` of a zero-mean random field anchored to the **heart-frame** position (trilinear value noise, cell ≈ 0.6 × `speckleCm`, so it sticks to tissue, moves with the heart in LLD and has no blocky cells), `B` = coherent energy (specular borders, lung/gas A-lines). A second field rotates in slowly (`uDecor` ≈ 0.35 rad) for the shimmer of live tissue without brightness pulsing.
+  - Past a lung/gas boundary use the transmission **at** the pleura (`TrPre`), not the zero transmission beyond it, or the A-lines vanish.
   - A boundary reflects most strongly when it faces the beam. The angle comes from the neighbouring scan line, which is why the thin fossa drops out in A4C as on a real echo.
   - Attenuation applies with 80% default TGC compensation.
+- **Pass D, lateral PSF (polar, P2):** Gaussian across scan lines; beam width σ = 0.045 + 0.75·`lateralBlur_cm_per_cm_depth`·r + 0.008·|r − focus| cm, converted to lines (σ_cm / (r·sector/NL)), 17 taps with a stride so the dense near field stays cheap. I,Q are normalised by √Σw² (keeps speckle statistics), the coherent channel by Σw (keeps brightness).
+- **Pass E, axial PSF + envelope (polar, P2):** Gaussian along the line (σ = 0.05 cm ≈ pulse length at 2.5 MHz), then envelope = |I + coherent, Q| × 0.62. This is what makes real Rayleigh speckle grains that elongate sideways with depth, and soft tissue edges instead of stair steps.
 - **Pass C, display (screen):**
+  - (P2) Samples the envelope with a cubic B-spline (4 bilinear taps): smooth scan conversion, no polar stair steps, no ringing. `setImaging({focus})` = focal depth as a fraction of depth (default 0.6).
   - Scan-converts the fan, then applies dB gain, dynamic range and the marker side.
   - Optionally adds a label tint (0.35 alpha) or the tissue debug view (`tint:'tissue'`).
-- **Default resolution:** 160 lines × 320 samples on desktop; use 128 × 256 on phones. Prototype timing was about 1 ms per frame in SwiftShader once compiled.
+- **Default resolution (P2):** 256 lines × 512 samples on desktop, 160 × 320 on phones. Scoring reads the nearest-id tissue map (Pass A), which is unchanged in kind, so view scores are the same as at 160 × 320.
+- **Blood brightness** is 0.007 (P2; was 0.03): about 35 dB below myocardium, so blood is near-black at the default 55 dB dynamic range, as on a real scanner.
 
 **Source:** `echo-sim/src/engine/echo.js` (snapshot: `claude/echo-sim/engine/echo.js`).
 **API:** `EchoEngine(renderer, ph, {lines, samples}) → { render(t, tr, timeS, target|null, aspect), setProbe(frame, pressCm), setImaging({depthCm, sectorDeg, gainDb, drDb, markerRight, tint: true|false|'tissue'}), setPatientPosition(pos), setPalette(pal), readLabels(), tissueLine(i), uniforms, glsl, names, NL, NS }`.
@@ -235,7 +240,7 @@ The tested echo code above is the core. The parts below are a design to implemen
 
 ## Performance budget
 - **Targets:** 50 fps on a laptop, 30 fps on a phone.
-- **Echo resolution:** 160×320 on desktop, 128×256 on mobile. Adapt NS down when the frame time stays above 25 ms.
+- **Echo resolution:** 256×512 on desktop, 160×320 on mobile (P2). Adapt NS down when the frame time stays above 25 ms.
 - **Throttling:**
   - `readLabels()` at 4–5 Hz.
   - Collapsed pane at 15–20 fps.

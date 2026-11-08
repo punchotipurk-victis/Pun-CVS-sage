@@ -3854,7 +3854,7 @@
   "tissues": {
     "_note": "Shader lookup. brightness = mean echo amplitude (0–1) before speckle; transmit = fraction of energy passing beyond (1 = no shadow); speckleCm = speckle grain size; edgeBoost = specular interface brightness.",
     "blood": {
-      "brightness": 0.03,
+      "brightness": 0.007,
       "transmit": 1.0,
       "speckleCm": 0.05,
       "edgeBoost": 0.0
