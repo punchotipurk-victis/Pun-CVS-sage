@@ -158,6 +158,53 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .pg-explore .panel p,.pg-explore .panel .note{max-width:82ch}
 .pg-explore .ecgcard{order:5}
 @media (max-width:600px){.pg-explore .viewer{height:62vh;min-height:340px}}
+
+/* ===== 3D Heart explore page on the refined heart (step 4) ===== */
+.x3{display:flex;flex-direction:column;gap:10px;min-width:0}
+.x3 .viewer{height:min(78vh,860px);min-height:420px}
+@media (max-width:600px){.x3 .viewer{height:62vh;min-height:340px}}
+.x3 .viewer canvas{position:absolute;inset:0;touch-action:none}
+.x3 .labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.x3 .labels .lab{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;font:600 .74rem/1.2 var(--f-display);letter-spacing:.02em;white-space:nowrap;
+  padding:2px 7px;border-radius:99px;border:1px solid rgba(255,255,255,.18);background:rgba(13,18,20,.72);color:#f3f6f5;text-shadow:none}
+.x3 .labels .lab-conduction{background:rgba(10,52,46,.85);border-color:#22c3ab;color:#b9fff2}
+.x3 .labels .lab-valves{background:rgba(52,46,30,.82);border-color:#e9dfbd}
+.x3 .labels .lab-vessels{border-color:#e98a7a}
+.x3 .labels .lab-landmarks{background:rgba(48,40,10,.82);border-color:#ffd34d;color:#fff3c4}
+.x3 .labels .lab.sel{background:#f3f6f5;color:#0d1214;border-color:#f3f6f5}
+.x3 .viewer .hint{position:absolute;left:12px;top:10px;font:400 .75rem var(--f-mono);color:#9fb0ab;pointer-events:none}
+.x3 .viewer .busy{position:absolute;inset:0;display:grid;place-items:center;color:#9fb0ab;font:400 .9rem var(--f-mono)}
+.x3 .viewer .legend{position:absolute;right:10px;bottom:10px;top:auto;left:auto;height:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-start;background:rgba(13,18,20,.78);
+  border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;font:400 .72rem var(--f-mono);color:#dfe7e4;pointer-events:none}
+.x3 .viewer .legend span{display:flex;align-items:center;gap:6px}.x3 .viewer .legend i{display:inline-block;width:12px;height:10px;border-radius:2px}
+@media (max-width:600px){.x3 .viewer .legend{font-size:.64rem;padding:6px 8px;max-width:58%}}
+.x3 details.layers{position:relative}
+.x3 details.layers summary{list-style:none;cursor:pointer;font:600 .95rem var(--f-display);border:1px solid var(--rule);border-radius:8px;padding:6px 12px;background:var(--surface);color:var(--ink)}
+.x3 details.layers summary::-webkit-details-marker{display:none}
+.x3 details.layers summary::after{content:" ▾";color:var(--muted)}
+.x3 .layerCount{font:400 .75rem var(--f-mono);color:var(--muted)}
+.x3 .layerList{position:absolute;z-index:5;top:calc(100% + 4px);left:0;min-width:230px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.x3 .layerList label{display:flex;align-items:center;gap:8px;font:500 .92rem var(--f-display);cursor:pointer}
+.x3 .layerList .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.x3 .sw-chambers{background:linear-gradient(90deg,#3f6fd8 50%,#e5534b 50%)}.x3 .sw-valves{background:#f7f2e4}.x3 .sw-vessels{background:linear-gradient(90deg,#8c7bef 50%,#f2643a 50%)}
+.x3 .sw-conduction{background:#22c3ab}.x3 .sw-landmarks{background:#ffd34d}
+.x3 .lrow{display:flex;gap:6px}.x3 .lrow button{font:500 .8rem var(--f-display);padding:2px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--chip);color:var(--ink);cursor:pointer}
+.x3 .cutctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+.x3 .cutctl[hidden]{display:none}
+.x3 .cutctl label{display:flex;align-items:center;gap:6px;font:600 .9rem var(--f-display)}
+.x3 .cutctl select{font:500 .9rem var(--f-display);padding:4px 6px;border-radius:6px;border:1px solid var(--rule);background:var(--chip);color:var(--ink)}
+.x3 .cutdepth{flex:1 1 200px}.x3 .cutdepth input{flex:1;min-width:120px}
+.x3 .cutName{font:400 .8rem var(--f-mono);color:var(--muted)}
+.x3 .views button:disabled{opacity:.45;cursor:default}
+.x3 .panel{position:static;max-height:none;overflow:visible}
+.x3 .panel p,.x3 .panel .note{max-width:82ch}
+.x3 .panel table.kv{border-collapse:collapse;width:100%;max-width:82ch}
+.x3 .panel table.kv th{text-align:left;font:600 .9rem var(--f-display);color:var(--muted);padding:6px 10px 6px 0;vertical-align:top;width:34%}
+.x3 .panel table.kv td{padding:6px 0;border-top:1px solid var(--rule)}
+.x3 .panel h2 small{font-size:.6em;color:var(--muted)}
+.x3 .chip.nogo{opacity:.5}
+.x3 .fallback{padding:24px;color:var(--muted)}
+.x3 .viewer .legend[hidden]{display:none}
 </style></head><body class="pg-sim">
 <div class="wrap">
 <header>
@@ -1507,7 +1554,7 @@ window.LABS=labs;window.LABCORE={ALLSC,vecAt,leadVal,D0,ONSET,createLab};
 })();
 /* links between the two pages: change the SITE route (parent); opened on its own, fall back to scrolling */
 document.querySelectorAll(".jump a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();const go=a.dataset.go;
-  if(go){try{if(window.parent&&window.parent!==window&&window.parent.LABS&&window.parent.LABS[go]){window.parent.location.hash="#"+go;return}}catch(err){}}
+  if(go){try{if(window.parent&&window.parent!==window&&window.parent.document.querySelector(`.tabs a[data-topic="${go}"]`)){window.parent.location.hash="#"+go;return}}catch(err){}}
   const t=document.querySelector(a.getAttribute("href"));if(t)t.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}));
 </script>
 

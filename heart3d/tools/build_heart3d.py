@@ -12,6 +12,7 @@ Template markers (anywhere in a line; contents are inserted verbatim):
   <!--@INC:path-->         file contents, unchanged          (path relative to heart3d/); .html parts are expanded too
   <!--@INCSTRIP:path-->    file contents with surrounding whitespace stripped
   <!--@JSON:id:path-->     <script type="application/json" id="id">…</script> (validated, compact)
+  <!--@STANDALONE-->       with --standalone: the refined heart data inlined (normally the site page holds it once); else nothing
 
 The refined-heart adapter is included straight from ../echo-sim/export/neo-heart-adapter.js
 (one source of truth), between the NEO-HEART markers that echo-sim/tools/integrate_heart_mesh.py expects.
@@ -30,10 +31,19 @@ from build_lab import check_inline, fetch_three, THREE_VERSION  # reuse the echo
 PAGES = {"heart3d": ("src/index.html", "dist/heart3d.html"),
          "pathology": ("src/pathology.html", "dist/pathology.html")}
 THREE = os.path.join(ROOT, "..", "echo-sim", "vendor", "three.min.js")
-MARK = re.compile(r"<!--@(THREE|INC|INCSTRIP|JSON)(?::([^>]*))?-->")
+MARK = re.compile(r"<!--@(THREE|INC|INCSTRIP|JSON|STANDALONE)(?::([^>]*))?-->")
 
 
-def build(template, out):
+DATA = [("pun-heart-mesh", "PUN_HEART_MESH", "../echo-sim/export/heart-mesh.json"), ("pun-heart-interior", "PUN_HEART_INTERIOR", "../echo-sim/export/heart-interior.json")]
+def data_scripts(rp):
+    out = []
+    for sid, var, path in DATA:
+        txt = open(rp(path), encoding="utf-8").read().replace("</", "<\\/")
+        out.append(f'<script type="application/json" id="{sid}">{txt}</script>')
+        out.append(f'<script>Object.defineProperty(window,"{var}",{{configurable:true,get(){{if(this.__{var}===undefined)try{{this.__{var}=JSON.parse(document.getElementById("{sid}").textContent)}}catch(e){{this.__{var}=null}}return this.__{var}}}}});</script>')
+    return "\n".join(out)
+
+def build(template, out, standalone=False):
     rp = lambda p: os.path.normpath(os.path.join(ROOT, p))
     if not os.path.exists(THREE):
         print(f"three.min.js missing; fetching three@{THREE_VERSION} …"); fetch_three(THREE)
@@ -42,6 +52,8 @@ def build(template, out):
 
     def sub(m):
         kind, arg = m.group(1), m.group(2) or ""
+        if kind == "STANDALONE":
+            return data_scripts(rp) if standalone else ""
         if kind == "THREE":
             txt = open(THREE, encoding="utf-8").read(); check_inline(txt, "three.min.js"); used.append(("three.min.js", len(txt))); return txt
         if kind in ("INC", "INCSTRIP"):
@@ -67,9 +79,11 @@ def build(template, out):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--page", choices=list(PAGES), action="append")
+    ap.add_argument("--standalone", action="store_true", help="also write dist/<page>-standalone.html with the heart data inlined (opens on its own)")
     a = ap.parse_args()
     for k in a.page or [k for k in PAGES if os.path.exists(os.path.join(ROOT, PAGES[k][0]))]:
         build(*PAGES[k])
+        if a.standalone and k == "heart3d": build(PAGES[k][0], PAGES[k][1].replace(".html", "-standalone.html"), True)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,9 @@
 2. sets LABS.heart3d = "3D Heart" and adds/replaces LABS.pathology = "Pathology simulator";
 3. puts a "Pathology simulator" tab (data-group="heart") right after the 3D Heart tab, so the
    top-right switcher of this section shows "3D Heart · Pathology simulator";
-4. patches the shell router once (marker /*HEART3D-ROUTE*/):
+4. stores the refined heart's interior ONCE in the site page (<script id="pun-heart-interior">, lazy window.PUN_HEART_INTERIOR),
+   next to the outer mesh that echo-sim/tools/integrate_heart_mesh.py stores (window.PUN_HEART_MESH); re-runnable;
+5. patches the shell router once (marker /*HEART3D-ROUTE*/):
    - routes may carry a sub-path: #pathology/af opens LABS.pathology and passes "af" to it;
    - every lab iframe is told {pun:"lab", visible} when it is shown or hidden (labs pause when hidden),
      and the current lab also gets {sub}. Messages are re-sent when an iframe finishes loading.
@@ -19,6 +21,24 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 PAGES = [("heart3d", "3D Heart", "dist/heart3d.html", "3D Heart", "3D"),
          ("pathology", "Pathology simulator", "dist/pathology.html", "Pathology simulator", "Pathology")]
 MARK = "/*HEART3D-ROUTE*/"
+INTERIOR = os.path.join(ROOT, "..", "echo-sim", "export", "heart-interior.json")
+GETTER = ('<script>/* refined heart interior for the 3D Heart page (heart3d/tools/integrate_heart3d.py) */'
+          'Object.defineProperty(window,"PUN_HEART_INTERIOR",{configurable:true,get(){if(this.__phi===undefined){'
+          'try{this.__phi=JSON.parse(document.getElementById("pun-heart-interior").textContent)}catch(e){this.__phi=null}}return this.__phi}});</script>')
+
+
+def set_interior(s, path):
+    txt = open(path, encoding="utf-8").read()
+    if "</script" in txt: sys.exit("interior JSON contains </script")
+    block = f'<script id="pun-heart-interior" type="application/json">{txt}</script>\n{GETTER}'
+    pat = re.compile(r'<script id="pun-heart-interior" type="application/json">.*?</script>\n<script>/\* refined heart interior.*?</script>', re.S)
+    if pat.search(s): s = pat.sub(lambda m: block, s, count=1); act = "replaced"
+    else:
+        i = s.find('<script id="pun-heart-mesh"')
+        if i < 0: sys.exit("run echo-sim/tools/integrate_heart_mesh.py first (no pun-heart-mesh in the page)")
+        s = s[:i] + block + "\n" + s[i:]; act = "added"
+    print(f"  interior {act} ({len(txt)/1024:.0f} KB, window.PUN_HEART_INTERIOR)")
+    return s
 
 
 def set_lab(s, key, title, html):
@@ -83,14 +103,14 @@ def patch_route(s):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("index"); ap.add_argument("--out"); ap.add_argument("--no-build", action="store_true")
+    ap = argparse.ArgumentParser(); ap.add_argument("index"); ap.add_argument("--out"); ap.add_argument("--no-build", action="store_true"); ap.add_argument("--interior", default=INTERIOR)
     a = ap.parse_args()
     if not a.no_build:
         subprocess.run([sys.executable, os.path.join(HERE, "build_heart3d.py")], check=True)
     s = open(a.index, encoding="utf-8").read()
     for key, title, path, _, _ in PAGES:
         s = set_lab(s, key, title, open(os.path.join(ROOT, path), encoding="utf-8").read())
-    s = set_tabs(s); s = patch_route(s)
+    s = set_tabs(s); s = set_interior(s, a.interior); s = patch_route(s)
     out = a.out or a.index
     open(out, "w", encoding="utf-8").write(s); print(f"Wrote {out} ({len(s.encode('utf-8'))/1024/1024:.2f} MB)")
 

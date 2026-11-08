@@ -5,7 +5,10 @@
   python heart3d/tools/test_heart3d.py <index.html> --baseline --shots DIR   # today's one-page lab (#heart3d holds both)
 
 Checks (two-page mode):
-  - #heart3d opens the 3D Heart page (explore lab only); #pathology opens the Pathology simulator (sim lab only)
+  - #heart3d opens the 3D Heart page on the refined heart only (no legacy H3 heart); #pathology opens the Pathology simulator
+  - 3D Heart: External / X-ray / Cut render; every cut plane renders; real vs label colours differ; each label layer shows labels
+    and "none" hides them all; tapping a label or the model opens its card below the model; a card's simulator chip opens
+    #pathology/<scenario>
   - the top-right switcher in this section shows exactly [heart3d, pathology]
   - no page or console errors in the site or the labs
   - explore: every viewpoint and External / Internal (cut) render; the structure card sits BELOW the 3D view
@@ -39,7 +42,7 @@ async def ecg_sig(fr, lab):
     return await fr.evaluate(f"""(() => {{ const r = document.querySelector('[data-lab={lab}]');
         const c = r.querySelector('.ecg12'); return [r.querySelector('.rname').textContent.trim(), c.toDataURL().length + ':' + c.toDataURL().slice(-400)]; }})()""")
 
-async def explore_checks(pg, fr, tag):
+async def explore_checks_legacy(pg, fr, tag):
     await wait_lab(fr, "explore"); await pg.wait_for_timeout(800)
     root = "[data-lab=explore]"
     if not A.baseline:
@@ -59,6 +62,65 @@ async def explore_checks(pg, fr, tag):
     check(bool(card), f"[{tag}] explore shows a card", repr(card))
     if A.shots and not A.baseline:
         await pg.screenshot(path=shot("page_heart3d.png"))
+
+async def explore_checks(pg, fr, tag):
+    """3D Heart page on the refined heart (step 4)"""
+    await fr.wait_for_function("window.EXPLORE_APP", timeout=180000)
+    app = await fr.evaluate("JSON.stringify({r: EXPLORE_APP.ready, e: EXPLORE_APP.error || null, legacy: EXPLORE_APP.legacy, n: (EXPLORE_APP.anchors || []).length})")
+    import json as _j; app = _j.loads(app)
+    check(app["r"] and not app["legacy"] and app["n"] > 40, f"[{tag}] refined heart loaded (no legacy heart), {app['n']} label anchors", str(app))
+    if not app["r"]: return
+    order = await fr.evaluate("""(() => { const v = document.querySelector('.viewer').getBoundingClientRect(), p = document.querySelector('.panel').getBoundingClientRect();
+        return {viewerH: Math.round(v.height), viewerW: Math.round(v.width), panelTop: Math.round(p.top), viewerBottom: Math.round(v.bottom), pageW: innerWidth, pageH: innerHeight}; })()""")
+    check(order["panelTop"] >= order["viewerBottom"] - 1, f"[{tag}] structure card sits below the 3D view", str(order))
+    check(order["viewerW"] >= order["pageW"]*0.8 and order["viewerH"] >= order["pageH"]*0.55, f"[{tag}] large 3D view", str(order))
+    viewer = await fr.query_selector(".viewer")
+    async def snap(name, js):
+        await fr.evaluate(js + "; EXPLORE_APP.render()"); await pg.wait_for_timeout(200)
+        b = await viewer.screenshot(path=shot(f"x3_{name}.png") if A.shots else None); return hashlib.md5(b).hexdigest()
+    await fr.evaluate("EXPLORE_APP.setBeat(false, 0)")
+    h = {}
+    for m in ("ext", "xray", "cut"): h[m] = await snap(m, f"EXPLORE_APP.setMode('{m}'); EXPLORE_APP.{'setCut(\'a4c\')' if m == 'cut' else 'setView(\'Front\')'}")
+    check(len(set(h.values())) == 3, f"[{tag}] External, X-ray and Cut look different")
+    for v in ("Front", "Back", "Left", "Right", "Below", "Above"): await snap(f"ext_{v}", f"EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('{v}')")
+    cuts = await fr.evaluate("Object.keys(EXPLORE_APP.CUTS)"); hc = []
+    for c in cuts: hc.append(await snap(f"cut_{c}", f"EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('{c}')"))
+    check(len(set(hc)) == len(cuts), f"[{tag}] every cut plane renders its own view", f"({len(set(hc))}/{len(cuts)})")
+    hr = await snap("ext_real", "EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Front'); EXPLORE_APP.setColour('real')")
+    hl = await snap("ext_labels", "EXPLORE_APP.setColour('labels')")
+    await snap("cut_a4c_labels", "EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('a4c'); EXPLORE_APP.setLayer('landmarks', true)")
+    check(hr != hl and await fr.evaluate("!document.querySelector('.legend').hidden"), f"[{tag}] label colours repaint the heart and show the colour key")
+    await fr.evaluate("EXPLORE_APP.setColour('real')")
+    # layers
+    await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false); EXPLORE_APP.render()")
+    none = await fr.evaluate("EXPLORE_APP.visibleLabels().length")
+    per = {}
+    for k, mode in (("chambers", "ext"), ("vessels", "ext"), ("conduction", "ext"), ("valves", "xray"), ("landmarks", "cut")):
+        await fr.evaluate(f"for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, k === '{k}'); EXPLORE_APP.setMode('{mode}'); {'EXPLORE_APP.setCut(\'a4c\')' if mode == 'cut' else 'EXPLORE_APP.setView(\'Front\')'}; EXPLORE_APP.render()")
+        per[k] = await fr.evaluate("EXPLORE_APP.visibleLabels().filter(l => l.layer === '" + k + "').length")
+    check(none == 0 and all(per.values()), f"[{tag}] each label layer shows its labels; 'None' hides all", f"none={none} {per}")
+    await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction']) EXPLORE_APP.setLayer(k, true); EXPLORE_APP.setLayer('landmarks', false); EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Front'); EXPLORE_APP.render()")
+    # tap a label → card
+    labs = await fr.evaluate("EXPLORE_APP.visibleLabels()")
+    ra = next((l for l in labs if l["id"] == "RA"), None)
+    if ra: await fr.click('.labels .lab[data-id="RA"]:not([hidden])')
+    await pg.wait_for_timeout(300); t1 = await fr.evaluate("document.querySelector('.panel h2').textContent")
+    check(ra is not None and "Right atrium" in t1, f"[{tag}] tap the RA label → its card", repr(t1))
+    # tap the model (LV surface) → wall card
+    p = await fr.evaluate("EXPLORE_APP.screenOf('LV_cavity')")
+    fbox = await (await pg.evaluate_handle("LABS.heart3d && LABS.heart3d.frame")).as_element().bounding_box() if await pg.evaluate("!!(window.LABS && LABS.heart3d && LABS.heart3d.frame)") else {"x": 0, "y": 0}
+    await pg.mouse.click(fbox["x"] + p[0], fbox["y"] + p[1]); await pg.wait_for_timeout(400)
+    t2 = await fr.evaluate("document.querySelector('.panel h2').textContent")
+    check(t2 and t2 != t1, f"[{tag}] tap the model → a card for what was tapped", repr(t2))
+    # conduction card chip → pathology deep link
+    await fr.evaluate("EXPLORE_APP.select('av_node', null)"); await pg.wait_for_timeout(200)
+    chip = await fr.query_selector(".panel [data-go]")
+    if chip and not A.baseline:
+        k = await chip.get_attribute("data-go"); await chip.click(); await pg.wait_for_timeout(1200)
+        check(await pg.evaluate("location.hash") == f"#pathology/{k}", f"[{tag}] card chip opens the simulator on that condition", f"#pathology/{k}")
+        await pg.evaluate("location.hash = '#heart3d'"); await pg.wait_for_timeout(600)
+    await fr.evaluate("EXPLORE_APP.setBeat(true)")
+    if A.shots: await pg.screenshot(path=shot("page_heart3d.png"))
 
 async def sim_checks(pg, fr, tag):
     await wait_lab(fr, "sim"); await pg.wait_for_timeout(800)
@@ -88,7 +150,7 @@ async def main():
         await pg.goto(url); await pg.wait_for_timeout(600)
         if A.baseline:
             await pg.evaluate("location.hash = '#heart3d'"); fr = await lab_frame(pg, "heart3d")
-            await explore_checks(pg, fr, "baseline")
+            await explore_checks_legacy(pg, fr, "baseline")
             await fr.evaluate("document.querySelector('[data-lab=sim]').scrollIntoView()"); await pg.wait_for_timeout(1500)
             await sim_checks(pg, fr, "baseline")
         else:
@@ -101,7 +163,10 @@ async def main():
                 check(vis == ["heart3d", "pathology"] and cur == key, f"#{key}: switcher shows 3D Heart · Pathology simulator", f"{vis} current={cur}")
                 fr = await lab_frame(pg, key)
                 labs = await fr.evaluate("[...document.querySelectorAll('[data-lab]')].map(e => e.dataset.lab)")
-                check(labs == (["explore"] if key == "heart3d" else ["sim"]), f"#{key} holds only its own lab", str(labs))
+                if key == "heart3d":
+                    await fr.wait_for_function("window.EXPLORE_APP", timeout=180000)
+                    check(labs == [] and await fr.evaluate("!!window.EXPLORE_APP"), f"#{key} holds the refined 3D Heart page (no legacy lab)", str(labs))
+                else: check(labs == ["sim"], f"#{key} holds only its own lab", str(labs))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
