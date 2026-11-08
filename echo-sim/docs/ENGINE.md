@@ -130,6 +130,15 @@ const L = eng.readLabels();   // → SCORING.contentScore(view, L, ctx) and labe
 - **Freeze:** stop advancing the clock but keep rendering, so the speckle still shimmers. ED/ES buttons jump to `cycle.markers`.
 - **Persistence (P2):** Pass F blends the envelope (before scan conversion, as scanners do) with a ping-pong history: `keep = persistence^(dt·50)`, so the setting means "fraction kept per frame at 50 fps" and looks the same at any frame rate. Only the live echo calls `render(…, {persist:true})`; the ideal image, scoring renders and `renderOnce` (tests) do not, so they never blend with or disturb the live history. History resets on a jump (`resetPersistence()` on position change, instant go-to-view, snap) and after a gap > 0.5 s. Default `imaging_defaults.persistence` (0.3); slider 0–0.9.
 - **Heart-rate scaling (P2):** `PHANTOM.makeCycleWarp(ph)(HR) → {toT(u), fromT(t), rrMs, systoleMs, seg}`. Param curves stay defined once on the canonical phase t (70 bpm). The clock advances the beat fraction u at HR/60 per second and renders `t = toT(u)`: systole = sys70 − 1.6·(HR − 70) ms, clamped 300–420 ms (`cycle.HR_scaling`); diastole shortens from diastasis first, then rapid filling (to ½), then late diastole from P-wave onset (to ½), then proportionally. `APP.phase` stays canonical (scoring, ED/ES buttons, tests unchanged). The ECG strip is drawn against u (`ecgAt(toT(u))`), with markers at `fromT(marker)`. The late-diastole segment starts at P-wave **onset** (P centre − 3·width), or the trace steps when diastasis is squeezed to zero.
+- **Image controls (P2.3):** `setImaging({gainDb, drDb, focusCm | focus, tgcDb:[6], persistence, depthCm, sectorDeg})`.
+  - TGC: 6 depth bands in dB added in Pass C (linear between band centres), on top of the automatic 80% attenuation compensation in Pass B. Near field = band 1.
+  - Focus: the beam is narrowest at the focus (lateral σ term 0.014·|r − focus|) and the focal zone is slightly brighter (+18% Gaussian, 2.5 cm). `focusCm` is kept in cm when the depth changes; the focal marker ▸ sits on the depth scale and the TGC curve is drawn beside it when not flat.
+  - Presets: views.json `image` = `{depthCm, sectorDeg, focusCm, gainDb?, drDb?, tgcDb?}`. Focus defaults sit at each view's key structure (measured at ED: PLAX valves 7.5, PSAX-PM 6.5, PSAX-MV 7.5, PSAX-AV 6, A4C 12.5, A5C 13, S4C 13, IVC 8.5 cm). Go-to-view applies depth/sector/focus (and gain/DR/TGC only if the view sets them) and keeps the learner's own gain, TGC and DR, as on a real machine. "Reset image" restores the full preset. The ideal image always renders with the full preset. Scoring reads the tissue map, so gain/TGC/DR never change scores.
+- **Performance (P2.4):**
+  - Tiers `high 256×512 · medium 192×384 · low 160×320 · lowest 128×256`; desktop starts high, phones low; `?quality=<name>` fixes a tier; `eng.setResolution(nl, ns)` resizes the polar targets without recompiling (Pass B loop bound is the constant `MAX_NS` 1024).
+  - Auto: fps < 48 for 2 s → step down (ladder: echo tier → pixel ratio 1 → echo tiers); ≥ 57 fps for 10 s → one step up (max twice, never again after a failed upgrade within 4 s). Pause/hidden frames call `perf.pause()`; a slow frame is never treated as a pause (SwiftShader frames take > 1 s).
+  - Budgets: ideal image `refMs` 50/66/100/125 ms by tier; collapsed inset pane ≈18 fps; label read-back 5 Hz and **asynchronous** (`readLabelsAsync()`: readPixels into a pixel-pack buffer + fence, collected at the next tick). Sync `readPixels` cost ~750 ms per call under SwiftShader, ~5 ms async. Tests keep the sync `readLabels()`.
+  - `?dev=1` overlay: fps, frame p50/p95, tier, pixel ratio, echo GPU ms (EXT_disjoint_timer_query_webgl2 when exposed), ideal/thumbnail/label rates, GPU name. `ECHO.perf()` returns the same; `ECHO.setQuality(name|'auto')`.
 - **Test hooks (P2):** `ECHO.pauseLoop(bool)`, `ECHO.stepLive(dt)` (one live frame with persistence, deterministic). `tools/test_p2.py` covers the P2 items.
 - **ECG strip:** a 2D canvas that sums the Gaussians in `cycle.ecg.waves` and moves a cursor at `phaseT`.
 
@@ -242,7 +251,7 @@ The tested echo code above is the core. The parts below are a design to implemen
 
 ## Performance budget
 - **Targets:** 50 fps on a laptop, 30 fps on a phone.
-- **Echo resolution:** 256×512 on desktop, 160×320 on mobile (P2). Adapt NS down when the frame time stays above 25 ms.
+- **Echo resolution:** adaptive tiers (P2.4, see above): 256×512 desktop start, 160×320 phone start, down to 128×256. Adapt NS down when the frame time stays above 25 ms.
 - **Throttling:**
   - `readLabels()` at 4–5 Hz.
   - Collapsed pane at 15–20 fps.

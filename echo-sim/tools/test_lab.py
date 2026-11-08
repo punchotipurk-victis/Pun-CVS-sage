@@ -24,7 +24,7 @@ async def main():
         pg, errs = await open_page(b, 1440, 860)
         info = await pg.evaluate("ECHO.info"); print("heart mesh", info); check(info["tris"] > 5000, "heart mesh baked from the phantom")
         async def shot(name, page=None):
-            if A.shots: await (page or pg).screenshot(path=os.path.join(A.shots, name + ".png"))
+            if A.shots: await (page or pg).screenshot(path=os.path.join(A.shots, name + ".png"), timeout=120000)   # SwiftShader can take >30 s per frame late in the run
         await pg.evaluate("ECHO.freeze(true)")
         for pos in ([] if os.environ.get("SKIP_VIEWS") else ["supine", "LLD"]):
             await pg.evaluate(f"ECHO.setPosition('{pos}')")

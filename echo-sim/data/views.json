@@ -256,7 +256,8 @@
       },
       "image": {
         "depthCm": 16,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 7.5
       },
       "expectedScreen": {
         "near": "RV / RVOT",
@@ -473,7 +474,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 6.5
       },
       "expectedScreen": {
         "near": "RV",
@@ -669,7 +671,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 7.5
       },
       "contentChecks": {
         "mustSee": [
@@ -838,7 +841,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 6.0
       },
       "expectedScreen": {
         "center": "Aortic valve (3 cusps)",
@@ -1011,7 +1015,8 @@
       },
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 12.5
       },
       "expectedScreen": {
         "near": "LV/RV apex",
@@ -1230,7 +1235,8 @@
       "_tolerance_note": "Tilt tolerance is tight because A4C ↔ A5C differ by only ~5–10° (POCUS101).",
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 13.0
       },
       "contentChecks": {
         "mustSee": [
@@ -1396,7 +1402,8 @@
       },
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 13.0
       },
       "expectedScreen": {
         "near": "Liver (top-left), then RV free wall",
@@ -1585,7 +1592,8 @@
       },
       "image": {
         "depthCm": 16,
-        "sectorDeg": 80
+        "sectorDeg": 80,
+        "focusCm": 8.5
       },
       "expectedScreen": {
         "near": "Liver",

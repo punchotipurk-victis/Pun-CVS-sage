@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ARGS = ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"]
 ap = argparse.ArgumentParser(); ap.add_argument("lab"); ap.add_argument("out"); ap.add_argument("--title", default="")
-ap.add_argument("--dpr", type=float, default=1.0); ap.add_argument("--phase", type=float, default=0.0); ap.add_argument("--fast", action="store_true"); ap.add_argument("--js", default="")
+ap.add_argument("--dpr", type=float, default=1.0); ap.add_argument("--phase", type=float, default=0.0); ap.add_argument("--fast", action="store_true"); ap.add_argument("--quality", default="high"); ap.add_argument("--js", default="")
 A = ap.parse_args(); os.makedirs(A.out, exist_ok=True)
 QF = "({quality: -1, fails: []})"
 NAMES = {"plax": "PLAX", "psax_av": "PSAX-AV", "psax_mv": "PSAX-MV", "psax_pap": "PSAX-PM", "a4c": "A4C", "a5c": "A5C",
@@ -20,7 +20,7 @@ async def main():
         ctx = await b.new_context(viewport={"width": 1440, "height": 860}, device_scale_factor=A.dpr); pg = await ctx.new_page(); errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
         pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
-        await pg.goto("file://" + os.path.abspath(A.lab)); await pg.wait_for_function("window.ECHO && ECHO.ready", timeout=300000)
+        await pg.goto("file://" + os.path.abspath(A.lab) + "?quality=" + A.quality);   # fixed tier: grids compare like with like await pg.wait_for_function("window.ECHO && ECHO.ready", timeout=300000)
         await pg.evaluate("ECHO.freeze(true); ECHO.setLandmarks(false)")
         res = {"views": {}, "errors": errs}
         views = await pg.evaluate("ECHO.views"); tiles = {}

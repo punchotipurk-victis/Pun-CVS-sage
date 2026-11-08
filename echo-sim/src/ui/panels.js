@@ -16,18 +16,30 @@ function makePanels(APP){
       { id: "depth", label: "Depth", min: 4, max: 24, step: 1, unit: " cm", get: () => APP.img.depthCm, set: v => APP.setImg({ depthCm: v }) },
       { id: "sector", label: "Sector", min: 30, max: 90, step: 1, unit: "°", get: () => APP.img.sectorDeg, set: v => APP.setImg({ sectorDeg: v }) },
       { id: "gain", label: "Gain", min: -20, max: 20, step: 1, unit: " dB", get: () => APP.img.gainDb, set: v => APP.setImg({ gainDb: v }) },
+      { id: "focus", label: "Focus", min: 1, max: 24, step: .5, unit: " cm", get: () => Math.min(APP.img.focusCm, APP.img.depthCm - .5), set: v => APP.setImg({ focusCm: Math.min(v, APP.img.depthCm - .5) }), note: () => "▸ on depth scale" },
       { id: "dr", label: "Dynamic range", min: 30, max: 80, step: 1, unit: " dB", get: () => APP.img.drDb, set: v => APP.setImg({ drDb: v }) },
       { id: "persist", label: "Persistence", min: 0, max: .9, step: .05, unit: "", get: () => APP.img.persistence, set: v => APP.setImg({ persistence: v }), note: () => APP.img.persistence < .05 ? "off" : APP.img.persistence < .45 ? "low" : APP.img.persistence < .7 ? "medium" : "high" },
       { id: "hr", label: "Heart rate", min: 40, max: 140, step: 1, unit: " bpm", get: () => APP.hr, set: v => { APP.hr = v; drawEcgTrace(); drawOverlay(true); },
-        note: () => { const w = APP.warp(); return `systole ${Math.round(w.systoleMs)} ms (${Math.round(100*w.systoleMs/w.rrMs)}% of RR)`; } } ] };
+        note: () => { const w = APP.warp(); return `sys ${Math.round(w.systoleMs)} ms · ${Math.round(100*w.systoleMs/w.rrMs)}% RR`; } } ] };
   const rows = {};
   for (const [tab, list] of Object.entries(SL)){ const host = $(tab === "probe" ? "probeSliders" : "imageSliders");
     for (const s of list){ const r = document.createElement("label"); r.className = "sl";
       r.innerHTML = `<span class="sl-l">${s.label}</span><output></output><input type="range" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${s.label}">`;
       host.appendChild(r); const inp = r.querySelector("input"), out = r.querySelector("output"); rows[s.id] = { s, inp, out };
       inp.addEventListener("input", () => { s.set(+inp.value); syncSliders(); }); } }
+  /* TGC: six vertical sliders, near field at the left (as on a scanner's TGC bank), ±12 dB on top of the automatic compensation */
+  { const host = $("imageSliders"), box = document.createElement("div"); box.className = "tgc"; box.id = "tgcBox";
+    box.innerHTML = `<div class="tgc-h"><span class="sl-l">TGC</span><output id="tgcOut">flat</output></div><div class="tgc-row" role="group" aria-label="Time-gain compensation, near to far">${
+      [0,1,2,3,4,5].map(i => `<input type="range" min="-12" max="12" step="1" value="0" data-i="${i}" aria-label="TGC band ${i+1} of 6 (${i === 0 ? "near field" : i === 5 ? "far field" : "mid"}), dB">`).join("")}</div>
+      <div class="tgc-ax"><span>near</span><span>far</span></div>
+      <button id="imgReset" type="button" class="chipbtn" title="Restore this view's image preset (depth, sector, focus, gain, TGC, DR, persistence)">Reset image</button>`;
+    const hr = host.querySelector('.sl input[aria-label="Heart rate"]'); host.insertBefore(box, hr ? hr.closest(".sl") : null);
+    box.querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => { const t = [...APP.img.tgcDb]; t[+inp.dataset.i] = +inp.value; APP.setImg({ tgcDb: t }); syncSliders(); }));
+    $("imgReset").onclick = () => { APP.resetImage(); syncSliders(); }; }
   function syncSliders(){ for (const k in rows){ const { s, inp, out } = rows[k]; const v = s.get(); if (document.activeElement !== inp) inp.value = v;
       const dec = s.step < 1 ? 1 : 0; out.textContent = v.toFixed(dec).replace("-", "−") + s.unit + (s.note ? " · " + s.note() : ""); }
+    document.querySelectorAll("#tgcBox input").forEach(inp => { if (document.activeElement !== inp) inp.value = APP.img.tgcDb[+inp.dataset.i]; });
+    { const t = APP.img.tgcDb, o = $("tgcOut"); if (o) o.textContent = t.every(x => !x) ? "flat" : t.map(x => (x > 0 ? "+" : "") + x).join(" ").replace(/-/g, "−") + " dB"; }
     $("pressAuto").setAttribute("aria-pressed", APP.pressAuto); $("depthVal").textContent = APP.img.depthCm + " cm"; }
   $("pressAuto").onclick = () => { APP.pressAuto = !APP.pressAuto; if (!APP.pressAuto) APP.pose.pressCm = APP.windowPress(); APP.markDirty(); };
 
@@ -117,7 +129,7 @@ function makePanels(APP){
   /* ---- echo overlay: depth scale and marker dot, using the same mapping as Pass C ---- */
   const ov = $("echoOverlay"), octx = ov.getContext("2d"); let ovKey = "";
   function drawOverlay(force){
-    const b = ov.getBoundingClientRect(), pr = Math.min(devicePixelRatio || 1, 2), { depthCm: D, sectorDeg: sec } = APP.img, key = [b.width, b.height, D, sec, APP.conv, APP.hr, APP.frozen].join();
+    const b = ov.getBoundingClientRect(), pr = Math.min(devicePixelRatio || 1, 2), { depthCm: D, sectorDeg: sec } = APP.img, key = [b.width, b.height, D, sec, APP.conv, APP.hr, APP.frozen, APP.img.focusCm, APP.img.tgcDb.join("/")].join();
     if (key === ovKey && !force) return; ovKey = key; if (!b.width || !b.height) return;
     ov.width = Math.round(b.width*pr); ov.height = Math.round(b.height*pr); const W = ov.width, H = ov.height, asp = W/H;
     const fit = Math.max(1, 2*.97*Math.sin(Math.min(sec*Math.PI/180, 3.14)/2)/asp), scale = H*.97/fit;     // px per full depth
@@ -125,6 +137,10 @@ function makePanels(APP){
     const x0 = W-8*pr; octx.strokeStyle = octx.fillStyle = "#b9c7c4"; octx.lineWidth = pr; octx.beginPath();
     for (let d = 0; d <= D; d++){ const y = d/D*scale, big = d%5 === 0; octx.moveTo(x0, y); octx.lineTo(x0-(big ? 9 : 4)*pr, y); if (big && d) octx.fillText(String(d), x0-(big ? 26 : 0)*pr, y); }
     octx.stroke();
+    { const fy = Math.min(APP.img.focusCm, D - .5)/D*scale; octx.fillStyle = "#ffcf5a"; octx.beginPath(); octx.moveTo(x0-11*pr, fy); octx.lineTo(x0-19*pr, fy-5*pr); octx.lineTo(x0-19*pr, fy+5*pr); octx.closePath(); octx.fill(); }   // focus ▸
+    { const t = APP.img.tgcDb; if (t.some(x => x)){ const xc = x0 - 52*pr; octx.strokeStyle = "rgba(255,207,90,.75)"; octx.lineWidth = 1.2*pr; octx.beginPath();     // TGC curve, as scanners draw it
+        for (let k = 0; k <= 40; k++){ const r = k/40, tx = Math.min(5, Math.max(0, r*6 - .5)), i0 = Math.floor(tx), i1 = Math.min(5, i0 + 1), v = t[i0] + (t[i1] - t[i0])*(tx - i0), y = r*scale, x = xc + 6*pr + v*1.3*pr; k ? octx.lineTo(x, y) : octx.moveTo(x, y); }
+        octx.stroke(); octx.strokeStyle = "rgba(255,207,90,.25)"; octx.beginPath(); octx.moveTo(xc + 6*pr, 0); octx.lineTo(xc + 6*pr, scale); octx.stroke(); } }
     const right = APP.conv === "ASE", a = sec*Math.PI/360, dotX = W/2 + (right ? 1 : -1)*Math.min(W/2-20*pr, Math.sin(a)*.22*scale + 14*pr), dotY = 15*pr;
     octx.fillStyle = "#ff8a3c"; octx.beginPath(); octx.arc(dotX, dotY, 5*pr, 0, 7); octx.fill();
     octx.fillStyle = "#b9c7c4"; octx.textAlign = "left"; octx.fillText(`${D} cm · ${Math.round(sec)}°`, 8*pr, 12*pr); octx.fillText(`HR ${APP.hr}${APP.frozen ? " · FROZEN" : ""}`, 8*pr, 28*pr);

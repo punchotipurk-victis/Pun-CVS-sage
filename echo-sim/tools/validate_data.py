@@ -97,6 +97,11 @@ def main():
             err(f"{v['id']}: unknown derivation method {v['derivation'].get('method')}")
         if v["derivation"].get("method") == "tiltFrom" and v["derivation"].get("base") not in ids:
             err(f"{v['id']}: tiltFrom base view not found")
+        im = v.get("image", {})   # P2 image presets: depth, sector, focus (+ optional gainDb, tgcDb[6], drDb)
+        if not 4 <= im.get("depthCm", 0) <= 24: err(f"{v['id']}: image.depthCm out of 4–24")
+        if "focusCm" in im and not 1 <= im["focusCm"] < im.get("depthCm", 0): err(f"{v['id']}: image.focusCm must lie inside the image (1 cm – depth)")
+        if "tgcDb" in im and (len(im["tgcDb"]) != 6 or any(abs(x) > 15 for x in im["tgcDb"])): err(f"{v['id']}: image.tgcDb needs 6 values within ±15 dB")
+        if "gainDb" in im and abs(im["gainDb"]) > 20: err(f"{v['id']}: image.gainDb out of ±20")
 
     # 2. references
     K = known_ids(P)
