@@ -28,6 +28,8 @@ Super App's `index.html` (`LABS.echo`, route `#echo`).
    Every number has a source tag (`ASE 2015`, `POCUS101`, `teaching (verify)`); show ASE vs POCUS101 side by side when
    they differ. No copied text/images from references. Footer disclaimer always on.
 
+- Heart anatomy (P1.5): one structure at a time; after each, `validate_data.py`, slices (`tools/slices.py` on a `src/dev/slice.html` build), valve ray-cast (`tools/valve_views.py`) and `test_lab.py` alone. Coronaries: `tools/coronary_design.py` after any outer-shape change. Export for other labs: `tools/export_heart_mesh.py` (format in docs/HEART-MESH-EXPORT.md). Pitfalls: docs/ENGINE.md.
+
 ## Commands
 ```bash
 python tools/validate_data.py data                       # data sanity (ids, frames, anatomy depths)
