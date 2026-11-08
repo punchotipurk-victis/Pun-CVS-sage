@@ -61,7 +61,7 @@ def refs_of(view):
         if p.get("throughLandmark"): out.append(p["throughLandmark"])
     res = []
     for r in out:
-        m = re.match(r"midpoint\(([^,]+),\s*([^)]+)\)", r)
+        m = re.match(r"midpoint\(([^,]+),\s*([^)]+)\)", r) or re.match(r"lerp\(([^,]+),\s*([^,]+),\s*[-\d.]+\)", r)   # lerp(A, B, t): P2.5
         res += [m.group(1).strip(), m.group(2).strip()] if m else [r]
     return res
 

@@ -621,7 +621,8 @@
       "derivation": {
         "method": "fanFromWindow",
         "probeAt": "seedICS3",
-        "levelCenter": "LV_level_MV",
+        "levelCenter": "lerp(MV_center, LV_level_MV, 0.75)",
+        "_levelNote": "P2.5: the mitral leaflet TIPS (0.9 cm below the annulus), where the open orifice is a fish-mouth. LV_level_MV (1.2 cm) passed below the shorter posterior leaflet in diastole once the LLD cut became perpendicular (teaching: PSAX-MV is taken at the leaflet tips).",
         "axisRef": "LV_long",
         "notchSideLandmark": "LAA_tip"
       },
@@ -1352,6 +1353,7 @@
           0,
           0
         ],
+        "lateralHintFollowsHeart": true,
         "_note": "lateralHint = patient's LEFT (notch at 3 o'clock, probe flat, as scanned). Content checks decide whether all 4 chambers show; calibrate if not.",
         "aimAt": "crux",
         "notchSideLandmark": "LV_apex_epi"

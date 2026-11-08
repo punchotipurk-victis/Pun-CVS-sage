@@ -108,6 +108,13 @@ async def main():
             await pg.evaluate("APP.resetImage()")
         await pg.evaluate("ECHO.pauseLoop(false)")
 
+
+        print("P2.5 LLD scores")
+        sc = await pg.evaluate("""() => { ECHO.setQuality('high'); const out = {};
+            for (const pos of ['supine', 'LLD']){ ECHO.setPosition(pos); for (const v of ECHO.views){ ECHO.goToView(v, true); out[pos + '/' + v] = Math.round(ECHO.quality(v).quality); } }
+            ECHO.setPosition('supine'); ECHO.setQuality('auto'); return out; }""")
+        low = {k: q for k, q in sc.items() if q < 95}
+        check(not low, "every view ≥95 at its target, supine and LLD", str(low) if low else f"(min {min(sc.values())})")
         print("P2.4 performance")
         await pg.evaluate("ECHO.setQuality('auto')"); await pg.wait_for_timeout(9000)
         st = await pg.evaluate("ECHO.perf()")
