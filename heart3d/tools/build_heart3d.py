@@ -9,7 +9,7 @@ Both pages share the same modules; each page has its own template:
 
 Template markers (anywhere in a line; contents are inserted verbatim):
   <!--@THREE-->            three.min.js r0.158.0 (shared copy: ../echo-sim/vendor/three.min.js)
-  <!--@INC:path-->         file contents, unchanged          (path relative to heart3d/)
+  <!--@INC:path-->         file contents, unchanged          (path relative to heart3d/); .html parts are expanded too
   <!--@INCSTRIP:path-->    file contents with surrounding whitespace stripped
   <!--@JSON:id:path-->     <script type="application/json" id="id">…</script> (validated, compact)
 
@@ -47,6 +47,7 @@ def build(template, out):
         if kind in ("INC", "INCSTRIP"):
             txt = open(rp(arg), encoding="utf-8").read()
             if kind == "INCSTRIP": txt = txt.strip()
+            if arg.endswith(".html"): txt = MARK.sub(sub, txt)       # shared parts may hold markers
             if arg.endswith(".js"): check_inline(txt, arg)
             used.append((arg, len(txt))); return txt
         jid, path = arg.split(":", 1)

@@ -139,3 +139,17 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .wrap>section{min-width:0}
 .main{min-width:0;width:100%}
 .chip{white-space:normal;max-width:100%}
+
+/* ===== Two pages of the 3D Heart section (step 2) =====
+   3D Heart (body.pg-explore): one column; the large model first, then the structure card, then the ECG.
+   Pathology simulator (body.pg-sim): today's two-column layout. */
+.jump a[data-go]{font-size:.95rem}
+.pg-explore .main{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.pg-explore .col{display:contents}
+.pg-explore .toolbar{order:1}
+.pg-explore .viewer{order:2;height:min(78vh,860px);min-height:420px}
+.pg-explore .views{order:3}
+.pg-explore .panel{order:4;position:static;max-height:none;overflow:visible}
+.pg-explore .panel p,.pg-explore .panel .note{max-width:82ch}
+.pg-explore .ecgcard{order:5}
+@media (max-width:600px){.pg-explore .viewer{height:62vh;min-height:340px}}

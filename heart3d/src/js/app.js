@@ -416,11 +416,25 @@ function createLab(root,mode){
   const api={st,S,setScenario,setView,ALLSC,cx,valves,onPick,start(){if(S){if(!started){S.showHeart({});S.snapView([.25,.1,1]);applyInfarct();started=true}st.lastNow=0;S.start()}else if(!plainRun){plainRun=true;requestAnimationFrame(plainLoop)}},stop(){if(S)S.stop();plainRun=false}};
   return api}
 
-/* ================= boot both labs, render only the one on screen ================= */
-const labs={};
-const io=new IntersectionObserver(es=>{for(const e of es){const k=e.target.dataset.lab;if(!labs[k]&&e.isIntersecting)labs[k]=createLab(e.target,k);const L2=labs[k];if(!L2)continue;if(e.isIntersecting&&!document.hidden)L2.start();else L2.stop()}},{rootMargin:"120px 0px"});
+/* ================= boot the lab(s) on this page, render only what is on screen =================
+   Each page of the 3D Heart section holds one lab ([data-lab=explore] on 3D Heart, [data-lab=sim] on Pathology).
+   The site shell posts {pun:"lab", visible, sub}: visible=false when its iframe is hidden (another page is shown),
+   sub = the part after "/" in the route (#pathology/af → "af") to open a scenario directly. */
+const labs={},seen={};let shown=true,pendingSub="";
+function run(k){const L2=labs[k];if(!L2)return;
+  if(shown&&!document.hidden&&seen[k]){L2.start();if(pendingSub&&ALLSC[pendingSub]&&k==="sim"){L2.setScenario(ALLSC[pendingSub],{});pendingSub=""}}else L2.stop()}
+function runAll(){for(const k in labs)run(k)}
+const io=new IntersectionObserver(es=>{for(const e of es){const k=e.target.dataset.lab;seen[k]=e.isIntersecting;if(!labs[k]&&e.isIntersecting&&shown)labs[k]=createLab(e.target,k);run(k)}},{rootMargin:"120px 0px"});
 document.querySelectorAll("[data-lab]").forEach(el=>io.observe(el));
-document.addEventListener("visibilitychange",()=>{for(const k in labs){if(document.hidden)labs[k].stop();else{const r=document.querySelector(`[data-lab="${k}"]`).getBoundingClientRect();if(r.bottom>0&&r.top<innerHeight)labs[k].start()}}});
+document.addEventListener("visibilitychange",runAll);
+window.addEventListener("message",e=>{const d=e.data;if(!d||d.pun!=="lab")return;
+  if(typeof d.sub==="string"&&d.sub)pendingSub=d.sub;
+  if(typeof d.visible==="boolean")shown=d.visible;
+  for(const el of document.querySelectorAll("[data-lab]")){const k=el.dataset.lab;if(!labs[k]&&shown&&seen[k])labs[k]=createLab(el,k)}
+  runAll()});
 window.LABS=labs;window.LABCORE={ALLSC,vecAt,leadVal,D0,ONSET,createLab};
 })();
-document.querySelectorAll(".jump a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();const t=document.querySelector(a.getAttribute("href"));if(t)t.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}));
+/* links between the two pages: change the SITE route (parent); opened on its own, fall back to scrolling */
+document.querySelectorAll(".jump a").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();const go=a.dataset.go;
+  if(go){try{if(window.parent&&window.parent!==window&&window.parent.LABS&&window.parent.LABS[go]){window.parent.location.hash="#"+go;return}}catch(err){}}
+  const t=document.querySelector(a.getAttribute("href"));if(t)t.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}));

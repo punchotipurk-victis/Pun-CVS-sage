@@ -1,35 +1,17 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Heart Conduction Lab</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=JetBrains+Mono:wght@400;600&display=swap">
-<style><!--@INC:src/style.css--></style></head><body>
+<title>3D Heart</title>
+<!--@INC:src/parts/head.html--></head><body class="pg-explore">
 <div class="wrap">
 <header>
-  <span class="eyebrow">Interactive 3D heart · conduction system · live 12-lead ECG</span>
-  <h1>Heart Conduction Lab</h1>
-  <p class="lede">The gold wave is depolarisation moving through muscle; the teal wiring is the conduction system; in the cut view the valves open and close with each beat. Everything runs on one clock with the ECG cursors.</p>
-  <nav class="jump" aria-label="Sections"><a href="#explore">1 · Explore by tapping</a><a href="#sim">2 · Pathology simulator</a></nav>
+  <span class="eyebrow">Interactive 3D heart · explore by tapping</span>
+  <h1>3D Heart</h1>
+  <p class="lede">Rotate the heart, open it with the cut view, and tap any structure (conduction tissue, valve, coronary artery or wall). Its card appears below the model. The gold wave and the ECG run on one clock.</p>
+  <nav class="jump" aria-label="3D Heart pages"><a href="#pathology" data-go="pathology">Pathology simulator →</a></nav>
 </header>
 <section id="explore" aria-label="Explore by tapping">
-  <div class="section-head"><span class="eyebrow">Part 1</span><h2>Explore by tapping</h2><p class="lede">Tap a conduction structure, valve, coronary artery or wall to learn it and see its complication. Switch to Internal for valves, papillary muscles, LAA, LVOT and the aorta.</p></div>
   <div class="labhost" data-lab="explore"></div>
 </section>
-<section id="sim" aria-label="Pathology simulator">
-  <div class="section-head"><span class="eyebrow">Part 2</span><h2>Pathology simulator</h2><p class="lede">Pick a condition. The 3D model animates its mechanism, all 12 leads change, and the description explains what you are seeing.</p></div>
-  <div class="labhost" data-lab="sim"></div>
-</section>
-<p class="disc">Idealized teaching model for study only — not for patient care. Anatomy is schematic; timings are approximate textbook values. Conduction anatomy after Dobrzynski et al., Pharmacol Ther 2013; gross anatomy after the course lecture "Heart & Major Blood Vessels".</p>
-</div>
-<script><!--@THREE--></script>
-<script><!--@INC:src/js/h3-anatomy.js-->/* NEO-HEART:BEGIN */
-<!--@INC:src/js/neo-config.js--><!--@INCSTRIP:../echo-sim/export/neo-heart-adapter.js-->
-/* NEO-HEART:END */
-if(typeof module!=="undefined")module.exports=H3;</script>
-<script><!--@INC:src/js/scene.js--></script>
-<script><!--@INC:src/js/valves.js--></script>
-<script><!--@INC:src/js/conduction.js--></script>
-<script><!--@INC:src/js/content.js--></script>
-<script><!--@INC:src/js/patho-content.js--></script>
-<script><!--@INC:src/js/app.js--></script>
+<!--@INC:src/parts/footer.html--></div>
+<!--@INC:src/parts/scripts.html-->
 </body></html>
