@@ -9,8 +9,8 @@ Repo `punchotipurk-victis/Pun-CVS-sage`, branch `echo-sim/p1-scene-ui`, PR #2. *
 | P0 | Plan v1.2, data v0.2→v0.3, engine prototype, skills, starter kit | ✅ done |
 | P1 | Scene, probe, Anatomy Inset, heart mesh, scoring UI | ✅ done (PR #2) |
 | P1.1 | View buttons + ideal image, tip/ring probe handles, sculpted body, Muscle view, skeleton, landmarks, organ shading | ✅ done (PR #2) |
-| **P1.5** | **Refine the 3D heart (phantom-normal.json v0.4)**: less blocky, more anatomical, finer mesh; optional mesh export for the other labs | ⏭ next (own conversation; kickoff in `HEART-REFINE-KICKOFF.md`) |
-| P2 | Echo engine polish: persistence, HR scaling of systole, image-control tuning, adaptive resolution, expert tuning | ⏳ |
+| P1.5 | Refine the 3D heart (phantom v0.4), mesh export, integration into the 3D-heart / MI labs, PLAX aortomitral fix | ✅ done (PR #3; `P15-STATUS.md`) |
+| **P2** | **Echo engine polish**: image quality (resolution, smooth scan conversion), persistence, HR scaling of systole, image controls, GPU performance, LLD PSAX-MV/S4C, expert-calibration prep | ⏭ next (kickoff in `P2-KICKOFF.md`) |
 | P3 | View library UI: hints, 3-state labels (Off/Text/Tint) with cross-highlight, view cards (4 teaching layers), pitfall states, calibration mode `?dev=1` | ⏳ |
 | P4 | Learning modes (Guided tour, Challenge, Label quiz, Pitfall hunt) + Super App integration (embed `LABS.echo`, tab, home tile, topic card) | ⏳ |
 | P5 | M-mode, stylised colour Doppler, measurements, v2 views (A2C, A3C, RV inflow, PSAX apex, suprasternal, subcostal SAX) | ⏳ |
