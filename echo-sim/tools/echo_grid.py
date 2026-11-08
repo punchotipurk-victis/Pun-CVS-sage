@@ -20,7 +20,8 @@ async def main():
         ctx = await b.new_context(viewport={"width": 1440, "height": 860}, device_scale_factor=A.dpr); pg = await ctx.new_page(); errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
         pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
-        await pg.goto("file://" + os.path.abspath(A.lab) + "?quality=" + A.quality);   # fixed tier: grids compare like with like await pg.wait_for_function("window.ECHO && ECHO.ready", timeout=300000)
+        await pg.goto("file://" + os.path.abspath(A.lab) + "?quality=" + A.quality)   # fixed tier: grids compare like with like
+        await pg.wait_for_function("window.ECHO && ECHO.ready", timeout=300000)
         await pg.evaluate("ECHO.freeze(true); ECHO.setLandmarks(false)")
         res = {"views": {}, "errors": errs}
         views = await pg.evaluate("ECHO.views"); tiles = {}

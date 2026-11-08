@@ -22,7 +22,9 @@
     /* echo quality tiers (P2.4). Desktop starts at High, phones at Low; ?quality=high|medium|low|lowest fixes a tier (no auto). */
     const TIERS = [{ name: "high", lines: 256, samples: 512, refMs: 50 }, { name: "medium", lines: 192, samples: 384, refMs: 66 },
                    { name: "low", lines: 160, samples: 320, refMs: 100 }, { name: "lowest", lines: 128, samples: 256, refMs: 125 }];
-    const qParam = (/[?&]quality=(\w+)/.exec(location.search) || [])[1], DEV = /[?&]dev=1/.test(location.search);
+    /* flags come from the lab's own URL, or from the Super App's URL when embedded (srcdoc iframes have no query string) */
+    const QS = location.search + (() => { try { return parent !== window ? "&" + parent.location.search.slice(1) : ""; } catch (e) { return ""; } })();
+    const qParam = (/[?&]quality=(\w+)/.exec(QS) || [])[1], DEV = /[?&]dev=1/.test(QS);
     const startTier = Math.max(0, TIERS.findIndex(t => t.name === qParam)) || (small ? 2 : 0);
     const eng = EchoEngine(renderer, ph, { lines: TIERS[startTier].lines, samples: TIERS[startTier].samples });
     const paramEval = PHANTOM.makeParamEval(ph);
