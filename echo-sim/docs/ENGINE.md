@@ -330,6 +330,12 @@ Check each of these, and look at the screenshots yourself:
 - **No blood–blood contact between two named cavities.** In the echo a blood/blood boundary is invisible, so it reads as a hole (PLAX LA↔LVOT, 8 Nov). Every pair of cavities needs a wall that is *assigned a tissue* in the priority list, not just a carve: a band carved out of one cavity that matches no later rule renders as dashes (`lvlaW` → fibrous).
 - **AML hinge on the line of the posterior aortic wall.** The aortomitral curtain (~0.6–1 cm) is a *sheet* (2.6 cm wide), not a rod; the LVOT tube is clipped to its ventricular side; the anterior ±60° of the mitral ring is removed (D-shaped annulus: its straight side is the curtain). A hinge on the round ring sat 1.7 cm from the aortic annulus, close to the septum: gap to the LA and a narrow LVOT. Check PLAX at t = 0, 0.3, 0.38 and in diastole (`tools/phases.py`).
 
+### Found in the 3D Heart rework (phantom 0.5)
+- **The intrapericardial IVC is RA.** The `ivc` capsule is part of `raRaw`, so the bake labels it RA and an RA wall separates it from the extracardiac IVC. The IVC *orifice* is where the IVC axis enters the RA ellipsoid, not the capsule end (the first Eustachian valve floated in mid-cavity).
+- **Thin folds and cords are sub-voxel at 0.13 cm** (Eustachian, Thebesian, tendon of Todaro, chordae). The echo hardly sees them; the interior export meshes valves and folds from finer bakes (0.05–0.1 cm).
+- **New structures that only relabel tissue** (CFB, membranous septum, tendon of Todaro) go after every blood rule and test `solid < 0.0`; folds inside a cavity (Eustachian, Thebesian, pectinate ridges) go right after the valve leaflets, guarded by the cavity they sit in. Neither changes the echo views (test_lab: all 100 at target).
+- **Label palette is now 63/64.** The next new label needs `uPalette` raised in echo.js, scene.js and app.js (and the validator limit).
+
 ## Extending to pathology (P6)
 - Prefer changing **parameters**: e.g. `effusion_cm`, which the shader already supports as a fluid shell, wall thickness, cavity size, and leaflet thickness or opening.
 - Add new structures to `compile()` with an explicit drawing priority.

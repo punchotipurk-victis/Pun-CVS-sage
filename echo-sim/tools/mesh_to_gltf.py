@@ -2,6 +2,8 @@
 """Heart mesh export (pun-cvs heart mesh v1) → binary glTF (.glb) for Blender / any 3D tool.
 
   python tools/mesh_to_gltf.py export/heart-mesh.json export/heart.glb [--frame body|heart] [--no-vessels]
+  python tools/mesh_to_gltf.py export/heart-interior.json export/heart-interior.glb   (interior: mesh "interior_tissue" with
+         _LABEL _CAVITY _WALL _MOTION, and the valves at end-diastole as "valve_MV", "valve_TV", "valve_AV", "valve_PV")
 
 - Units: metres (glTF); 1 cm in the echo phantom = 0.01 m.
 - Frame "body" (default): glTF axes = the echo body frame (+X patient's LEFT, +Y HEAD, +Z ANTERIOR), so a Front view in a
@@ -15,7 +17,7 @@ import argparse, base64, json, struct
 from pathlib import Path
 import numpy as np
 
-REAL = {0: (.6, .4, .4), 1: (.62, .2, .17), 2: (.6, .22, .2), 3: (.5, .2, .32), 4: (.86, .74, .66), 5: (.9, .76, .45)}
+REAL = {0: (.6, .4, .4), 1: (.62, .2, .17), 2: (.6, .22, .2), 3: (.5, .2, .32), 4: (.86, .74, .66), 5: (.9, .76, .45), 6: (.93, .88, .76)}
 
 
 def dec(s, dt): return np.frombuffer(base64.b64decode(s), dtype=dt)
@@ -76,6 +78,8 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("mesh"); ap.add_argument("out")
     ap.add_argument("--frame", default="body", choices=["body", "heart"]); ap.add_argument("--no-vessels", action="store_true")
     a = ap.parse_args(); J = json.loads(Path(a.mesh).read_text(encoding="utf-8"))
+    interior = "interior" in J["meta"]["format"]
+    if interior: J = dict(J, mesh=J["tissue"]["mesh"], vertex=J["tissue"]["vertex"], meta=dict(J["meta"], vertices=J["tissue"]["mesh"]["vertices"]))
     n = J["meta"]["vertices"]; C = np.array(J["mesh"]["positionCentre"]); R = np.array(J["mesh"]["positionRange"])
     P = dec(J["mesh"]["positions"], np.int16).reshape(-1, 3)/32767*R + C
     Nn = dec(J["mesh"]["normals"], np.int8).reshape(-1, 3)/127.0
@@ -86,8 +90,15 @@ def main():
     tr = lambda X: ((np.c_[X, np.ones(len(X))] @ M.T)[:, :3]*0.01).astype(np.float32)
     rot = lambda X: (X @ M[:3, :3].T).astype(np.float32)
     g = GLB(); col = np.array([REAL[w] for w in A["wall"]], np.float32)
-    g.mesh("heart", tr(P), rot(Nn), I, {"_" + k.upper(): v for k, v in A.items()}, col, 0)
-    if not a.no_vessels:
+    g.mesh("interior_tissue" if interior else "heart", tr(P), rot(Nn), I, {"_" + k.upper(): v for k, v in A.items()}, col, 0)
+    if interior:
+        for it in J["valves"]["items"]:
+            f = it["frames"][0]
+            if not f: continue
+            m = f["mesh"]; Pv = dec(m["positions"], np.int16).reshape(-1, 3)/32767*np.array(m["positionRange"]) + np.array(m["positionCentre"])
+            Nv = dec(m["normals"], np.int8).reshape(-1, 3)/127.0; Iv = dec(m["index"], np.uint16 if m["indexType"] == "uint16" else np.uint32).astype(np.uint32)
+            g.mesh(f"valve_{it['id']}", tr(Pv), rot(Nv), Iv, {"_LABEL": dec(f["label"], np.uint8)}, np.full((len(Pv), 3), .95, np.float32), 0)
+    if not a.no_vessels and not interior:
         for kind, lst, mat in (("artery", J["vessels"]["arteries"], 1), ("vein", J["vessels"]["veins"], 2)):
             for v in lst:
                 Vp, Vn, F = tube(v["points"], v.get("displayR0", .2), v.get("displayR1", .12))

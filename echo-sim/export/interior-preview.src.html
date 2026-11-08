@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Refined heart: interior export preview</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#0d1214;color:#e6ecea;font:14px/1.4 system-ui,sans-serif}
+#v{position:fixed;inset:0}#ui{position:fixed;left:10px;top:10px;display:flex;flex-direction:column;gap:6px;max-width:330px;background:#131a1dcc;border:1px solid #243130;border-radius:8px;padding:10px}
+#ui b{font-size:12px;color:#94a29d;text-transform:uppercase;letter-spacing:.06em}.row{display:flex;flex-wrap:wrap;gap:4px}
+button{background:#1a2427;color:#e6ecea;border:1px solid #2c3b3a;border-radius:6px;padding:4px 8px;cursor:pointer;font:inherit}button[aria-pressed=true]{background:#e6ecea;color:#0d1214}
+input[type=range]{width:100%}#info{position:fixed;right:10px;top:10px;background:#131a1dcc;border:1px solid #243130;border-radius:8px;padding:10px;min-width:220px}
+#info .n{font-size:18px;font-weight:600}#info .c{color:#94a29d}
+</style></head><body>
+<div id="v"></div>
+<div id="ui">
+  <b>Cut plane</b>
+  <div class="row" id="cuts"></div>
+  <input id="off" type="range" min="-5" max="5" step="0.05" value="0" aria-label="Plane depth"><div class="row"><button id="flip">Flip side</button><button id="face">Face the cut</button></div>
+  <b>Show</b>
+  <div class="row"><button id="bExt" aria-pressed="false">Outer heart (ghost)</button><button id="bLm" aria-pressed="true">Conduction + landmarks</button><button id="bVal" aria-pressed="true">Valves</button></div>
+  <div class="row"><button data-col="real" aria-pressed="true">Real colours</button><button data-col="labels">Label colours</button></div>
+  <b>Valves</b>
+  <div class="row"><button id="bPlay" aria-pressed="true">Beat</button><span id="ph"></span></div>
+</div>
+<div id="info"><div class="c">Tap a structure</div><div class="n" id="iN">–</div><div class="c" id="iC"></div></div>
+<script>/*THREE*/</script>
+<script>/*LOADER*/</script>
+<script>/*ILOADER*/</script>
+<script type="application/json" id="ext">/*EXT*/</script>
+<script type="application/json" id="int">/*INT*/</script>
+<script>
+(() => {
+const T = THREE, host = document.getElementById("v");
+const R = new T.WebGLRenderer({ antialias: true, stencil: true }); R.setPixelRatio(Math.min(devicePixelRatio, 2)); R.localClippingEnabled = true; host.appendChild(R.domElement);
+const scene = new T.Scene(); scene.background = new T.Color(0x0d1214);
+const cam = new T.PerspectiveCamera(32, 1, .5, 400);
+scene.add(new T.HemisphereLight(0xffffff, 0x302020, 1.4)); const dl = new T.DirectionalLight(0xffffff, 1.6); dl.position.set(20, 30, -25); scene.add(dl); scene.add(new T.AmbientLight(0xffffff, .35));
+const plane = new T.Plane(new T.Vector3(0, -1, 0), 0);
+const EX = JSON.parse(document.getElementById("ext").textContent), IN = JSON.parse(document.getElementById("int").textContent);
+const I = HeartInterior.load(IN, T, { clippingPlanes: [plane] }); scene.add(I.group);
+const H = HeartMesh.load(EX, T, { frame: "heart" }); H.mesh.material = new T.MeshStandardMaterial({ color: 0xb0453c, transparent: true, opacity: .14, depthWrite: false, side: T.DoubleSide }); H.vessels.visible = false; H.mesh.renderOrder = 5;
+H.mesh.parent.visible = false; scene.add(H.mesh.parent);
+/* conduction + teaching landmarks */
+const COND = ["sa_node", "av_node", "his_bundle", "lbb_anterior_fascicle", "lbb_posterior_fascicle", "lbb_septal_fascicle", "rbb", "internodal_anterior", "internodal_middle", "internodal_posterior", "bachmann_bundle"];
+const lmCond = I.landmarkObject(COND, { radius: .06, colour: 0x22c3ab }), lmKoch = I.landmarkObject(["koch_triangle"], { radius: .05, polygonColour: 0xffd34d }), lmCti = I.landmarkObject(["cti"], { radius: .05, colour: 0xff7a3d });
+const lm = new T.Group(); lm.add(lmCond, lmKoch, lmCti); scene.add(lm);
+/* stencil cap: the tissue surface is closed, so the cut shows solid tissue and open cavities */
+const capMat = new T.MeshStandardMaterial({ color: 0x8a2a22, roughness: .7, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp });
+function stencilPass(side, op){ const m = new T.MeshBasicMaterial({ depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, side, clippingPlanes: [plane] });
+  if (side === T.BackSide){ m.stencilFail = m.stencilZFail = m.stencilZPass = T.IncrementWrapStencilOp; } else { m.stencilFail = m.stencilZFail = m.stencilZPass = T.DecrementWrapStencilOp; } return m; }
+const sB = new T.Mesh(I.tissue.geometry, stencilPass(T.BackSide)), sF = new T.Mesh(I.tissue.geometry, stencilPass(T.FrontSide)); sB.renderOrder = sF.renderOrder = 1; I.group.add(sB, sF);
+const cap = new T.Mesh(new T.PlaneGeometry(60, 60), capMat); cap.renderOrder = 1.1; cap.onAfterRender = r => r.clearStencil(); scene.add(cap);
+I.tissue.renderOrder = 2; I.valves.renderOrder = 2;
+/* planes: body planes from frames.heartToBody, cardiac planes in the heart frame (Z = LV long axis, X toward the RV, Y inferior-posterior) */
+const M = new T.Matrix4().fromArray(IN.frames.heartToBody), Rm = new T.Matrix3().setFromMatrix4(M), Rt = Rm.clone().transpose();
+const fromBody = v => new T.Vector3(...v).applyMatrix3(Rt).normalize();
+const av = new T.Vector3(...IN.landmarks.central_fibrous_body.p);
+/* each plane: n = normal pointing INTO the kept half (three.js keeps the positive side), c = a point on it, up = screen-up direction.
+   Conventions: coronal / 4-chamber / 2-chamber / 3-chamber keep the posterior or lateral half and are seen from the front, apex down
+   (anatomical); axial is seen from the feet; sagittal from the patient's left; short axis from the apex, anterior up (as in echo / CT). */
+const BASE = new T.Vector3(0, 0, -1), ANT = new T.Vector3(0, -1, 0);
+const CUTS = { "None": null,
+  "Coronal": { n: fromBody([0, 0, -1]), c: new T.Vector3(1.5, 0, 1), up: fromBody([0, 1, 0]) },
+  "Axial": { n: fromBody([0, 1, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBody([0, 0, 1]) },
+  "Sagittal": { n: fromBody([-1, 0, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBody([0, 1, 0]) },
+  "4-chamber": { n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, 0.15, 2), up: BASE },
+  "2-chamber": { n: new T.Vector3(-1, 0, 0), c: new T.Vector3(0, 0, 2), up: BASE },
+  "3-chamber (LVOT)": { n: new T.Vector3().crossVectors(new T.Vector3(1.6, -1.3, -0.28), new T.Vector3(0, 0, 1)).normalize(), c: new T.Vector3(0.8, -0.6, 2), up: BASE },
+  "Short axis (base)": { n: new T.Vector3(0, 0, -1), c: new T.Vector3(0.6, -0.4, 1.2), up: ANT },
+  "Short axis (mid)": { n: new T.Vector3(0, 0, -1), c: new T.Vector3(0, 0, 4.2), up: ANT } };
+let cut = "4-chamber", flip = 1;
+const cutsEl = document.getElementById("cuts");
+for (const k of Object.keys(CUTS)){ const b = document.createElement("button"); b.textContent = k; b.dataset.cut = k; b.onclick = () => { cut = k; document.getElementById("off").value = 0; applyCut(); faceCut(); }; cutsEl.appendChild(b); }
+function applyCut(){ const C = CUTS[cut], off = +document.getElementById("off").value;
+  cutsEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.cut === cut));
+  if (!C){ plane.set(new T.Vector3(0, 0, 1), 1e4); cap.visible = sB.visible = sF.visible = false; return; }
+  const n = C.n.clone().multiplyScalar(flip), p = C.c.clone().addScaledVector(n, off); plane.setFromNormalAndCoplanarPoint(n, p);
+  cap.visible = sB.visible = sF.visible = true; cap.position.copy(p).addScaledVector(n, -.001); cap.lookAt(p.clone().sub(n)); }
+/* own orbit controls: yaw about the screen-up axis, pitch about the screen-right axis */
+const tgt = new T.Vector3(0.8, -0.6, 1.8); let dist = 34;
+cam.up.copy(BASE); cam.position.copy(tgt).add(new T.Vector3(0.5, -1, -0.15).normalize().multiplyScalar(dist)); cam.lookAt(tgt);
+function faceCut(){ const C = CUTS[cut]; if (!C) return; const d = C.n.clone().multiplyScalar(-flip);   // camera on the removed side
+  cam.up.copy(C.up); cam.position.copy(tgt).addScaledVector(d, dist); cam.lookAt(tgt); }
+function orbit(dx, dy){ const off = cam.position.clone().sub(tgt), right = new T.Vector3().crossVectors(off, cam.up).normalize();
+  const q = new T.Quaternion().setFromAxisAngle(cam.up.clone().normalize(), -dx*.008).multiply(new T.Quaternion().setFromAxisAngle(right, -dy*.008));
+  off.applyQuaternion(q); cam.up.applyQuaternion(q); cam.position.copy(tgt).add(off); cam.lookAt(tgt); }
+let drag = null; R.domElement.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; R.domElement.setPointerCapture(e.pointerId); });
+R.domElement.addEventListener("pointermove", e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.moved += Math.hypot(dx, dy); drag.x = e.clientX; drag.y = e.clientY; orbit(dx, dy); });
+R.domElement.addEventListener("pointerup", e => { if (drag && drag.moved < 5) tap(e); drag = null; });
+R.domElement.addEventListener("wheel", e => { e.preventDefault(); dist = Math.max(8, Math.min(90, dist*(1 + Math.sign(e.deltaY)*.08))); cam.position.copy(tgt).add(cam.position.clone().sub(tgt).setLength(dist)); }, { passive: false });
+const ray = new T.Raycaster();
+const TXT = { PW: "LV wall", IVS: "Interventricular septum", RV_free_wall: "RV free wall", LA_wall: "LA wall", RA_wall: "RA wall", IAS: "Interatrial septum", SVC: "SVC", crista_terminalis: "Crista terminalis", pectinate_muscles: "Pectinate muscles",
+  eustachian_valve: "Eustachian valve", thebesian_valve: "Thebesian valve", todaro_tendon: "Tendon of Todaro", membranous_septum: "Membranous septum", central_fibrous_body: "Central fibrous body", moderator_band: "Moderator band",
+  "papillary_muscles.ALPM": "Anterolateral papillary muscle", "papillary_muscles.PMPM": "Posteromedial papillary muscle", MV_AML: "Anterior mitral leaflet / aortomitral curtain", MV_PML: "Posterior mitral leaflet", TV_septal: "TV septal leaflet", TV_anterior: "TV anterior leaflet", TV_posterior: "TV posterior leaflet",
+  "AV_cusps.RCC": "Right coronary cusp", "AV_cusps.LCC": "Left coronary cusp", "AV_cusps.NCC": "Non-coronary cusp", PV_cusps: "Pulmonary valve cusp", chordae: "Chordae tendineae", aortic_root: "Aortic root", "aortic_root.ascending": "Ascending aorta", aortic_arch: "Aortic arch",
+  arch_branches: "Arch branch", PA_main: "Pulmonary trunk", TV_annulus: "Tricuspid annulus", epicardial_fat: "Epicardial fat", LV_cavity: "LV cavity", RV_cavity: "RV cavity", LA: "LA", RA: "RA", LVOT: "LVOT", RVOT: "RVOT", LAA: "LAA", coronary_sinus: "Coronary sinus", pulmonary_veins: "Pulmonary vein" };
+const LMTXT = { sa_node: "SA node", av_node: "AV node (compact)", his_bundle: "His bundle", lbb_anterior_fascicle: "Left anterior fascicle", lbb_posterior_fascicle: "Left posterior fascicle", lbb_septal_fascicle: "Left septal fascicle", rbb: "Right bundle branch",
+  internodal_anterior: "Anterior internodal route", internodal_middle: "Middle internodal route", internodal_posterior: "Posterior internodal route", bachmann_bundle: "Bachmann's bundle", koch_triangle: "Koch's triangle", cti: "Cavotricuspid isthmus" };
+function tap(e){ const r = R.domElement.getBoundingClientRect(); ray.setFromCamera(new T.Vector2((e.clientX - r.left)/r.width*2 - 1, -(e.clientY - r.top)/r.height*2 + 1), cam);
+  if (lm.visible){ const hl = ray.intersectObjects(lm.children.flatMap(g => g.children), false).find(h => plane.distanceToPoint(h.point) > -0.01); if (hl){ show(LMTXT[hl.object.userData.landmark] || hl.object.userData.landmark, "conduction / landmark"); return; } }
+  const hits = ray.intersectObjects([I.tissue, ...I.valves.children.filter(m => m.visible)], false).filter(h => plane.distanceToPoint(h.point) > -0.01);
+  if (!hits.length){ show("–", ""); return; }
+  const h = hits[0]; const g = h.object.geometry, vi = h.face.a, L = g.attributes.aLabel.array[vi], C = g.attributes.aCavity ? g.attributes.aCavity.array[vi] : 0, nm = I.labelNames[L];
+  show(TXT[nm] || nm, C ? "facing: " + (TXT[I.labelNames[C]] || I.labelNames[C]) : (h.object === I.tissue ? "outer surface / wall" : "valve")); }
+function show(n, c){ document.getElementById("iN").textContent = n; document.getElementById("iC").textContent = c; window.__lastPick = n; }
+document.getElementById("off").oninput = applyCut; document.getElementById("flip").onclick = () => { flip *= -1; applyCut(); faceCut(); }; document.getElementById("face").onclick = faceCut;
+const tog = (id, fn) => { const b = document.getElementById(id); b.onclick = () => { const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); fn(on); }; };
+tog("bExt", on => H.mesh.parent.visible = on); tog("bLm", on => lm.visible = on); tog("bVal", on => I.valves.visible = on); let play = true; tog("bPlay", on => play = on);
+document.querySelectorAll("[data-col]").forEach(b => b.onclick = () => { document.querySelectorAll("[data-col]").forEach(x => x.setAttribute("aria-pressed", x === b)); I.colourBy(b.dataset.col); });
+function size(){ const w = innerWidth, h = innerHeight; R.setSize(w, h); cam.aspect = w/h; cam.updateProjectionMatrix(); } addEventListener("resize", size); size();
+let t = 0, last = performance.now();
+window.PREVIEW = { setCut(k, off = 0, fl = 1){ cut = k; flip = fl; document.getElementById("off").value = off; applyCut(); faceCut(); render(); }, setPhase(p){ t = p; play = false; I.setPhase(p); render(); }, render: () => render(), I, cuts: Object.keys(CUTS),
+  setView(dir, up, d){ if (d) dist = d; cam.up.set(...up); cam.position.copy(tgt).add(new T.Vector3(...dir).normalize().multiplyScalar(dist)); cam.lookAt(tgt); render(); }, zoom(d){ dist = d; cam.position.copy(tgt).add(cam.position.clone().sub(tgt).setLength(dist)); render(); }, target(p){ tgt.set(...p); faceCut(); render(); }, setLm: on => { lm.visible = on; render(); }, setExt: on => { H.mesh.parent.visible = on; render(); }, colour: m => { I.colourBy(m); render(); }, tapAt(x, y){ tap({ clientX: x, clientY: y }); return window.__lastPick; } };
+function render(){ R.render(scene, cam); }
+applyCut(); faceCut();
+(function loop(now){ const dt = (now - last)/1000; last = now; if (play){ t = (t + dt*0.35) % 1; document.getElementById("ph").textContent = "phase " + I.phases[I.setPhase(t)].toFixed(2) + " of RR"; } render(); requestAnimationFrame(loop); })(performance.now());
+})();
+</script>
+</body></html>
