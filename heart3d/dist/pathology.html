@@ -205,6 +205,13 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .chip.nogo{opacity:.5}
 .x3 .fallback{padding:24px;color:var(--muted)}
 .x3 .viewer .legend[hidden]{display:none}
+
+.x3 .zoomctl{position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:4}
+.x3 .zoomctl button{width:40px;height:40px;min-height:40px;padding:0;font:600 1.3rem/1 var(--f-display);border-radius:8px;background:rgba(13,18,20,.78);color:#e6ecea;border:1px solid rgba(255,255,255,.18)}
+.x3 .zoomctl button:hover{border-color:#e6ecea}
+.x3 .viewer .hint{right:60px}
+@media (max-width:600px){.x3 .viewer .hint{display:none}}
+.x3 .cutpick select{max-width:min(78vw,340px)}
 </style></head><body class="pg-sim">
 <div class="wrap">
 <header>

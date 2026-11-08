@@ -119,7 +119,37 @@ async def explore_checks(pg, fr, tag):
         k = await chip.get_attribute("data-go"); await chip.click(); await pg.wait_for_timeout(1200)
         check(await pg.evaluate("location.hash") == f"#pathology/{k}", f"[{tag}] card chip opens the simulator on that condition", f"#pathology/{k}")
         await pg.evaluate("location.hash = '#heart3d'"); await pg.wait_for_timeout(600)
-    await fr.evaluate("EXPLORE_APP.setBeat(true)")
+    # camera: the surface follows the cursor (turntable); zoom works over labels, with the wheel and with the buttons
+    await fr.evaluate("EXPLORE_APP.select(null, null); EXPLORE_APP.setMode('ext'); EXPLORE_APP.resetView(); EXPLORE_APP.render()")
+    fe = await pg.evaluate_handle("LABS.heart3d.frame"); fb = await fe.as_element().bounding_box()
+    vb = await fr.evaluate("(() => { const r = document.querySelector('.viewer').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
+    cx, cy = fb["x"] + vb[0] + vb[2]*.5, fb["y"] + vb[1] + vb[3]*.5
+    c0 = await fr.evaluate("EXPLORE_APP.camState()")
+    await pg.mouse.move(cx, cy); await pg.mouse.down(); await pg.mouse.move(cx + 60, cy, steps=6); await pg.mouse.move(cx + 120, cy, steps=6); await pg.mouse.up()
+    c1 = await fr.evaluate("EXPLORE_APP.camState()")
+    await pg.mouse.move(cx, cy); await pg.mouse.down(); await pg.mouse.move(cx, cy + 80, steps=8); await pg.mouse.up()
+    c2 = await fr.evaluate("EXPLORE_APP.camState()")
+    check(c1["theta"] < c0["theta"] - .3 and c1["x"] < c0["x"] and c2["phi"] < c1["phi"] - .2 and c2["y"] > c1["y"],
+          f"[{tag}] drag right turns the heart right, drag down tilts it down (surface follows the cursor)", f"theta {c0['theta']:.2f}->{c1['theta']:.2f}, phi {c1['phi']:.2f}->{c2['phi']:.2f}")
+    await fr.evaluate("EXPLORE_APP.resetView(); EXPLORE_APP.render()")
+    labs = await fr.evaluate("EXPLORE_APP.visibleLabels()"); L0 = labs[0] if labs else {"x": vb[0] + vb[2]*.5, "y": vb[1] + vb[3]*.5}
+    d0 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
+    await pg.mouse.move(fb["x"] + L0["x"], fb["y"] + L0["y"])
+    for _ in range(4): await pg.mouse.wheel(0, 200); await pg.wait_for_timeout(60)
+    d1 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
+    for _ in range(8): await pg.mouse.wheel(0, -200); await pg.wait_for_timeout(60)
+    d2 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
+    await fr.click(".bZout"); d3 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
+    await fr.click(".bZin"); await fr.click(".bZin"); d4 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
+    check(d1 > d0*1.2 and d2 < d1*.7 and d3 > d2 and d4 < d3, f"[{tag}] zoom out / in with the wheel (also over a label) and with − / + buttons",
+          f"dist {d0:.1f} → out {d1:.1f} → in {d2:.1f} → − {d3:.1f} → + {d4:.1f} (label '{L0.get('text', '-')}')")
+    # dissection views: a view card lists what to find, and its chips open cards
+    await fr.evaluate("EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('valves'); EXPLORE_APP.render()")
+    vc = await fr.evaluate("[document.querySelector('.panel h2').textContent, document.querySelectorAll('.panel [data-find]').length]")
+    check("Valves from above" in vc[0] and vc[1] >= 6, f"[{tag}] dissection view card lists what to find", str(vc))
+    await fr.click(".panel [data-find]"); await pg.wait_for_timeout(200)
+    check(await fr.evaluate("document.querySelector('.panel h2').textContent") != vc[0], f"[{tag}] a 'find' chip opens that structure's card")
+    await fr.evaluate("EXPLORE_APP.setMode('ext'); EXPLORE_APP.resetView(); EXPLORE_APP.setBeat(true)")
     if A.shots: await pg.screenshot(path=shot("page_heart3d.png"))
 
 async def sim_checks(pg, fr, tag):

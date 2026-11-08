@@ -3,25 +3,25 @@
    or "artery:<id>" / "vein:<id>" for the coronary tree (export/heart-mesh.json vessels).
    Teaching text: mechanism first, short here; full cards (complications, pearls) live in CONTENT / come with step 7. */
 const EXPLORE_DATA = (() => {
-  /* ---- label colours, chosen by FUNCTION so students read the heart at a glance ----
-     right heart = deoxygenated → blues / purples (veins and cavae purplish blue, RA light blue, RV darker blue, PA blue-violet)
-     left heart  = oxygenated   → reds (pulmonary veins pink-red, LA salmon, LV red, LV wall dark red, aorta orange-red)
-     septa between the two sides: IVS crimson-purple (shared, mostly LV muscle), IAS gold (fossa ovalis stands out)
-     fibrous skeleton and valves: ivory / white; conduction: teal; coronary arteries red, cardiac veins purple; fat yellow */
+  /* ---- label colours: an anatomical TINT, not a poster. Muscle stays muscle-red; only the parts whose blood differs are tinted,
+     in soft natural tones that blend into each other on the surface (colours are smoothed across the mesh):
+     right side (deoxygenated): RA lavender-blue, RV muscle with a cool tint, cavae and PA muted blue
+     left side (oxygenated): LA rose, LV muscle red, aorta and pulmonary veins warm red
+     valves and fibrous skeleton ivory; IAS a pale amber so the fossa ovalis stands out; groove fat stays yellow */
   const PAL = {
-    SVC: "#5b5fd6", IVC: "#5b5fd6", RA: "#8fb8f7", RA_wall: "#7aa6ee", RV_cavity: "#3f6fd8", RV_free_wall: "#3558b8", RVOT: "#5784e6",
-    PA_main: "#8c7bef", RPA: "#8c7bef", LPA: "#8c7bef", coronary_sinus: "#a77bd9", cardiac_veins: "#8a63c9",
-    pulmonary_veins: "#f08c8c", LA: "#f4a08a", LA_wall: "#ee8e78", LAA: "#e77a66", LV_cavity: "#e5534b", LV_myocardium: "#b92e35", PW: "#b92e35", LVOT: "#ef6c5e",
-    aortic_root: "#f2643a", "aortic_root.ascending": "#f2643a", aortic_arch: "#f2643a", arch_branches: "#f47c52",
-    IVS: "#9c2f5c", IAS: "#f2c14e", membranous_septum: "#ede6d6", central_fibrous_body: "#ffffff", TV_annulus: "#ede6d6",
-    MV_AML: "#f7f2e4", MV_PML: "#f7f2e4", TV_septal: "#f7f2e4", TV_anterior: "#f7f2e4", TV_posterior: "#f7f2e4",
-    "AV_cusps.RCC": "#f7f2e4", "AV_cusps.LCC": "#f7f2e4", "AV_cusps.NCC": "#f7f2e4", PV_cusps: "#f7f2e4", chordae: "#f7f2e4",
-    "papillary_muscles.ALPM": "#ff8a65", "papillary_muscles.PMPM": "#ff8a65", moderator_band: "#4fc3f7",
-    crista_terminalis: "#c86bd8", pectinate_muscles: "#e3a2ec", eustachian_valve: "#5bd38a", thebesian_valve: "#f2e35b", todaro_tendon: "#22d3ee",
-    epicardial_fat: "#d9b65c", pericardium: "#f0e2a8", LCA: "#e63946", RCA: "#e63946",
-    artery: "#e63946", vein: "#7e57c2", conduction: "#22c3ab", node: "#35e0c4", koch: "#ffd34d", cti: "#ff7a3d" };
-  const LEGEND = [["Right heart (deoxygenated)", ["#5b5fd6", "#8fb8f7", "#3f6fd8", "#8c7bef"]], ["Left heart (oxygenated)", ["#f08c8c", "#f4a08a", "#e5534b", "#f2643a"]],
-    ["Septa", ["#9c2f5c", "#f2c14e"]], ["Valves · fibrous skeleton", ["#f7f2e4"]], ["Conduction", ["#22c3ab"]], ["Coronary artery · vein", ["#e63946", "#7e57c2"]]];
+    SVC: "#4a5c9e", IVC: "#4a5c9e", RA: "#7a72b4", RA_wall: "#7a72b4", RV_cavity: "#8c3c48", RV_free_wall: "#8c3c48", RVOT: "#90434f",
+    PA_main: "#506cae", RPA: "#506cae", LPA: "#506cae", coronary_sinus: "#6a5a9a", cardiac_veins: "#5c4c8c",
+    pulmonary_veins: "#c46068", LA: "#be6070", LA_wall: "#be6070", LAA: "#b45a68", LV_cavity: "#a6352f", LV_myocardium: "#a6352f", PW: "#a6352f", LVOT: "#ad3d36",
+    aortic_root: "#c4443c", "aortic_root.ascending": "#c4443c", aortic_arch: "#c4443c", arch_branches: "#c4443c",
+    IVS: "#9a3438", IAS: "#c99a68", membranous_septum: "#e2d8c4", central_fibrous_body: "#ece2cc", TV_annulus: "#e2d8c4",
+    MV_AML: "#efe6d4", MV_PML: "#efe6d4", TV_septal: "#efe6d4", TV_anterior: "#efe6d4", TV_posterior: "#efe6d4",
+    "AV_cusps.RCC": "#efe6d4", "AV_cusps.LCC": "#efe6d4", "AV_cusps.NCC": "#efe6d4", PV_cusps: "#efe6d4", chordae: "#efe6d4",
+    "papillary_muscles.ALPM": "#a83a33", "papillary_muscles.PMPM": "#a83a33", moderator_band: "#94424c",
+    crista_terminalis: "#6e66a8", pectinate_muscles: "#7068ac", eustachian_valve: "#e2d8c4", thebesian_valve: "#e2d8c4", todaro_tendon: "#e2d8c4",
+    epicardial_fat: "#e2c482", pericardium: "#f0e2a8", LCA: "#c62a1e", RCA: "#c62a1e",
+    artery: "#c62a1e", vein: "#4a3d86", conduction: "#22c3ab", node: "#35e0c4", koch: "#ffd34d", cti: "#ff7a3d" };
+  const LEGEND = [["Right heart · cavae · pulmonary trunk (deoxygenated)", ["#4a5c9e", "#7a72b4", "#506cae"]], ["Left heart · aorta · pulmonary veins (oxygenated)", ["#be6070", "#c46068", "#c4443c"]],
+    ["Ventricular muscle", ["#a6352f", "#8c3c48"]], ["Valves · fibrous skeleton", ["#efe6d4"]], ["Conduction system", ["#22c3ab"]]];
 
   /* ---- layers (the "Labels" drop-down): which structures carry a label in each group ---- */
   const LAYERS = [

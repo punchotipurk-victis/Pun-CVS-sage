@@ -31,7 +31,7 @@ const B2Hrot = H2Brot.clone().transpose(), fromBodyDir = a => new T.Vector3(...a
 
 /* ---------- beat: one deformation for every heart object (same as the echo's 3D heart) ---------- */
 const beatU = { uSys: { value: 0 } };
-function beatify(mat){ mat.onBeforeCompile = s => { s.uniforms.uSys = beatU.uSys;
+function beatify(mat){ if (mat.clippingPlanes && mat.clippingPlanes.length) mat.clipIntersection = true; mat.onBeforeCompile = s => { s.uniforms.uSys = beatU.uSys;
     s.vertexShader = s.vertexShader.replace("#include <common>", "#include <common>\nuniform float uSys;").replace("#include <begin_vertex>", `#include <begin_vertex>
       { float w = smoothstep(-1.0, 1.5, transformed.z);
         transformed.xy *= 1.0 - 0.065*uSys*w;
@@ -41,7 +41,9 @@ function beatify(mat){ mat.onBeforeCompile = s => { s.uniforms.uSys = beatU.uSys
 const sysCurve = t => { const s = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a)/(b - a))); return u*u*(3 - 2*u); }; return s(.03, .2, t)*(1 - s(.33, .5, t)); };
 
 /* ---------- clip plane (Cut mode) ---------- */
-const plane = new T.Plane(new T.Vector3(0, 0, 1), 1e5), clips = [plane];
+const plane = new T.Plane(new T.Vector3(0, 0, 1), 1e5), plane2 = new T.Plane(new T.Vector3(0, 0, 1), 1e5), clips = [plane, plane2];
+const planeNeg = new T.Plane(), plane2Neg = new T.Plane();          // caps: cap 1 only where plane 2 removes, and vice versa
+const removed = p => plane.distanceToPoint(p) < -0.01 && plane2.distanceToPoint(p) < -0.01;
 
 /* ---------- outer heart + coronaries ---------- */
 const HM = HeartMesh.load(JM, T, { frame: "heart" });
@@ -56,18 +58,68 @@ const extNames = JM.labelNames, extLab = HM.attr.label, extWall = HM.attr.wall, 
 const HI = HeartInterior.load(JI, T, { clippingPlanes: clips }); world.add(HI.group);
 const intNames = JI.labelNames;
 const tisMat = beatify(new T.MeshStandardMaterial({ vertexColors: true, roughness: .58, metalness: 0, side: T.DoubleSide, clippingPlanes: clips }));
+/* endocardial relief (procedural, in the heart frame): trabeculae carneae in the ventricles (fine and dense toward the LV apex,
+   coarse in the RV), pectinate ridges on the anterior RA and in the LAA (running off the crista terminalis), smooth LVOT, upper
+   septum and LA body. Height → bump (screen-space derivatives) + darker crevices. Only on surfaces that face a cavity. */
+const IDX = n => intNames.indexOf(n);
+const crA = new T.Vector3(...JI.landmarks.crista_terminalis.points[0]), crB = new T.Vector3(...JI.landmarks.crista_terminalis.points[2]);
+const CRDIR = crB.clone().sub(crA).normalize(), LAAAX = new T.Vector3(...JI.landmarks.laa_tip.p).sub(new T.Vector3(-1.1, -0.3, -2.25)).normalize();
+const texU = { uRelief: { value: 1 } };
+function texturize(mat){ const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = s2 => { prev(s2); s2.uniforms.uRelief = texU.uRelief;
+    s2.vertexShader = s2.vertexShader.replace("#include <common>", "#include <common>\nattribute float aCavity; attribute float aLabel; varying vec3 vHP; varying float vCav; varying float vLab;")
+      .replace("#include <project_vertex>", "vHP = transformed; vCav = aCavity; vLab = aLabel;\n#include <project_vertex>");
+    const I = n => IDX(n).toFixed(1), v3 = v => `vec3(${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)})`;
+    s2.fragmentShader = s2.fragmentShader.replace("#include <common>", `#include <common>
+      varying vec3 vHP; varying float vCav; varying float vLab; uniform float uRelief;
+      float hsh(vec3 p){ p = fract(p*0.3183099 + .1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x + p.y + p.z)); }
+      float vnoise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.0 - 2.0*f);
+        return mix(mix(mix(hsh(i), hsh(i + vec3(1,0,0)), f.x), mix(hsh(i + vec3(0,1,0)), hsh(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hsh(i + vec3(0,0,1)), hsh(i + vec3(1,0,1)), f.x), mix(hsh(i + vec3(0,1,1)), hsh(i + vec3(1,1,1)), f.x), f.y), f.z); }
+      float ridge(float s){ return pow(1.0 - abs(s), 3.0); }
+      bool isC(float c, float id){ return abs(c - id) < 0.5; }
+      float relief(vec3 p, float cav, float lab){
+        if (cav < 0.5 || uRelief < 0.5) return 0.0;
+        if (isC(cav, ${I("LV_cavity")})){                       /* LV: fine trabeculae, smooth base, LVOT and upper septum */
+          float th = atan(p.y, p.x), w = smoothstep(2.2, 5.6, p.z);
+          if (isC(lab, ${I("IVS")})) w *= smoothstep(4.2, 6.5, p.z);
+          float warp = 2.2*vnoise(p*0.9) + 0.9*vnoise(p*2.3);
+          float a = ridge(sin(th*22.0 + p.z*0.55 + warp)), b = ridge(sin(th*9.0 - p.z*1.7 + 1.3*warp))*0.55;
+          return w*max(a, b); }
+        if (isC(cav, ${I("RV_cavity")})){                       /* RV: coarse, oblique trabeculae in the inflow and apex */
+          vec3 q = p - vec3(3.4, -0.2, 3.5); float th = atan(q.y, q.x), w = smoothstep(1.6, 4.2, p.z);
+          float warp = 2.6*vnoise(p*0.7);
+          return w*max(ridge(sin(th*11.0 + p.z*0.9 + warp)), 0.6*ridge(sin(dot(p, vec3(0.5, 0.7, 0.5))*4.0 + warp))); }
+        if (isC(cav, ${I("LAA")})){                             /* LAA: dense pectinate ridges across its axis */
+          float warp = 1.6*vnoise(p*1.4); return 0.9*ridge(sin(dot(p, ${v3(LAAAX)})*13.0 + warp)); }
+        if (isC(cav, ${I("RA")}) && p.y < 0.9 && !isC(lab, ${I("IAS")})){   /* RA: pectinate ridges in front of the crista; sinus venarum (posterior) smooth */
+          float w = smoothstep(0.9, -0.2, p.y) * smoothstep(2.4, 3.2, p.x);
+          float warp = 1.4*vnoise(p*1.1); return w*ridge(sin(dot(p, ${v3(CRDIR)})*7.5 + warp)); }
+        return 0.0; }
+      vec3 perturbR(vec3 sp, vec3 sn, vec2 dH, float fd){ vec3 sx = dFdx(sp), sy = dFdy(sp), r1 = cross(sy, sn), r2 = cross(sn, sx);
+        float det = dot(sx, r1)*fd; vec3 g = sign(det)*(dH.x*r1 + dH.y*r2); return normalize(abs(det)*sn - g); }`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+      float rH = relief(vHP, vCav, vLab);
+      if (vCav > 0.5) diffuseColor.rgb *= mix(0.78, 1.1, rH) * (0.96 + 0.08*vnoise(vHP*3.1));`)
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+      if (vCav > 0.5){ float hh = rH*0.09; normal = perturbR(-vViewPosition, normal, vec2(dFdx(hh), dFdy(hh))*1.0, faceDirection); }`); };
+  mat.customProgramCacheKey = () => "beat-relief"; return mat; }
+texturize(tisMat);
 HI.tissue.material = tisMat; HI.tissue.renderOrder = 2;
 const valMat = beatify(new T.MeshStandardMaterial({ vertexColors: true, roughness: .42, side: T.DoubleSide, clippingPlanes: clips }));
 HI.valves.children.forEach(m => { m.material = valMat; m.renderOrder = 2; });
-/* stencil cap: the tissue surface is closed, so the plane is filled only where it cuts tissue (cavities stay open) */
-function stencilMat(side){ const m = beatify(new T.MeshBasicMaterial({ depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, side, clippingPlanes: clips }));
-  const op = side === T.BackSide ? T.IncrementWrapStencilOp : T.DecrementWrapStencilOp; m.stencilFail = m.stencilZFail = m.stencilZPass = op; return m; }
-const stB = new T.Mesh(HI.tissue.geometry, stencilMat(T.BackSide)), stF = new T.Mesh(HI.tissue.geometry, stencilMat(T.FrontSide));
-stB.renderOrder = stF.renderOrder = 1; HI.group.add(stB, stF);
-const capMat = new T.MeshStandardMaterial({ color: 0x8e2a24, roughness: .75, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc,
-  stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp });
-const cap = new T.Mesh(new T.PlaneGeometry(80, 80), capMat); cap.renderOrder = 1.5; cap.onAfterRender = r => r.clearStencil(); scene.add(cap);
-
+/* stencil caps: the tissue surface is closed, so a plane is filled only where it cuts tissue (cavities stay open).
+   Two planes (a view may remove only the region behind plane 1 AND beyond plane 2): one stencil group + cap per plane. */
+function stencilMat(side, pl){ const m = beatify(new T.MeshBasicMaterial({ depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, side, clippingPlanes: [pl] }));
+  m.clipIntersection = false; const op = side === T.BackSide ? T.IncrementWrapStencilOp : T.DecrementWrapStencilOp; m.stencilFail = m.stencilZFail = m.stencilZPass = op; return m; }
+const capMat = (clipTo) => new T.MeshStandardMaterial({ color: 0x8e2a24, roughness: .75, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc,
+  stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, clippingPlanes: [clipTo] });
+const capGroups = [[plane, plane2Neg], [plane2, planeNeg]].map(([pl, clipTo], gi) => {
+  const b = new T.Mesh(HI.tissue.geometry, stencilMat(T.BackSide, pl)), f = new T.Mesh(HI.tissue.geometry, stencilMat(T.FrontSide, pl));
+  b.renderOrder = f.renderOrder = 1 + gi*.2; HI.group.add(b, f);
+  const cap = new T.Mesh(new T.PlaneGeometry(80, 80), capMat(clipTo)); cap.renderOrder = 1.1 + gi*.2; cap.onAfterRender = r => r.clearStencil(); scene.add(cap);
+  return { b, f, cap, pl }; });
+const cap = capGroups[0].cap;
 /* ---------- conduction system + teaching landmarks (from the phantom's landmarks) ---------- */
 const COND_IDS = D.LAYERS.find(l => l.id === "conduction").ids;
 const condGroup = HI.landmarkObject(COND_IDS, { radius: .075, colour: 0x22c3ab, pointRadius: .2 });
@@ -96,72 +148,122 @@ const extUnder = (() => { const P = HM.mesh.geometry.attributes.position, n = P.
       for (const j of L){ const d = (P.getX(j)-x)**2 + (P.getY(j)-y)**2 + (P.getZ(j)-z)**2; if (d < bd){ bd = d; best = j; } } }
     if (best >= 0) out[i] = extLab[best]; }
   return out; })();
+/* vertex neighbours (CSR) for colour smoothing: blends the tint borders over a few millimetres so colours look natural */
+function adjacency(g){ const n = g.attributes.position.count, I = g.index.array, deg = new Uint32Array(n + 1);
+  for (let i = 0; i < I.length; i++) deg[I[i] + 1] += 2;
+  for (let i = 0; i < n; i++) deg[i + 1] += deg[i];
+  const nb = new Uint32Array(deg[n]), fillp = deg.slice(0, n);
+  for (let t = 0; t < I.length; t += 3){ const a = I[t], b = I[t+1], c = I[t+2]; nb[fillp[a]++] = b; nb[fillp[a]++] = c; nb[fillp[b]++] = c; nb[fillp[b]++] = a; nb[fillp[c]++] = a; nb[fillp[c]++] = b; }
+  return { start: deg, nb }; }
+function smoothColours(g, iters){ if (!iters) return; const A = g.userData.adj || (g.userData.adj = adjacency(g)), c = g.attributes.color.array, n = c.length/3; let src = c, dst = new Float32Array(c.length);
+  for (let it = 0; it < iters; it++){ for (let i = 0; i < n; i++){ const s0 = A.start[i], s1 = A.start[i+1]; let r = src[i*3]*2, gg = src[i*3+1]*2, b = src[i*3+2]*2, w = 2;
+      for (let q = s0; q < s1; q++){ const j = A.nb[q]; r += src[j*3]; gg += src[j*3+1]; b += src[j*3+2]; w++; }
+      dst[i*3] = r/w; dst[i*3+1] = gg/w; dst[i*3+2] = b/w; } [src, dst] = [dst, src]; }
+  if (src !== c) c.set(src); }
 function paintExt(mode){ const P = HM.mesh.geometry.attributes.position, c = HM.mesh.geometry.attributes.color.array;
   for (let i = 0; i < P.count; i++){ const nm = extNames[mode === "labels" ? extUnder[i] : extLab[i]] || ""; let col;
-    if (mode === "labels") col = PALRGB[nm] || (extWall[i] === 1 ? PALRGB.PW : extWall[i] === 2 ? PALRGB.RV_free_wall : extWall[i] === 3 ? PALRGB.RA_wall : [.6, .6, .6]);
+    if (mode === "labels"){ col = PALRGB[nm] || (extWall[i] === 1 ? PALRGB.PW : extWall[i] === 2 ? PALRGB.RV_free_wall : extWall[i] === 3 ? PALRGB.RA_wall : [.6, .6, .6]);
+      if (extWall[i] === 5) col = col.map((v, k) => .45*v + .55*PALRGB.epicardial_fat[k]); }
     else { let b = REAL_EXT[extWall[i]] || REAL_EXT[0]; if (extWall[i] === 5){ const u = extNames[extUnder[i]], w = /RV|RVOT/.test(u) ? 2 : /LA|RA|SVC|IAS/.test(u) ? 3 : 1; b = b.map((v, k) => .5*v + .5*REAL_EXT[w][k]); }
       const n = .9 + .2*noise(P.getX(i)*.6, P.getY(i)*.6, P.getZ(i)*.6); col = b.map(v => v*n); }
+    if (mode === "labels"){ const n = .93 + .14*noise(P.getX(i)*.6, P.getY(i)*.6, P.getZ(i)*.6); col = col.map(v => v*n); }
     c[i*3] = col[0]; c[i*3+1] = col[1]; c[i*3+2] = col[2]; }
-  HM.mesh.geometry.attributes.color.needsUpdate = true; }
-function paintGeom(g, labels, mode){ const c = g.attributes.color.array, P = g.attributes.position;
+  smoothColours(HM.mesh.geometry, mode === "labels" ? 7 : 2); HM.mesh.geometry.attributes.color.needsUpdate = true; }
+function paintGeom(g, labels, mode, smooth = 0){ const c = g.attributes.color.array, P = g.attributes.position;
   for (let i = 0; i < labels.length; i++){ const nm = intNames[labels[i]] || "";
-    let col = mode === "labels" ? (nm === "epicardial_fat" ? [.62, .5, .42] : PALRGB[nm] || [.6, .6, .6]) : REAL_INT(nm);
-    if (mode !== "labels"){ const n = .92 + .16*noise(P.getX(i)*.7, P.getY(i)*.7, P.getZ(i)*.7); col = col.map(v => v*n); }
+    let col = mode === "labels" ? (PALRGB[nm] || [.6, .6, .6]) : REAL_INT(nm);
+    const n = .92 + .16*noise(P.getX(i)*.7, P.getY(i)*.7, P.getZ(i)*.7); col = col.map(v => v*n);
     c[i*3] = col[0]; c[i*3+1] = col[1]; c[i*3+2] = col[2]; }
-  g.attributes.color.needsUpdate = true; }
-function paint(mode){ paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode);
+  smoothColours(g, smooth); g.attributes.color.needsUpdate = true; }
+function paint(mode){ paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
   HI.valves.children.forEach(m => paintGeom(m.geometry, m.userData.labels, mode));
-  capMat.color.set(mode === "labels" ? 0x9a5a5a : 0x8e2a24); $(".legend").hidden = mode !== "labels"; }
+  capGroups.forEach(g => g.cap.material.color.set(mode === "labels" ? 0x9a4a46 : 0x8e2a24)); $(".legend").hidden = mode !== "labels"; }
 
-/* ---------- cut planes (heart frame; n points into the kept half; camera on the removed side) ---------- */
+/* ---------- cut views (heart frame; n points into the kept half; the camera looks from the removed side) ----------
+   Dissection views are fixed, curated sections like an anatomy atlas: each shows structures that the outside view hides and lists
+   what to find. Body sections (CT-style) can be slid through the heart. */
 const BASE = new T.Vector3(0, 0, -1), ANT = new T.Vector3(0, -1, 0);
+const NB = new T.Vector3(0.28, -0.22, -0.934).normalize(), VALVE_C = new T.Vector3(1.81, -1.2, 0.47);   // best plane through the four valve centres (toward the base)
 const CUTS = {
-  coronal:  { name: "Coronal", group: "Body planes", n: fromBodyDir([0, 0, -1]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 1, 0]) },
-  axial:    { name: "Axial", group: "Body planes", n: fromBodyDir([0, 1, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 0, 1]) },
-  sagittal: { name: "Sagittal", group: "Body planes", n: fromBodyDir([-1, 0, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 1, 0]) },
-  a4c:      { name: "4-chamber", group: "Cardiac planes", n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, 0.15, 2), up: BASE },
-  a2c:      { name: "2-chamber", group: "Cardiac planes", n: new T.Vector3(-1, 0, 0), c: new T.Vector3(0, 0, 2), up: BASE },
-  a3c:      { name: "3-chamber (LVOT)", group: "Cardiac planes", n: new T.Vector3().crossVectors(new T.Vector3(1.6, -1.3, -0.28), new T.Vector3(0, 0, 1)).normalize(), c: new T.Vector3(0.8, -0.6, 2), up: BASE },
-  saxBase:  { name: "Short axis · base", group: "Cardiac planes", n: new T.Vector3(0, 0, -1), c: new T.Vector3(0.6, -0.4, 1.2), up: ANT },
-  saxMid:   { name: "Short axis · mid", group: "Cardiac planes", n: new T.Vector3(0, 0, -1), c: new T.Vector3(0, 0, 4.2), up: ANT },
-  saxApex:  { name: "Short axis · apex", group: "Cardiac planes", n: new T.Vector3(0, 0, -1), c: new T.Vector3(0, 0, 6.6), up: ANT } };
+  valves: { name: "Valves from above (atria removed)", group: "Dissection views", n: NB.clone().negate(), c: VALVE_C.clone().addScaledVector(NB, 1.1), up: ANT, zoom: .62, at: VALVE_C.clone(),
+    about: "The atria and the great arteries are cut away just above the valves, and you look down on the base of the heart, as in the atlas view of the fibrous skeleton. The four valves sit side by side: pulmonary in front, aortic in the middle, mitral and tricuspid behind. The central fibrous body binds the mitral, tricuspid and aortic rings together.",
+    find: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "TV_anterior", "TV_posterior", "central_fibrous_body", "artery:RCA", "artery:LCx", "coronary_sinus"],
+    layers: { valves: true, vessels: true, landmarks: true, chambers: false, conduction: false } },
+  a4c: { name: "Four-chamber section", group: "Dissection views", n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, 0.15, 2), up: BASE,
+    about: "The classic long-axis section through all four chambers. Compare the thin RV wall with the thick LV, see the septa, and note that the tricuspid valve hinges a little closer to the apex than the mitral valve.",
+    find: ["RA", "LA", "RV_cavity", "LV_cavity", "IAS", "fossa_ovalis", "IVS", "membranous_septum", "MV_AML", "TV_septal", "moderator_band", "papillary_muscles.PMPM", "av_node"],
+    layers: { chambers: true, valves: true, landmarks: true, conduction: true, vessels: false } },
+  lvOpen: { name: "Left heart opened (LV outflow)", group: "Dissection views", n: new T.Vector3().crossVectors(new T.Vector3(1.6, -1.3, -0.28), new T.Vector3(0, 0, 1)).normalize(), c: new T.Vector3(0.8, -0.6, 2), up: BASE,
+    about: "A long-axis cut through the LA, the LV and the aortic valve. Follow blood from the LA through the mitral valve, then up the outflow tract past the anterior mitral leaflet (which is in fibrous continuity with the aortic valve) into the aorta. The chordae tie the leaflets to the two papillary muscles.",
+    find: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.RCC", "AV_cusps.NCC", "IVS", "membranous_septum"],
+    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: false } },
+  rvOpen: { name: "Right ventricle opened", group: "Dissection views", n: new T.Vector3(-1, 0.55, 0).normalize(), c: new T.Vector3(3.6, -0.6, 3.2), up: BASE, zoom: .8, at: new T.Vector3(2.8, -0.6, 2.4),
+    n2: NB.clone(), c2: VALVE_C.clone().addScaledVector(NB, 1.3),          /* only the front RV wall (and the RVOT front) below the valve plane */
+    about: "The front wall of the RV is removed, so you look at the septal surface of the RV. Find the tricuspid leaflets, the moderator band crossing from the septum to the anterior papillary muscle (it carries the right bundle branch), the coarse trabeculae, and the smooth outflow tract leading up to the pulmonary valve.",
+    find: ["RV_cavity", "TV_septal", "TV_anterior", "TV_posterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "rbb"],
+    layers: { chambers: true, valves: true, landmarks: true, conduction: true, vessels: false } },
+  raOpen: { name: "Right atrium opened (Koch's triangle)", group: "Dissection views", n: new T.Vector3(-1, 0, 0), c: new T.Vector3(3.9, 0.8, -2.2), up: BASE, zoom: .7, at: new T.Vector3(2.6, 0.9, -1.4),
+    n2: NB.clone().negate(), c2: VALVE_C.clone().addScaledVector(NB, -0.1),   /* only the lateral RA wall, above the valve plane */
+    about: "The lateral RA wall is removed and you face the septal wall from the right. Find the fossa ovalis, the crista terminalis with the pectinate muscles in front of it, the openings of the SVC, IVC and coronary sinus, and Koch's triangle (CS ostium, tendon of Todaro, septal tricuspid hinge) with the AV node at its apex.",
+    find: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "SVC", "cs_ostium", "thebesian_valve", "eustachian_valve", "todaro_tendon", "koch_triangle", "av_node", "TV_septal", "cti"],
+    layers: { chambers: false, valves: true, landmarks: true, conduction: true, vessels: true } },
+  laOpen: { name: "Left atrium opened (from behind)", group: "Dissection views", n: new T.Vector3(0, -1, 0), c: new T.Vector3(-1.1, 0.7, -2.2), up: BASE, zoom: .66, at: new T.Vector3(-0.6, 0.2, -1.9),
+    n2: NB.clone().negate(), c2: VALVE_C.clone().addScaledVector(NB, 0.15),   /* only the back wall of the atria, above the valve plane */
+    about: "The back wall of the LA is removed. Find the four pulmonary vein openings (where AF triggers fire and where ablation isolates them), the narrow mouth of the left atrial appendage, the septum with the fossa ovalis from the left, and the mitral valve below.",
+    find: ["pulmonary_veins", "LAA", "IAS", "fossa_ovalis", "MV_AML", "MV_PML", "LA"],
+    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: true } },
+  sax: { name: "Short axis (papillary muscles)", group: "Dissection views", n: new T.Vector3(0, 0, -1), c: new T.Vector3(0, 0, 4.2), up: ANT,
+    about: "A cross-section of both ventricles seen from the apex, as in a short-axis echo. The round, thick LV holds two papillary muscles; the thin RV wraps around it like a crescent; the septum bulges into the RV.",
+    find: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "moderator_band"],
+    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: false } },
+  coronal:  { name: "Coronal", group: "Body sections (CT-style)", body: true, n: fromBodyDir([0, 0, -1]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 1, 0]),
+    about: "A frontal slice as on a coronal CT, seen from the front. Slide it from front to back through the heart." },
+  axial:    { name: "Axial", group: "Body sections (CT-style)", body: true, n: fromBodyDir([0, 1, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 0, 1]),
+    about: "A horizontal slice as on an axial CT, seen from the feet (the patient's right on the left of the screen). Slide it from top to bottom." },
+  sagittal: { name: "Sagittal", group: "Body sections (CT-style)", body: true, n: fromBodyDir([-1, 0, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 1, 0]),
+    about: "A side slice as on a sagittal CT, seen from the patient's left. Slide it from right to left." } };
 
 /* ---------- state ---------- */
-const st = { mode: "ext", cut: "a4c", off: 0, flip: 1, colour: "real", coronaries: true, beat: !reduced, speed: .5, t: 0,
+const st = { mode: "ext", cut: "valves", off: 0, flip: 1, colour: "real", coronaries: true, beat: !reduced, speed: .5, t: 0,
   layers: { chambers: true, valves: true, vessels: true, conduction: true, landmarks: false }, sel: null };
 
-/* ---------- camera: own orbit / pan / zoom (no addons) ---------- */
+/* ---------- camera: turntable around the body's head–foot axis (like a specimen on a turntable); surface follows the cursor ---------- */
 HM.mesh.geometry.computeBoundingSphere();
 const centre = toWorld(HM.mesh.geometry.boundingSphere.center.clone()), radius = HM.mesh.geometry.boundingSphere.radius;
-const tgt = centre.clone(); let dist = radius*3.3;
-const VIEWS = { Front: [[0, 0, 1], [0, 1, 0]], Back: [[0, 0, -1], [0, 1, 0]], Left: [[1, 0, 0], [0, 1, 0]], Right: [[-1, 0, 0], [0, 1, 0]], Below: [[0, -1, .01], [0, 0, 1]], Above: [[0, 1, .01], [0, 0, 1]] };
-function setView(name){ const [d, u] = VIEWS[name]; cam.up.set(...u); cam.position.copy(tgt).add(new T.Vector3(...d).normalize().multiplyScalar(dist)); cam.lookAt(tgt); dirty(); }
-function faceCut(){ const C0 = CUTS[st.cut]; const n = toWorldDir(C0.n).multiplyScalar(-st.flip); cam.up.copy(toWorldDir(C0.up)); cam.position.copy(tgt).addScaledVector(n, dist); cam.lookAt(tgt); dirty(); }
-function orbit(dx, dy){ const off = cam.position.clone().sub(tgt), right = new T.Vector3().crossVectors(off, cam.up).normalize();
-  const q = new T.Quaternion().setFromAxisAngle(cam.up.clone().normalize(), -dx*.007).multiply(new T.Quaternion().setFromAxisAngle(right, -dy*.007));
-  off.applyQuaternion(q); cam.up.applyQuaternion(q).normalize(); cam.position.copy(tgt).add(off); cam.lookAt(tgt); }
-function pan(dx, dy){ const h = 2*Math.tan(cam.fov*Math.PI/360)*cam.position.distanceTo(tgt)/host.clientHeight;
-  const right = new T.Vector3().setFromMatrixColumn(cam.matrix, 0), up = new T.Vector3().setFromMatrixColumn(cam.matrix, 1);
-  const m = right.multiplyScalar(-dx*h).add(up.multiplyScalar(dy*h)); tgt.add(m); cam.position.add(m); }
-function zoom(f){ dist = Math.max(radius*.8, Math.min(radius*12, dist*f)); cam.position.copy(tgt).add(cam.position.clone().sub(tgt).setLength(dist)); }
+const WUP = new T.Vector3(0, 1, 0), tgt = centre.clone(); let dist = radius*3.3, theta = 0, phi = Math.PI/2, prefUp = WUP.clone();
+const ZMIN = radius*1.15, ZMAX = radius*10;
+function placeCam(){ phi = Math.max(.04, Math.min(Math.PI - .04, phi)); const sp = Math.sin(phi);
+  cam.position.set(tgt.x + dist*sp*Math.sin(theta), tgt.y + dist*Math.cos(phi), tgt.z + dist*sp*Math.cos(theta));
+  const w = Math.max(0, Math.min(1, (Math.abs(Math.cos(phi)) - .7)/.26));          // near the poles use the view's preferred "up" (e.g. anterior)
+  cam.up.copy(WUP).lerp(prefUp, w*w).normalize(); cam.lookAt(tgt); cam.updateMatrixWorld(); labelsDirty = true; }
+function lookFrom(dir, up){ const d = dir.clone().normalize(); phi = Math.acos(Math.max(-1, Math.min(1, d.y))); theta = Math.atan2(d.x, d.z); prefUp = (up || WUP).clone().normalize(); placeCam(); dirty(); }
+const VIEWS = { Front: [[0, 0, 1]], Back: [[0, 0, -1]], Left: [[1, 0, 0]], Right: [[-1, 0, 0]], Below: [[0, -1, .02], [0, 0, 1]], Above: [[0, 1, .02], [0, 0, 1]] };
+function setView(name){ const [d, u] = VIEWS[name]; lookFrom(new T.Vector3(...d), u ? new T.Vector3(...u) : null); }
+function faceCut(){ const C0 = CUTS[st.cut]; lookFrom(toWorldDir(C0.n).multiplyScalar(-st.flip), toWorldDir(C0.up)); }
+function orbit(dx, dy){ theta -= dx*.008; phi -= dy*.008; placeCam(); }
+function pan(dx, dy){ const h = 2*Math.tan(cam.fov*Math.PI/360)*dist/Math.max(1, host.clientHeight);
+  const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+  tgt.add(right.multiplyScalar(-dx*h)).add(up.multiplyScalar(dy*h)); placeCam(); }
+function zoom(f){ dist = Math.max(ZMIN, Math.min(ZMAX, dist*f)); placeCam(); dirty(); }
 const fitDist = () => radius*3.3*Math.max(1, 1.25/Math.max(.3, cam.aspect || 1));   // narrow (phone) views back off so the whole heart fits
 function resetView(){ size(); tgt.copy(centre); dist = fitDist(); setView("Front"); }
 const ptrs = new Map(); let gesture = null, lastTap = 0;
-const cvs = renderer.domElement; cvs.style.touchAction = "none";
-cvs.addEventListener("contextmenu", e => e.preventDefault());
-cvs.addEventListener("pointerdown", e => { cvs.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  gesture = { moved: 0, panning: e.button === 2 || e.shiftKey || ptrs.size === 2, start: Date.now() }; if (ptrs.size === 2) gesture.pinch = pinchDist(); interacting(); });
+const cvs = renderer.domElement; host.style.touchAction = "none";
+host.addEventListener("contextmenu", e => e.preventDefault());
+host.addEventListener("pointerdown", e => { if (e.target.closest(".zoomctl")) return; host.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  gesture = { moved: 0, panning: e.button === 2 || e.shiftKey || ptrs.size === 2, start: Date.now(), target: e.target }; if (ptrs.size === 2) gesture.pinch = pinchDist(); interacting(); });
 function pinchDist(){ const p = [...ptrs.values()]; return p.length < 2 ? 0 : Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); }
-cvs.addEventListener("pointermove", e => { const p = ptrs.get(e.pointerId); if (!p || !gesture) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+host.addEventListener("pointermove", e => { const p = ptrs.get(e.pointerId); if (!p || !gesture) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   gesture.moved += Math.hypot(dx, dy);
   if (ptrs.size === 2){ const d = pinchDist(); if (gesture.pinch && d){ zoom(gesture.pinch/d); gesture.pinch = d; } pan(dx/2, dy/2); }
   else if (gesture.panning) pan(dx, dy); else orbit(dx, dy);
   interacting(); });
 function endPtr(e){ if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId);
-  if (gesture && ptrs.size === 0){ if (gesture.moved < 6 && Date.now() - gesture.start < 600){ const now = Date.now();
-      if (now - lastTap < 320) focusAt(e.clientX, e.clientY); else tapAt(e.clientX, e.clientY); lastTap = now; } gesture = null; } }
-cvs.addEventListener("pointerup", endPtr); cvs.addEventListener("pointercancel", endPtr);
-cvs.addEventListener("wheel", e => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY)*.09); interacting(); }, { passive: false });
+  if (gesture && ptrs.size === 0){ if (gesture.moved < 6 && Date.now() - gesture.start < 600){ const lab = gesture.target && gesture.target.closest && gesture.target.closest(".lab");
+      if (lab) select(lab.dataset.id, null);
+      else { const now = Date.now(); if (now - lastTap < 320) focusAt(e.clientX, e.clientY); else tapAt(e.clientX, e.clientY); lastTap = now; } } gesture = null; } }
+host.addEventListener("pointerup", endPtr); host.addEventListener("pointercancel", endPtr);
+host.addEventListener("wheel", e => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY)*.1); interacting(); }, { passive: false });
 
 /* ---------- modes ---------- */
 function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray";
@@ -171,16 +273,27 @@ function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray";
   if (cut){ extRoot.visible = st.coronaries; HM.mesh.visible = false; HM.vessels.visible = st.coronaries; }
   HI.tissue.visible = cut || xr; tisMat.transparent = xr; tisMat.opacity = xr ? .22 : 1; tisMat.depthWrite = !xr; tisMat.needsUpdate = true;
   HI.valves.visible = (cut || xr) && st.layers.valves !== false;
-  stB.visible = stF.visible = cap.visible = cut;
+  capGroups.forEach((g, i) => { g.b.visible = g.f.visible = g.cap.visible = cut && (i === 0 || !!CUTS[st.cut].n2); });
   const onTop = m === "ext";                                     // in External the conduction system is drawn over the surface (it lies inside)
   for (const mat of [condMat, nodeMat, kochMat, ctiMat]){ mat.depthTest = !onTop; mat.opacity = onTop ? .9 : 1; mat.needsUpdate = true; }
   condGroup.visible = st.layers.conduction; lmGroup.visible = st.layers.landmarks;
-  if (cut) applyCut(); else plane.set(new T.Vector3(0, 0, 1), 1e5);
+  if (cut) applyCut(); else { plane.set(new T.Vector3(0, 0, 1), 1e5); plane2.copy(plane); }
   $$(".segMode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m)); $(".cutctl").hidden = !cut; $(".bFace").disabled = !cut;
   labelsDirty = true; dirty(); }
 function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(st.flip), pH = C0.c.clone().addScaledVector(C0.n, st.off);
   const nW = toWorldDir(nH), pW = toWorld(pH); plane.setFromNormalAndCoplanarPoint(nW, pW);
-  cap.position.copy(pW).addScaledVector(nW, -.002); cap.lookAt(pW.clone().sub(nW)); $(".cutName").textContent = C0.name; labelsDirty = true; dirty(); }
+  if (C0.n2) plane2.setFromNormalAndCoplanarPoint(toWorldDir(C0.n2), toWorld(C0.c2)); else plane2.copy(plane);
+  planeNeg.copy(plane).negate(); plane2Neg.copy(plane2).negate();
+  for (const g of capGroups){ const n = g.pl.normal, p0 = n.clone().multiplyScalar(-g.pl.constant); g.cap.position.copy(p0).addScaledVector(n, -.002); g.cap.lookAt(p0.clone().sub(n)); }
+  const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
+  $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
+function chooseCut(k, fromUser){ st.cut = k; st.off = 0; st.flip = 1; $(".rngOff").value = 0; $(".selCut").value = k; const C0 = CUTS[k];
+  if (C0.layers){ Object.assign(st.layers, C0.layers); syncLayersUI(); }
+  applyMode(); tgt.copy(C0.at ? toWorld(C0.at) : centre); dist = fitDist()*(C0.zoom || 1); faceCut(); if (fromUser !== false) showView(k); }
+function showView(k){ const C0 = CUTS[k]; st.sel = null; marker.visible = false;
+  panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
+    (C0.find ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${C0.find.filter(id => anchors.some(a => a.id === id)).map(id => `<button class="chip" data-find="${esc(id)}">${esc(D.SHORT[id] || id)}</button>`).join("")}</div>` : "");
+  panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => select(b.dataset.find, null)); window.__lastCard = C0.name; dirty(); }
 
 /* ---------- labels: anchors per structure, de-cluttered, hidden when behind tissue or cut away ---------- */
 function centroidAnchor(geom, labels, pred){ const P = geom.attributes.position, N = geom.attributes.normal; let sx = 0, sy = 0, sz = 0, n = 0;
@@ -211,12 +324,12 @@ const anchors = [];   // { id, layer, text, p (heart frame), nrm, where: 'ext'|'
     if (ei > 0){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => l === ei); if (a && a.count > 20) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
   }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true;
-    el.addEventListener("click", ev => { ev.stopPropagation(); select(a.id, null); }); labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
+    labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
 let labelsDirty = true, lastLabelCheck = 0;
 const ray = new T.Raycaster();
 function occluded(w, targets){ const d = cam.position.distanceTo(w); ray.set(cam.position, w.clone().sub(cam.position).normalize()); ray.far = d - .35;
-  const hits = ray.intersectObjects(targets, false); return hits.some(h => plane.distanceToPoint(h.point) >= -0.01); }
+  const hits = ray.intersectObjects(targets, false); return hits.some(h => !removed(h.point)); }
 function updateLabelVisibility(){
   const m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
   for (const a of anchors){ let show = !!st.layers[a.layer];
@@ -224,7 +337,8 @@ function updateLabelVisibility(){
       else if (cut) show = a.where !== "ext";
       else show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
-    if (show && cut && plane.distanceToPoint(a.w) < -0.05) show = false;
+    if (show && cut && removed(a.w)) show = false;
+    if (show && cut && CUTS[st.cut].find && !CUTS[st.cut].find.includes(a.id) && st.sel !== a.id) show = false;
     if (show && occT.length && !(ext && a.layer === "conduction")) show = !occluded(a.w, occT);
     a.vis = show; }
   labelsDirty = false; lastLabelCheck = performance.now(); }
@@ -241,7 +355,7 @@ function placeLabels(){ const w = host.clientWidth, h = host.clientHeight, place
 /* ---------- picking → structure id ---------- */
 const marker = new T.Mesh(new T.SphereGeometry(.14, 16, 12), new T.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: .9 })); marker.renderOrder = 10; marker.visible = false; scene.add(marker);
 function rayAt(x, y){ const r = cvs.getBoundingClientRect(); ray.far = Infinity; ray.setFromCamera(new T.Vector2((x - r.left)/r.width*2 - 1, -(y - r.top)/r.height*2 + 1), cam); }
-const keep = h => plane.distanceToPoint(h.point) >= -0.01;
+const keep = h => !removed(h.point);
 function pickAt(x, y){ rayAt(x, y); const m = st.mode;
   if (condGroup.visible){ const hc = ray.intersectObjects(condGroup.children, false).filter(keep)[0]; if (hc && (m === "ext" || !nearerTissue(hc))) return { id: hc.object.userData.landmark, point: hc.point }; }
   if (lmGroup.visible){ const hl = ray.intersectObjects(lmGroup.children.flatMap(g => g.children), false).filter(keep)[0]; if (hl) return { id: hl.object.userData.landmark, point: hl.point }; }
@@ -261,7 +375,7 @@ function vesselHit(h){ const v = h.object.userData, pts = v.points; let bi = 0, 
   pts.forEach((p, i) => { const d = (p[0]-lp.x)**2 + (p[1]-lp.y)**2 + (p[2]-lp.z)**2; if (d < bd){ bd = d; bi = i; } });
   return { id: (v.kind === "artery" ? "artery:" : "vein:") + v.id, t: bi/Math.max(1, pts.length - 1), point: h.point }; }
 function tapAt(x, y){ const r = pickAt(x, y); if (!r){ return null; } select(r.id, r); return r.id; }
-function focusAt(x, y){ const r = pickAt(x, y); if (!r) return; const d = r.point.clone().sub(tgt); tgt.add(d); cam.position.add(d); zoom(.8); dirty(); }
+function focusAt(x, y){ const r = pickAt(x, y); if (!r) return; tgt.copy(r.point); zoom(.8); }
 
 /* ---------- cards ---------- */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -302,23 +416,25 @@ const cutSel = $(".selCut"); let og = null;
 for (const [k, c] of Object.entries(CUTS)){ if (!og || og.label !== c.group){ og = document.createElement("optgroup"); og.label = c.group; cutSel.appendChild(og); }
   const o = document.createElement("option"); o.value = k; o.textContent = c.name; og.appendChild(o); }
 cutSel.value = st.cut;
-cutSel.onchange = () => { st.cut = cutSel.value; st.off = 0; $(".rngOff").value = 0; applyCut(); faceCut(); };
+cutSel.onchange = () => chooseCut(cutSel.value);
 $(".rngOff").oninput = e => { st.off = +e.target.value; applyCut(); };
 $(".bFlip").onclick = () => { st.flip *= -1; applyCut(); faceCut(); };
 $(".bFace").onclick = () => faceCut();
-$$(".segMode button").forEach(b => b.onclick = () => { const was = st.mode; st.mode = b.dataset.m; applyMode(); if (st.mode === "cut" && was !== "cut") faceCut(); });
+$$(".segMode button").forEach(b => b.onclick = () => { const was = st.mode; st.mode = b.dataset.m; applyMode(); if (st.mode === "cut" && was !== "cut") chooseCut(st.cut); else if (was === "cut" && st.mode !== "cut") resetView(); });
 $$(".segCol button").forEach(b => b.onclick = () => { st.colour = b.dataset.c; $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x === b)); paint(st.colour); dirty(); });
 const layerBox = $(".layerList");
 layerBox.innerHTML = D.LAYERS.map(L => `<label><input type="checkbox" data-layer="${L.id}" ${st.layers[L.id] ? "checked" : ""}><span class="sw sw-${L.id}"></span>${esc(L.name)}</label>`).join("") +
   `<div class="lrow"><button type="button" class="bAll">All</button><button type="button" class="bNone">None</button></div>`;
-const syncLayers = () => { layerBox.querySelectorAll("[data-layer]").forEach(c => c.checked = !!st.layers[c.dataset.layer]); $(".layerCount").textContent = Object.values(st.layers).filter(Boolean).length + "/" + D.LAYERS.length; applyMode(); };
+const syncLayersUI = () => { layerBox.querySelectorAll("[data-layer]").forEach(c => c.checked = !!st.layers[c.dataset.layer]); $(".layerCount").textContent = Object.values(st.layers).filter(Boolean).length + "/" + D.LAYERS.length; };
+const syncLayers = () => { syncLayersUI(); applyMode(); };
 layerBox.querySelectorAll("[data-layer]").forEach(c => c.onchange = () => { st.layers[c.dataset.layer] = c.checked; syncLayers(); });
 $(".bAll").onclick = () => { for (const k in st.layers) st.layers[k] = true; syncLayers(); };
 $(".bNone").onclick = () => { for (const k in st.layers) st.layers[k] = false; syncLayers(); };
 const tog = (sel, get, set) => { const b = $(sel); const sync = () => { b.setAttribute("aria-pressed", get()); b.querySelector(".st").textContent = get() ? "On" : "Off"; }; b.onclick = () => { set(!get()); sync(); applyMode(); }; sync(); };
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
 tog(".bBeat", () => st.beat, v => { st.beat = v; if (!v){ beatU.uSys.value = 0; HI.setPhase(0); } kick(); });
-$$(".views button").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
+$$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
+$(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
 
 /* ---------- render loop: runs only while shown; idles when nothing moves ---------- */
@@ -344,11 +460,11 @@ window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== 
 /* ---------- start ---------- */
 paint(st.colour); applyMode(); resetView(); select(null, null);
 $(".busy").hidden = true;
-window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ st.mode = m; applyMode(); if (m === "cut") faceCut(); }, setCut(k, off = 0, flip = 1){ st.cut = k; st.off = off; st.flip = flip; cutSel.value = k; applyCut(); faceCut(); },
+window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },
   setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
   render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); },
   visibleLabels: () => anchors.filter(a => !a.el.hidden).map(a => { const r = a.el.getBoundingClientRect(); return { id: a.id, text: a.text, layer: a.layer, x: r.left + r.width/2, y: r.top + r.height/2 }; }),
   screenOf(id){ const a = anchors.find(x => x.id === id && !x.el.hidden) || anchors.find(x => x.id === id); if (!a) return null; const v = a.w.clone().project(cam), r = cvs.getBoundingClientRect(); return [r.left + (v.x*.5 + .5)*r.width, r.top + (-v.y*.5 + .5)*r.height]; },
-  tapAt, select, card: () => window.__lastCard, legacy: typeof window.H3 !== "undefined" };
+  tapAt, select, card: () => window.__lastCard, camState: () => ({ theta, phi, dist, x: cam.position.x, y: cam.position.y, z: cam.position.z }), legacy: typeof window.H3 !== "undefined" };
 })();
