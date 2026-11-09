@@ -143,6 +143,22 @@ async def explore_checks(pg, fr, tag):
     await fr.click(".bZin"); await fr.click(".bZin"); d4 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
     check(d1 > d0*1.2 and d2 < d1*.7 and d3 > d2 and d4 < d3, f"[{tag}] zoom out / in with the wheel (also over a label) and with − / + buttons",
           f"dist {d0:.1f} → out {d1:.1f} → in {d2:.1f} → − {d3:.1f} → + {d4:.1f} (label '{L0.get('text', '-')}')")
+    # Below view and a dissection view: the up-axis never changes while dragging (no roll), and up/down drags both move (no sticking)
+    for setup in ("EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Below')", "EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('raOpen')"):
+        await fr.evaluate(setup + "; EXPLORE_APP.render()"); ups = set(); ph = []
+        for dx, dy in ((150, 0), (0, 120), (0, -240)):
+            await pg.mouse.move(cx, cy); await pg.mouse.down()
+            for i in range(1, 9): await pg.mouse.move(cx + dx*i/8, cy + dy*i/8); st_ = await fr.evaluate("EXPLORE_APP.camState()"); ups.add(tuple(round(u, 4) for u in st_["up"]))
+            await pg.mouse.up(); ph.append(st_["phi"])
+        check(len(ups) == 1 and ph[1] < ph[0] - .2 and ph[2] > ph[1] + .4, f"[{tag}] smooth drag in {setup.split('(')[-1][1:-2]} (no roll, up and down both move)", f"phi {[round(x, 2) for x in ph]}, up-axes {len(ups)}")
+    # labels refresh with the beat off; vessel labels (RCA, PDA) show when their surface faces you
+    await fr.evaluate("EXPLORE_APP.setBeat(false, 0); EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Front'); for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false)")
+    await pg.wait_for_timeout(600); await fr.evaluate("EXPLORE_APP.setLayer('chambers', true); EXPLORE_APP.setLayer('vessels', true)"); await pg.wait_for_timeout(700)
+    front = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
+    await fr.evaluate("EXPLORE_APP.setView('Below')"); await pg.wait_for_timeout(700)
+    below = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
+    check("artery:RCA" in front and any(i in front for i in ("RA", "RV_cavity")) and "artery:PDA" in below, f"[{tag}] with the beat off, ticking layers refreshes labels; RCA (front) and PDA (below) show", f"front={front} below={below}")
+    await fr.evaluate("for (const k of ['valves','conduction']) EXPLORE_APP.setLayer(k, true)")
     # dissection views: a view card lists what to find, and its chips open cards
     await fr.evaluate("EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('valves'); EXPLORE_APP.render()")
     vc = await fr.evaluate("[document.querySelector('.panel h2').textContent, document.querySelectorAll('.panel [data-find]').length]")
@@ -162,7 +178,9 @@ async def sim_checks(pg, fr, tag):
     for k in keys:
         await fr.click(f"{root} .panel [data-sc={k}]"); await pg.wait_for_timeout(2200)
         sig = await ecg_sig(fr, "sim")
-        if k != "normal" and sig[1] == base[1]: same.append(k)
+        if k != "normal" and sig[1] == base[1]:          # subtle changes (1st-degree block: PR only) may need another sweep
+            await pg.wait_for_timeout(2500); sig = await ecg_sig(fr, "sim")
+            if sig[1] == base[1]: same.append(k)
         if A.shots:
             el = await fr.query_selector(f"{root} .main"); await el.screenshot(path=shot(f"sim_{k}.png"))
     check(not same, f"[{tag}] every scenario changes the 12-lead", f"unchanged: {same}" if same else f"({len(keys)-1} scenarios)")

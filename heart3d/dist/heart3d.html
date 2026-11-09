@@ -963,17 +963,25 @@ const st = { mode: "ext", cut: "valves", off: 0, flip: 1, colour: "real", corona
 /* ---------- camera: turntable around the body's head–foot axis (like a specimen on a turntable); surface follows the cursor ---------- */
 HM.mesh.geometry.computeBoundingSphere();
 const centre = toWorld(HM.mesh.geometry.boundingSphere.center.clone()), radius = HM.mesh.geometry.boundingSphere.radius;
-const WUP = new T.Vector3(0, 1, 0), tgt = centre.clone(); let dist = radius*3.3, theta = 0, phi = Math.PI/2, prefUp = WUP.clone();
+const WUP = new T.Vector3(0, 1, 0), tgt = centre.clone(); let dist = radius*3.3, theta = 0;
+/* turntable around the CURRENT VIEW'S up-axis (head-up for Front/Back/sides, anterior-up for Below/Above, the dissection's own up for
+   cut views). The axis never changes while dragging, so the picture never rolls; the camera never sits on the axis, so it never sticks. */
+const U = WUP.clone(), dirV = new T.Vector3(0, 0, 1);
 const ZMIN = radius*1.15, ZMAX = radius*10;
-function placeCam(){ phi = Math.max(.04, Math.min(Math.PI - .04, phi)); const sp = Math.sin(phi);
-  cam.position.set(tgt.x + dist*sp*Math.sin(theta), tgt.y + dist*Math.cos(phi), tgt.z + dist*sp*Math.cos(theta));
-  const w = Math.max(0, Math.min(1, (Math.abs(Math.cos(phi)) - .7)/.26));          // near the poles use the view's preferred "up" (e.g. anterior)
-  cam.up.copy(WUP).lerp(prefUp, w*w).normalize(); cam.lookAt(tgt); cam.updateMatrixWorld(); labelsDirty = true; }
-function lookFrom(dir, up){ const d = dir.clone().normalize(); phi = Math.acos(Math.max(-1, Math.min(1, d.y))); theta = Math.atan2(d.x, d.z); prefUp = (up || WUP).clone().normalize(); placeCam(); dirty(); }
-const VIEWS = { Front: [[0, 0, 1]], Back: [[0, 0, -1]], Left: [[1, 0, 0]], Right: [[-1, 0, 0]], Below: [[0, -1, .02], [0, 0, 1]], Above: [[0, 1, .02], [0, 0, 1]] };
+function placeCam(){ cam.position.copy(tgt).addScaledVector(dirV, dist); cam.up.copy(U); cam.lookAt(tgt); cam.updateMatrixWorld(); labelsDirty = true; }
+function lookFrom(dir, up){ dirV.copy(dir).normalize(); const u = (up || WUP).clone().normalize();
+  if (Math.abs(u.dot(dirV)) > .97) u.copy(Math.abs(dirV.y) < .9 ? WUP : new T.Vector3(0, 0, 1));
+  U.copy(u); theta = 0; placeCam(); dirty(); }
+const VIEWS = { Front: [[0, 0, 1]], Back: [[0, 0, -1]], Left: [[1, 0, 0]], Right: [[-1, 0, 0]], Below: [[0, -1, 0], [0, 0, 1]], Above: [[0, 1, 0], [0, 0, 1]] };
 function setView(name){ const [d, u] = VIEWS[name]; lookFrom(new T.Vector3(...d), u ? new T.Vector3(...u) : null); }
 function faceCut(){ const C0 = CUTS[st.cut]; lookFrom(toWorldDir(C0.n).multiplyScalar(-st.flip), toWorldDir(C0.up)); }
-function orbit(dx, dy){ theta -= dx*.008; phi -= dy*.008; placeCam(); }
+function orbit(dx, dy){
+  const yaw = -dx*.008; dirV.applyAxisAngle(U, yaw); theta += yaw;                     // drag right → heart turns right
+  const right = new T.Vector3().crossVectors(U, dirV); if (right.lengthSq() > 1e-8){ right.normalize();
+    const ang = Math.acos(Math.max(-1, Math.min(1, dirV.dot(U)))), next = Math.max(.06, Math.min(Math.PI - .06, ang - dy*.008));
+    dirV.applyAxisAngle(right, next - ang).normalize(); }                              // drag down → heart tilts down (camera rises)
+  placeCam(); }
+const phiNow = () => Math.acos(Math.max(-1, Math.min(1, dirV.dot(U))));
 function pan(dx, dy){ const h = 2*Math.tan(cam.fov*Math.PI/360)*dist/Math.max(1, host.clientHeight);
   const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
   tgt.add(right.multiplyScalar(-dx*h)).add(up.multiplyScalar(dy*h)); placeCam(); }
@@ -1045,7 +1053,11 @@ const anchors = [];   // { id, layer, text, p (heart frame), nrm, where: 'ext'|'
       if (ex.length){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => ex.includes(l)); if (a && a.count > 30) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
       continue; }
     if (id.startsWith("artery:") || id.startsWith("vein:")){ const [kind, vid] = id.split(":"); const v = (kind === "artery" ? JM.vessels.arteries : JM.vessels.veins).find(x => x.id === vid);
-      if (v){ const pts = v.points, k = Math.min(pts.length - 1, Math.round(pts.length*(vid === "LM" ? .5 : .35))); anchors.push({ id, layer: L.id, text, p: new T.Vector3(...pts[k]), nrm: null, where: "vessel" }); } continue; }
+      if (v){ const pts = v.points, k = Math.min(pts.length - 1, Math.round(pts.length*(vid === "LM" ? .5 : .35))), p = new T.Vector3(...pts[k]);
+        const P = HM.mesh.geometry.attributes.position, N = HM.mesh.geometry.attributes.normal; let bi = 0, bd = 1e9;
+        for (let i = 0; i < P.count; i++){ const d = (P.getX(i)-p.x)**2 + (P.getY(i)-p.y)**2 + (P.getZ(i)-p.z)**2; if (d < bd){ bd = d; bi = i; } }
+        const nrm = new T.Vector3(N.getX(bi), N.getY(bi), N.getZ(bi)).normalize();
+        anchors.push({ id, layer: L.id, text, p: p.clone().addScaledVector(nrm, .25), nrm, where: "vessel" }); } continue; }
     const lm = JI.landmarks[id];
     if (lm){ let p; if (lm.kind === "point") p = lm.p; else if (lm.points && Array.isArray(lm.points)) p = lm.points[Math.floor(lm.points.length/2)]; else continue;
       anchors.push({ id, layer: L.id, text, p: new T.Vector3(...p), nrm: null, where: "lm" }); continue; }
@@ -1056,7 +1068,7 @@ const anchors = [];   // { id, layer, text, p (heart frame), nrm, where: 'ext'|'
     const ei = extNames.indexOf(id);
     if (ei > 0){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => l === ei); if (a && a.count > 20) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
   }
-  for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true;
+  for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
 let labelsDirty = true, lastLabelCheck = 0;
@@ -1072,7 +1084,8 @@ function updateLabelVisibility(){
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
     if (show && cut && removed(a.w)) show = false;
     if (show && cut && CUTS[st.cut].find && !CUTS[st.cut].find.includes(a.id) && st.sel !== a.id) show = false;
-    if (show && occT.length && !(ext && a.layer === "conduction")) show = !occluded(a.w, occT);
+    if (show && a.where === "vessel"){ show = a.nw.dot(cam.position.clone().sub(a.w).normalize()) > .12; if (show && cut) show = !occluded(a.w, occT); }   // vessels: the surface must face you
+    else if (show && occT.length && !(ext && a.layer === "conduction")) show = !occluded(a.w, occT);
     a.vis = show; }
   labelsDirty = false; lastLabelCheck = performance.now(); }
 const PRIO = { chambers: 0, valves: 1, conduction: 2, vessels: 3, landmarks: 4 };
@@ -1179,8 +1192,9 @@ function kick(){ if (!running && active()){ running = true; lastNow = 0; request
 function loop(now){ if (!active()){ running = false; return; }
   const dt = lastNow ? Math.min(.1, (now - lastNow)/1000) : 0; lastNow = now;
   if (st.beat){ st.t = (st.t + dt*st.speed) % 1; beatU.uSys.value = sysCurve(st.t); HI.setPhase(st.t); needs = true; }
-  if (needs){ size(); renderer.render(scene, cam); needs = false;
-    if (labelsDirty && now - lastMove > 140 && now - lastLabelCheck > 120) updateLabelVisibility();
+  const relabel = labelsDirty && now - lastMove > 140 && now - lastLabelCheck > 120;
+  if (needs || relabel){ size(); if (needs) renderer.render(scene, cam); needs = false;
+    if (relabel) updateLabelVisibility();
     placeLabels(); }
   if (st.beat || now - lastMove < 400 || labelsDirty) requestAnimationFrame(loop); else running = false; }
 function size(){ const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; const c = renderer.domElement;
@@ -1199,7 +1213,7 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ const was = s
   render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); },
   visibleLabels: () => anchors.filter(a => !a.el.hidden).map(a => { const r = a.el.getBoundingClientRect(); return { id: a.id, text: a.text, layer: a.layer, x: r.left + r.width/2, y: r.top + r.height/2 }; }),
   screenOf(id){ const a = anchors.find(x => x.id === id && !x.el.hidden) || anchors.find(x => x.id === id); if (!a) return null; const v = a.w.clone().project(cam), r = cvs.getBoundingClientRect(); return [r.left + (v.x*.5 + .5)*r.width, r.top + (-v.y*.5 + .5)*r.height]; },
-  tapAt, select, card: () => window.__lastCard, camState: () => ({ theta, phi, dist, x: cam.position.x, y: cam.position.y, z: cam.position.z }), legacy: typeof window.H3 !== "undefined" };
+  tapAt, select, card: () => window.__lastCard, camState: () => ({ theta, phi: phiNow(), dist, x: cam.position.x, y: cam.position.y, z: cam.position.z, up: [U.x, U.y, U.z] }), legacy: typeof window.H3 !== "undefined" };
 })();
 </script>
 <script>/* links between the two pages of the 3D Heart section: change the SITE route (parent); opened on its own, fall back to scrolling */
