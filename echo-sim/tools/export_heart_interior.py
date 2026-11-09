@@ -12,6 +12,7 @@ Output (format "pun-cvs heart interior v1"; heart frame, cm; encodings as heart-
               vertex.cavity = blood label the vertex faces (endocardium), 0 = epicardium / none
               vertex.wall   = 1 LV · 2 RV · 3 atria · 4 great vessels · 5 fat · 6 fibrous skeleton · 0 other
               vertex.motion = beat weight like heart-mesh.json (255 ventricles, 46 atria / vessels)
+  capVolume   0.2 cm heart-frame labels for colouring the stencil cap, downsampled from the 0.1 cm bake.
   valves      MV (+ chordae), TV, AV, PV: leaflets/cusps meshed at a finer voxel at 8 phases of the cycle (flip-book keyframes);
               phases[] are fractions of the RR interval (0 = R wave / end-diastole), the same clock as the ECG.
   landmarks   points / paths for the conduction system and teaching (Koch's triangle, CFB, membranous septum, SA-node site,
@@ -40,6 +41,7 @@ nz = lambda a: np.asarray(a, float)/np.linalg.norm(a)
 b64 = lambda arr: base64.b64encode(np.ascontiguousarray(arr).tobytes()).decode()
 L = {k: np.array(v, float) for k, v in PH["landmarks_heart"].items() if not k.startswith("_")}; S = PH["structures"]
 TIS = {"none": 0, "blood": 1, "myocardium": 2, "valve": 3, "fibrous": 4, "pericardium": 5, "fat": 6, "vessel_wall": 10}
+CAP_VOXEL = 0.2
 
 def boxes():
     """valve boxes (heart frame cm), generous enough for the open leaflets and the mitral chordae"""
@@ -66,6 +68,7 @@ async def bake_all():
             n = r["n"]; sh = (n[2], n[1], n[0])
             return {"labels": np.frombuffer(base64.b64decode(r["l"]), np.uint8).reshape(sh), "tissue": np.frombuffer(base64.b64decode(r["t"]), np.uint8).reshape(sh), "lo": np.array(r["lo"]), "v": r["v"]}
         t0 = time.time(); out["heart"] = await vol(A.voxel, 0.0); print(f"  heart bake {A.voxel} cm: {out['heart']['labels'].shape} in {time.time()-t0:.1f} s")
+        if A.voxel != CAP_VOXEL / 2: out["cap"] = await vol(CAP_VOXEL / 2, 0.0)
         for k, (lo, hi) in boxes().items():
             for ph in PHASES:
                 out[(k, ph)] = await vol(A.valve_voxel, ph, {"lo": list(lo), "hi": list(hi)})
@@ -112,6 +115,38 @@ def quant(P, N, F):
     It = np.uint16 if len(P) < 65536 else np.uint32
     return {"positions": b64(Pq), "positionCentre": cen.round(4).tolist(), "positionRange": rng.round(4).tolist(), "normals": b64(Nq),
             "index": b64(F.astype(It).ravel()), "indexType": "uint16" if It == np.uint16 else "uint32", "vertices": int(len(P)), "triangles": int(len(F))}
+
+
+def cap_volume(bake, names, excluded):
+    labels, classes = bake["labels"], bake["tissue"]
+    cap_classes = ("myocardium", "fibrous", "valve", "fat", "vessel_wall")
+    tissue = np.isin(classes, [TIS[k] for k in cap_classes]) & ~np.isin(labels, excluded)
+    kept = np.where(tissue, labels, 0)
+    # C-order (z, y, x) becomes x-fastest texture data. Ignore empty and blood voxels
+    # in each 2³ block since the stencil already defines where the cap has tissue.
+    kept = np.pad(kept, [(0, size % 2) for size in kept.shape])
+    nz, ny, nx = (size // 2 for size in kept.shape)
+    blocks = kept.reshape(nz, 2, ny, 2, nx, 2)
+    winner = np.zeros((nz, ny, nx), np.uint8)
+    votes = np.zeros_like(winner)
+    tissue_by_label = [None] * len(names)
+    for label in np.unique(labels[tissue]):
+        counts = (blocks == label).sum(axis=(1, 3, 5), dtype=np.uint8)
+        better = counts > votes  # tied blocks keep the lower label index
+        winner[better] = label
+        votes[better] = counts[better]
+        tissue_by_label[label] = max(cap_classes, key=lambda key: np.count_nonzero((labels == label) & (classes == TIS[key])))
+
+    flat = winner.ravel()
+    starts = np.r_[0, np.flatnonzero(flat[1:] != flat[:-1]) + 1]
+    runs = bytearray()
+    for label, count in zip(flat[starts], np.diff(np.r_[starts, flat.size])):
+        while count > 256:
+            runs.extend((255, label))
+            count -= 256
+        runs.extend((count - 1, label))
+    return {"lo": bake["lo"].tolist(), "n": [nx, ny, nz], "v": CAP_VOXEL,
+            "rle": base64.b64encode(runs).decode(), "tissueByLabel": tissue_by_label}
 
 # ------------------------------------------------------------------ landmarks
 def landmarks(H, names):
@@ -235,12 +270,14 @@ def main():
     t0 = time.time()
     if A.cache and os.path.exists(A.cache):
         Z = np.load(A.cache, allow_pickle=True); names = list(Z["names"]); out = Z["out"].item(); print("  using cached bakes", A.cache)
-    else:
+    else: out = None
+    if out is None or (out["heart"]["v"] != CAP_VOXEL / 2 and "cap" not in out):
         names, out = asyncio.run(bake_all())
         if A.cache: np.savez_compressed(A.cache, names=np.array(names), out=np.array(out, dtype=object))
     ID = lambda *ns: [names.index(n) for n in ns if n in names]
     H = out["heart"]; LAB, TISv, lo, v = H["labels"], H["tissue"], H["lo"], H["v"]
     NOT_HEART = ID("", "pericardium", "liver", "diaphragm", "IVC", "hepatic_veins", "descending_aorta", "descending_aorta.abdominal", "ribs", "sternum", "lungs", "stomach_gas", "chest_wall", "chordae")
+    cap_out = cap_volume(out.get("cap", H), names, NOT_HEART)
     VESSELS = ID("LCA", "RCA", "cardiac_veins")
     tissue = np.isin(TISv, [TIS["myocardium"], TIS["fibrous"], TIS["vessel_wall"], TIS["fat"]]) & ~np.isin(LAB, NOT_HEART)
     lab_tissue = tissue & ~np.isin(LAB, VESSELS)     # coronaries fill their grooves in the mesh (no notch in the cut contour) but never name a wall vertex
@@ -294,7 +331,7 @@ def main():
                               "landmarks: placed from the phantom; conduction paths are teaching layouts (verify with an expert)."]},
            "frames": ext["frames"], "labelNames": names,
            "wallNames": {"0": "other", "1": "LV", "2": "RV", "3": "atria", "4": "great vessels", "5": "fat", "6": "fibrous skeleton"},
-           "tissue": tissue_out, "valves": {"phases": PHASES, "items": vout}, "landmarks": lm}
+           "tissue": tissue_out, "valves": {"phases": PHASES, "items": vout}, "landmarks": lm, "capVolume": cap_out}
     os.makedirs(os.path.dirname(A.out), exist_ok=True); json.dump(res, open(A.out, "w"), separators=(",", ":"))
     json.dump({"meta": {"format": "pun-cvs heart landmarks v1", "phantom": PH["_meta"]["version"], "units": ext["meta"]["units"]}, "landmarks": lm},
               open(os.path.join(os.path.dirname(A.out), "heart-landmarks.json"), "w"), indent=1)

@@ -110,16 +110,80 @@ const valMat = beatify(new T.MeshStandardMaterial({ vertexColors: true, roughnes
 HI.valves.children.forEach(m => { m.material = valMat; m.renderOrder = 2; });
 /* stencil caps: the tissue surface is closed, so a plane is filled only where it cuts tissue (cavities stay open).
    Two planes (a view may remove only the region behind plane 1 AND beyond plane 2): one stencil group + cap per plane. */
+const hex = h => { const c = new T.Color(h); return [c.r, c.g, c.b]; };
+const PALRGB = {}; for (const k in D.PAL) PALRGB[k] = hex(D.PAL[k]);
+const CAP_REAL = { myocardium: 0x8e2a24, fibrous: 0xe5d6bb, valve: 0xefe6d4, fat: 0xe2bb55, vessel_wall: 0xca8c7b };
+const capData = JI.capVolume;
+const capInk = { real: 0x8e2a24, labels: 0x9a4a46 };
+const capPalettes = capData && Object.fromEntries(Object.keys(capInk).map(mode => [mode,
+  new Float32Array(intNames.flatMap((name, i) => {
+    const real = hex(CAP_REAL[capData.tissueByLabel[i]] ?? capInk.real);
+    return mode === "labels" ? PALRGB[name] || real : real;
+  }))]));
+const capUniforms = capData && renderer.capabilities.isWebGL2 ? (() => {
+  const [nx, ny, nz] = capData.n;
+  const runs = atob(capData.rle), labels = new Uint8Array(nx * ny * nz);
+  let offset = 0;
+  for (let i = 0; i < runs.length; i += 2){
+    const end = offset + runs.charCodeAt(i) + 1;
+    labels.fill(runs.charCodeAt(i + 1), offset, end);
+    offset = end;
+  }
+  const texture = new T.Data3DTexture(labels, nx, ny, nz);
+  texture.format = T.RedFormat;
+  texture.internalFormat = "R8";
+  texture.minFilter = texture.magFilter = T.NearestFilter;
+  texture.needsUpdate = true;
+  return {
+    uCapLabels: { value: texture },
+    uCapPalette: { value: capPalettes.real },
+    uCapLo: { value: new T.Vector3(...capData.lo) },
+    uCapSize: { value: new T.Vector3(...capData.n).multiplyScalar(capData.v) },
+    uBodyToHeart: { value: H2B.clone().invert() },
+    uSys: beatU.uSys
+  };
+})() : null;
 function stencilMat(side, pl){ const m = beatify(new T.MeshBasicMaterial({ depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, side, clippingPlanes: [pl] }));
   m.clipIntersection = false; const op = side === T.BackSide ? T.IncrementWrapStencilOp : T.DecrementWrapStencilOp; m.stencilFail = m.stencilZFail = m.stencilZPass = op; return m; }
-const capMat = (clipTo) => new T.MeshStandardMaterial({ color: 0x8e2a24, roughness: .75, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc,
-  stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, clippingPlanes: [clipTo] });
+function capMat(clipTo){
+  const mat = new T.MeshStandardMaterial({ color: capInk.real, roughness: .75, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc,
+    stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, clippingPlanes: [clipTo] });
+  if (!capUniforms) return mat;
+  mat.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, capUniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform mat4 uBodyToHeart;\nvarying vec3 vCapHeart;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+        vCapHeart = (uBodyToHeart * modelMatrix * vec4(transformed, 1.0)).xyz;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+        uniform highp sampler3D uCapLabels;
+        uniform vec3 uCapPalette[${intNames.length}];
+        uniform vec3 uCapLo, uCapSize;
+        uniform float uSys;
+        varying vec3 vCapHeart;`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+        // The cap plane stays fixed. Undo beatify's deformation to sample the rest-pose volume.
+        vec3 p = vCapHeart;
+        float lift = 0.45 * uSys;
+        float z = p.z - lift;
+        p.z = z / (z >= 0.0 ? 1.0 - lift / 9.4 : 1.0 + lift / 7.0);
+        if (p.z < -7.0 || p.z > 9.4) p.z = vCapHeart.z;
+        p.xy /= 1.0 - 0.065 * uSys * smoothstep(-1.0, 1.5, p.z);
+        vec3 uvw = (p - uCapLo) / uCapSize;
+        if (all(greaterThanEqual(uvw, vec3(0.0))) && all(lessThan(uvw, vec3(1.0)))) {
+          int label = int(texture(uCapLabels, uvw).r * 255.0 + 0.5);
+          if (label > 0 && label < ${intNames.length}) diffuseColor.rgb = uCapPalette[label];
+        }`);
+  };
+  mat.customProgramCacheKey = () => "cap-volume";
+  return mat;
+}
 const capGroups = [[plane, plane2Neg], [plane2, planeNeg]].map(([pl, clipTo], gi) => {
   const b = new T.Mesh(HI.tissue.geometry, stencilMat(T.BackSide, pl)), f = new T.Mesh(HI.tissue.geometry, stencilMat(T.FrontSide, pl));
   b.renderOrder = f.renderOrder = 1 + gi*.2; HI.group.add(b, f);
   const cap = new T.Mesh(new T.PlaneGeometry(80, 80), capMat(clipTo)); cap.renderOrder = 1.1 + gi*.2; cap.onAfterRender = r => r.clearStencil(); scene.add(cap);
   return { b, f, cap, pl }; });
-const cap = capGroups[0].cap;
 /* ---------- conduction system + teaching landmarks (from the phantom's landmarks) ---------- */
 const COND_IDS = D.LAYERS.find(l => l.id === "conduction").ids;
 const condGroup = HI.landmarkObject(COND_IDS, { radius: .075, colour: 0x22c3ab, pointRadius: .2 });
@@ -133,8 +197,6 @@ koch.traverse(o => { if (o.isMesh){ o.material = kochMat; o.renderOrder = 6; } }
 lmGroup.add(koch, cti); world.add(condGroup, lmGroup);
 
 /* ---------- colours ---------- */
-const hex = h => { const c = new T.Color(h); return [c.r, c.g, c.b]; };
-const PALRGB = {}; for (const k in D.PAL) PALRGB[k] = hex(D.PAL[k]);
 const noise = (x, y, z) => { const s = Math.sin(x*12.9898 + y*78.233 + z*37.719)*43758.5453; return s - Math.floor(s); };
 const REAL_EXT = { 0: [.6, .38, .36], 1: [.6, .17, .15], 2: [.62, .2, .18], 3: [.55, .22, .3], 4: [.86, .66, .6], 5: [.88, .73, .44] };
 const REAL_INT = name => /^(MV_|TV_|AV_|PV_|chordae)/.test(name) ? [.95, .9, .8] : /^(central_fibrous_body|membranous_septum|TV_annulus|todaro_tendon|eustachian_valve|thebesian_valve)$/.test(name) ? [.92, .86, .74]
@@ -177,7 +239,8 @@ function paintGeom(g, labels, mode, smooth = 0){ const c = g.attributes.color.ar
   smoothColours(g, smooth); g.attributes.color.needsUpdate = true; }
 function paint(mode){ paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
   HI.valves.children.forEach(m => paintGeom(m.geometry, m.userData.labels, mode));
-  capGroups.forEach(g => g.cap.material.color.set(mode === "labels" ? 0x9a4a46 : 0x8e2a24)); $(".legend").hidden = mode !== "labels"; }
+  if (capUniforms) capUniforms.uCapPalette.value = capPalettes[mode];
+  capGroups.forEach(g => g.cap.material.color.set(capInk[mode])); $(".legend").hidden = mode !== "labels"; }
 
 /* ---------- cut views (heart frame; n points into the kept half; the camera looks from the removed side) ----------
    Dissection views are fixed, curated sections like an anatomy atlas: each shows structures that the outside view hides and lists
@@ -481,6 +544,12 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ const was = s
   setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
   render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); },
   visibleLabels: () => anchors.filter(a => !a.el.hidden).map(a => { const r = a.el.getBoundingClientRect(); return { id: a.id, text: a.text, layer: a.layer, x: r.left + r.width/2, y: r.top + r.height/2 }; }),
-  screenOf(id){ const a = anchors.find(x => x.id === id && !x.el.hidden) || anchors.find(x => x.id === id); if (!a) return null; const v = a.w.clone().project(cam), r = cvs.getBoundingClientRect(); return [r.left + (v.x*.5 + .5)*r.width, r.top + (-v.y*.5 + .5)*r.height]; },
+  screenOf(idOrPoint){
+    const a = Array.isArray(idOrPoint) ? null : anchors.find(x => x.id === idOrPoint && !x.el.hidden) || anchors.find(x => x.id === idOrPoint);
+    const p = a ? a.w.clone() : Array.isArray(idOrPoint) ? toWorld(new T.Vector3(...idOrPoint)) : null;
+    if (!p) return null;
+    const v = p.project(cam), r = cvs.getBoundingClientRect();
+    return [r.left + (v.x*.5 + .5)*r.width, r.top + (-v.y*.5 + .5)*r.height];
+  },
   tapAt, select, card: () => window.__lastCard, camState: () => ({ theta, phi: phiNow(), dist, x: cam.position.x, y: cam.position.y, z: cam.position.z, up: [U.x, U.y, U.z] }), legacy: typeof window.H3 !== "undefined" };
 })();
