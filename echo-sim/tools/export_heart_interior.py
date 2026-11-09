@@ -42,6 +42,9 @@ b64 = lambda arr: base64.b64encode(np.ascontiguousarray(arr).tobytes()).decode()
 L = {k: np.array(v, float) for k, v in PH["landmarks_heart"].items() if not k.startswith("_")}; S = PH["structures"]
 TIS = {"none": 0, "blood": 1, "myocardium": 2, "valve": 3, "fibrous": 4, "pericardium": 5, "fat": 6, "vessel_wall": 10}
 CAP_VOXEL = 0.2
+# Anatomy overrides for the cap colour. The majority tissue class of a label is not always the right teaching colour:
+# the SVC is a vein wall (its myocardial sleeve is thin), and both mitral leaflets are valve tissue.
+CAP_CLASS_OVERRIDE = {"SVC": "vessel_wall", "MV_AML": "valve", "MV_PML": "valve"}
 
 def boxes():
     """valve boxes (heart frame cm), generous enough for the open leaflets and the mitral chordae"""
@@ -136,6 +139,9 @@ def cap_volume(bake, names, excluded):
         winner[better] = label
         votes[better] = counts[better]
         tissue_by_label[label] = max(cap_classes, key=lambda key: np.count_nonzero((labels == label) & (classes == TIS[key])))
+
+    for name, cls in CAP_CLASS_OVERRIDE.items():
+        if name in names: tissue_by_label[names.index(name)] = cls
 
     flat = winner.ravel()
     starts = np.r_[0, np.flatnonzero(flat[1:] != flat[:-1]) + 1]

@@ -52,6 +52,8 @@ async def cap_checks(fr, tag):
         const [nx, ny, nz] = cap.n, [x0, y0, z0] = cap.lo, v = cap.v;
         const y = app.CUTS.a4c.c.y, j = Math.floor((y - y0) / v);
         const names = interior.labelNames;
+        const classes = Object.fromEntries(['SVC', 'MV_AML', 'MV_PML'].map(name =>
+            [name, cap.tissueByLabel?.[names.indexOf(name)]]));
         const targets = ['IVS', 'central_fibrous_body', 'membranous_septum', 'epicardial_fat'];
         const counts = Object.fromEntries(targets.map(name => [name, 0]));
         const runs = atob(cap.rle), rgba = new Uint8Array(4);
@@ -86,10 +88,13 @@ async def cap_checks(fr, tag):
             return rgba[0] > r + 4 && rgba[1] > g + 4 && rgba[2] > b + 8;
         }).length;
         app.setColour('real');
-        return {bytes, v, decoded: end === labels.length, counts, tinted};
+        return {bytes, v, decoded: end === labels.length, classes, counts, tinted};
     }""")
     check(result["bytes"] <= 1_500_000, f"[{tag}] interior export is at most 1.5 MB", f"{result['bytes']:,} bytes")
     check(result.get("v") == .2 and result.get("decoded"), f"[{tag}] 0.2 cm cap volume decodes to its declared dimensions")
+    classes = result.get("classes")
+    check(classes == {"SVC": "vessel_wall", "MV_AML": "valve", "MV_PML": "valve"},
+          f"[{tag}] cap tissue classes identify the SVC wall and both mitral leaflets", str(classes))
     counts = result.get("counts", {})
     check(counts.get("IVS", 0) >= 5 and counts.get("epicardial_fat", 0) >= 1 and
           counts.get("central_fibrous_body", 0) + counts.get("membranous_septum", 0) >= 1,

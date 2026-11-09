@@ -763,13 +763,14 @@ const toWorld = v => v.clone().applyMatrix4(H2B);
 const B2Hrot = H2Brot.clone().transpose(), fromBodyDir = a => new T.Vector3(...a).applyMatrix3(B2Hrot).normalize();
 
 /* ---------- beat: one deformation for every heart object (same as the echo's 3D heart) ---------- */
+const BEAT_SHAPE = { axialLift: 0.45, apexZ: 9.4, baseDepth: 7.0, radialSqueeze: 0.065 };
 const beatU = { uSys: { value: 0 } };
 function beatify(mat){ if (mat.clippingPlanes && mat.clippingPlanes.length) mat.clipIntersection = true; mat.onBeforeCompile = s => { s.uniforms.uSys = beatU.uSys;
     s.vertexShader = s.vertexShader.replace("#include <common>", "#include <common>\nuniform float uSys;").replace("#include <begin_vertex>", `#include <begin_vertex>
       { float w = smoothstep(-1.0, 1.5, transformed.z);
-        transformed.xy *= 1.0 - 0.065*uSys*w;
-        float along = transformed.z >= 0.0 ? 1.0 - clamp(transformed.z/9.4, 0.0, 1.0) : clamp(1.0 + transformed.z/7.0, 0.0, 1.0);
-        transformed.z += 0.45*uSys*along; }`); };
+        transformed.xy *= 1.0 - ${BEAT_SHAPE.radialSqueeze}*uSys*w;
+        float along = transformed.z >= 0.0 ? 1.0 - clamp(transformed.z/${BEAT_SHAPE.apexZ}, 0.0, 1.0) : clamp(1.0 + transformed.z/${BEAT_SHAPE.baseDepth.toFixed(1)}, 0.0, 1.0);
+        transformed.z += ${BEAT_SHAPE.axialLift}*uSys*along; }`); };
   mat.customProgramCacheKey = () => "beat"; return mat; }
 const sysCurve = t => { const s = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a)/(b - a))); return u*u*(3 - 2*u); }; return s(.03, .2, t)*(1 - s(.33, .5, t)); };
 
@@ -898,11 +899,11 @@ function capMat(clipTo){
       .replace("#include <color_fragment>", `#include <color_fragment>
         // The cap plane stays fixed. Undo beatify's deformation to sample the rest-pose volume.
         vec3 p = vCapHeart;
-        float lift = 0.45 * uSys;
+        float lift = ${BEAT_SHAPE.axialLift} * uSys;
         float z = p.z - lift;
-        p.z = z / (z >= 0.0 ? 1.0 - lift / 9.4 : 1.0 + lift / 7.0);
-        if (p.z < -7.0 || p.z > 9.4) p.z = vCapHeart.z;
-        p.xy /= 1.0 - 0.065 * uSys * smoothstep(-1.0, 1.5, p.z);
+        p.z = z / (z >= 0.0 ? 1.0 - lift / ${BEAT_SHAPE.apexZ} : 1.0 + lift / ${BEAT_SHAPE.baseDepth.toFixed(1)});
+        if (p.z < -${BEAT_SHAPE.baseDepth.toFixed(1)} || p.z > ${BEAT_SHAPE.apexZ}) p.z = vCapHeart.z;
+        p.xy /= 1.0 - ${BEAT_SHAPE.radialSqueeze} * uSys * smoothstep(-1.0, 1.5, p.z);
         vec3 uvw = (p - uCapLo) / uCapSize;
         if (all(greaterThanEqual(uvw, vec3(0.0))) && all(lessThan(uvw, vec3(1.0)))) {
           int label = int(texture(uCapLabels, uvw).r * 255.0 + 0.5);
