@@ -1,5 +1,7 @@
 # AGENTS.md (repo root)
 
+Working with two agents? Read `CLAUDE-CODEX.md` first (who does what, branches, definition of done, prompts).
+
 This repo is the Pun CVS Lab / Cardio Super App: one self-contained `index.html` served by GitHub Pages.
 Every lab is a self-contained HTML page stored as base64 in `const LABS = { … }` and opened in an iframe via `srcdoc`.
 

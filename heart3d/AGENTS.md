@@ -1,6 +1,6 @@
 # AGENTS.md: 3D Heart section (Pun CVS Lab)
 
-For coding agents (Codex, Claude Code) working in `heart3d/`. Read this, then `heart3d/TASKS.md` (the task queue) and the status
+For coding agents (Codex, Claude Code) working in `heart3d/`. Read `../CLAUDE-CODEX.md` (hand-off rules), then this, then `heart3d/TASKS.md` (the task queue) and the status
 in the PR description of the current branch. Do not read the whole repo; the files you need are listed here.
 
 ## What this is
