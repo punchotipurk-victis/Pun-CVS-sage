@@ -10,7 +10,7 @@ The design is frozen in the project doc `claude/echo-simulator-plan.md` (v1.2). 
 - **Screen convention:** cardiology/ASE by default (marker on the right of the screen), with a POCUS (marker-left) toggle.
 - **Input:** mouse and touch. A phone-gyroscope probe comes later and plugs into the input layer.
 - **Anatomy Inset:** two panes, a Torso map and a Heart cutaway. One is large and the other is a small thumbnail; tapping the small one swaps them. Both stay synced.
-- **Body-view button:** Skin → Ghost → Skeleton.
+- **Body-view button:** Skin → Muscle → Ghost → Skeleton (Muscle added 7 Nov 2026 at the user's request).
 - **3D heart:** the visible heart is meshed **from the same phantom** as the echo, so the cut face always matches the image.
 - **Theme:** panels follow the app's light/dark theme. The echo screen and the Heart cutaway pane are always dark.
 - **Audience:** medical students who love cardiology, residents and cardiology fellows.
@@ -179,8 +179,14 @@ The tested echo code above is the core. The parts below are a design to implemen
         o = vec4(t == 1 ? c*0.9 : c*0.6 + 0.25, 0.95); }` });     // blood = flat colour, tissue = lighter
   ```
   - `uPalette` is filled by `eng.setPalette`. Reuse `eng.uniforms` so the cut face beats with the echo.
-- **Body view (B key): Skin → Ghost → Skeleton.**
+- **Visible body (`src/ui/body.js`, 7 Nov 2026):** an SDF torso (trunk, neck, trapezius line, deltoids, upper arms cut flat, sternocleidomastoids) meshed with surface nets (`src/ui/meshkit.js`) and Taubin-smoothed.
+  - Over the windows the trunk **is** the analytic elliptic cylinder. Contours (pectoralis major, sternal groove, clavicles, rectus abdominis with tendinous intersections, serratus, nipple, umbilicus) are an outward displacement `height(x, y)` ≤ 0.8 cm. Probe contact and the echo still use `PROBE.skinPoint`; only the **drawn** probe (`probeVis`) is lifted by `liftAt(x, y)`. The fan and cut face are not lifted, so the cut face still matches the echo.
+  - Muscle layer: the same mesh pushed in 0.22 cm and displaced 1.35× harder, with a shader that draws fibre direction per muscle (pectoralis fans to the humerus, rectus vertical with intersections, external oblique down-and-in, serratus digitations, deltoid, trapezius, SCM) and ribs/cartilage/intercostals where no big muscle covers them.
+  - Skeleton: flat elliptical ribs 1–12 (posterior arcs, floating 11–12), costal arch cartilage, bevelled sternum with jugular notch, S-shaped clavicles, scapulae, humeri, instanced vertebrae with discs and processes. A cloned material copies its clip planes, so re-link `clippingPlanes = clips` after `clone()`.
+  - Landmarks (M key, `Landmarks` button, remembered in localStorage): dashed lines and HTML labels on the drawn skin (suprasternal notch, sternal angle, ICS 1–6, xiphoid, costal margin, nipple, MCL, AAL, umbilicus, apex beat from `LV_apex_epi`) and window outlines from `views.json` (apical moves with the heart in LLD). Labels hide when facing away or inside the inset's panes (the panes are holes onto the canvas). While landmarks are on, ribs show faintly through the skin for ICS counting. Phones show only the main labels.
+- **Body view (B key): Skin → Muscle → Ghost → Skeleton.**
   - Skin: opaque.
+  - Muscle: muscle layer instead of skin.
   - Ghost: skin opacity 0.25 with `depthWrite:false`, plus the faint beating heart, ribs and fan.
   - Skeleton: no skin.
   - Challenge mode forces Skin and minimises the inset.
@@ -204,14 +210,14 @@ The tested echo code above is the core. The parts below are a design to implemen
 
 ## Input layer (mouse + touch now; gyroscope later)
 - Every input source emits **pose deltas** `{dx, dy, dNotch, dTilt, dRock, dPress}` into one `applyDelta()`. That function clamps, keeps the probe on the skin and re-renders. The future gyroscope module only emits deltas too.
+- **Probe handles (one hand, 7 Nov 2026, user request):** drag the **probe body** = slide (`rayToSkin`); drag the **cyan tip** (distal end) = tilt and rock: the pointer ray meets a sphere around the skin contact, the tail follows it, and the new beam goes through `PROBE.anglesFrom` with the start lateral re-orthogonalised (the beam is never allowed to point out of the patient); drag the **orange ring** = rotate (screen angle about the ring centre, sign from whether the tail faces the camera).
+  - Picking: nearest handle on screen wins; on the probe body it is slide unless the pointer is on the ring outline; grab radii scale with the probe's length on screen (phones draw it small).
 - **Mouse:**
-  - drag the probe = slide (`rayToSkin`)
   - wheel or Q/E = rotate
-  - Shift+drag vertical = tilt
-  - Shift+drag horizontal = rock
-  - F = fine mode ×0.3
+  - Shift+drag vertical = tilt, Shift+drag horizontal = rock (kept as an alternative)
+  - F = fine mode ×0.3 (also slows the tip and ring)
 - **Touch:**
-  - 1 finger on the probe = slide
+  - 1 finger on the probe body = slide, on the tip = tilt/rock, on the ring = rotate
   - 2-finger twist = rotate
   - 2-finger vertical = tilt
   - 2-finger horizontal = rock
@@ -221,6 +227,11 @@ The tested echo code above is the core. The parts below are a design to implemen
   - On-screen pad (⟲⟳ ▲▼ ◀▶ ↑↓←→): repeats while held; steps of 2° and 0.25 cm.
   - Right-panel sliders: position, notch, tilt, rock, press, depth, sector, gain, DR, HR.
 - **Accessibility:** every pad button needs an `aria-label` and keyboard equivalents.
+
+## View buttons and the ideal image (7 Nov 2026, user request)
+- A "Go to view" bar names every v1 view (PLAX, PSAX · aortic valve / mitral valve / papillary, A4C, A5C, Subcostal 4C, IVC). A button glides the probe to the view's computed target over 0.9 s (so the hand movement is visible), sets that view's depth and sector, and opens the **ideal image**. Live quality for each view shows on its button.
+- Ideal image = the same `EchoEngine`, probe at the target, rendered into a render target at ~20 fps **before** the live echo each frame (the live render then restores passes A/B, so `readLabels()` stays live), blitted into a picture-in-picture pane or a stacked side-by-side pane. Labels: the view's `labels`, filtered by `labelRules`, computed once at end-diastole and placed with the Pass C mapping.
+- This overrides "Snap to view: Guided only" for Free scan. Challenge mode (P4) must hide the bar and the ideal image.
 
 ## Performance budget
 - **Targets:** 50 fps on a laptop, 30 fps on a phone.
@@ -270,6 +281,12 @@ Check each of these, and look at the screenshots yourself:
 - Embedded in a copy of `index.html`: `#echo` opens, and `#mi` and the other labs still route.
 
 ## Pitfalls already found (do not undo)
+- **Fan squeezed sideways (fixed in P1).** Pass C scaled x by 2×aspect, so a 90° fan looked like a kite and a round LV looked oval. x and y now share one scale, and a wide fan zooms out to fit a narrow screen. The overlay in `panels.js` uses the same mapping.
+- **Solid diaphragm (fixed in P1).** `dDome < 0.4` filled the whole left dome with diaphragm and hid stomach gas. It is now `abs(dDome) < 0.4`, with soft tissue under the dome.
+- **Quality is judged over one beat (P1).** Content score = the best single frame in the last R-R interval, because the mitral fish mouth exists only while the valve is open. A frozen image scores that one frame only.
+- **`#inset` must not live inside `#stage`.** On phones it is a static block; inside the stage it filled the 3D view.
+- **Hidden iframe keeps `innerWidth`.** Pause on the host element's rect, not on `innerWidth`.
+- **Collapsed pane.** Other viewports draw over it, so throttling needs a render target that is blitted every frame.
 - **The heart was drawn over the chest wall.** Evaluate the body wall *first* in `scene()`, so bone and chest wall win.
 - **Cavities merged with no wall** (RVOT ran straight into the LVOT/aorta). Carve walls with `max(a, -(b - wall))`.
 - **The LVOT never got labelled.** Test it before the LV cavity.
