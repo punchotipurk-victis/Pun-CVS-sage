@@ -9,6 +9,7 @@ Checks (two-page mode):
   - 3D Heart: External / X-ray / Cut render; every cut plane renders; real vs label colours differ; each label layer shows labels
     and "none" hides them all; tapping a label or the model opens its card below the model; a card's simulator chip opens
     #pathology/<scenario>
+  - the embedded interior export is at most 1.5 MB and the four-chamber cap shows muscle, fibrous tissue and fat
   - the top-right switcher in this section shows exactly [heart3d, pathology]
   - no page or console errors in the site or the labs
   - explore: every viewpoint and External / Internal (cut) render; the structure card sits BELOW the 3D view
@@ -41,6 +42,64 @@ async def wait_lab(fr, lab):
 async def ecg_sig(fr, lab):
     return await fr.evaluate(f"""(() => {{ const r = document.querySelector('[data-lab={lab}]');
         const c = r.querySelector('.ecg12'); return [r.querySelector('.rname').textContent.trim(), c.toDataURL().length + ':' + c.toDataURL().slice(-400)]; }})()""")
+
+async def cap_checks(fr, tag):
+    result = await fr.evaluate("""() => {
+        const interior = parent.PUN_HEART_INTERIOR, cap = interior.capVolume;
+        const bytes = new Blob([parent.document.querySelector('#pun-heart-interior').textContent]).size;
+        if (!cap) return {bytes};
+        const app = EXPLORE_APP, canvas = document.querySelector('.viewer canvas'), gl = canvas.getContext('webgl2');
+        const [nx, ny, nz] = cap.n, [x0, y0, z0] = cap.lo, v = cap.v;
+        const y = app.CUTS.a4c.c.y, j = Math.floor((y - y0) / v);
+        const names = interior.labelNames;
+        const classes = Object.fromEntries(['SVC', 'MV_AML', 'MV_PML'].map(name =>
+            [name, cap.tissueByLabel?.[names.indexOf(name)]]));
+        const targets = ['IVS', 'central_fibrous_body', 'membranous_septum', 'epicardial_fat'];
+        const counts = Object.fromEntries(targets.map(name => [name, 0]));
+        const runs = atob(cap.rle), rgba = new Uint8Array(4);
+        const labels = new Uint8Array(nx * ny * nz);
+        let end = 0;
+        for (let i = 0; i < runs.length; i += 2) {
+            const next = end + runs.charCodeAt(i) + 1;
+            labels.fill(runs.charCodeAt(i + 1), end, next);
+            end = next;
+        }
+        app.setMode('cut'); app.setCut('a4c'); app.setColour('real'); app.render();
+        const rect = canvas.getBoundingClientRect();
+        const septalPixels = [];
+        for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) {
+            const name = names[labels[x + nx * (j + ny * z)]];
+            if (!(name in counts)) continue;
+            const [sx, sy] = app.screenOf([x0 + (x + .5) * v, y, z0 + (z + .5) * v]);
+            const px = Math.floor((sx - rect.left) * canvas.width / rect.width);
+            const py = Math.floor((rect.bottom - sy) * canvas.height / rect.height);
+            if (px < 0 || py < 0 || px >= canvas.width || py >= canvas.height) continue;
+            gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+            const [r, g, b] = rgba;
+            const match = name === 'IVS' ? r > 75 && r > g + 30 && Math.abs(g - b) < 25
+                : name === 'epicardial_fat' ? r > 145 && g > 110 && g > b + 40
+                : r > 165 && g > 145 && b > 120 && r > b + 10;
+            if (match) counts[name]++;
+            if (match && name === 'IVS') septalPixels.push([px, py, r, g, b]);
+        }
+        app.setColour('labels'); app.render();
+        const tinted = septalPixels.filter(([x, y, r, g, b]) => {
+            gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+            return rgba[0] > r + 4 && rgba[1] > g + 4 && rgba[2] > b + 8;
+        }).length;
+        app.setColour('real');
+        return {bytes, v, decoded: end === labels.length, classes, counts, tinted};
+    }""")
+    check(result["bytes"] <= 1_500_000, f"[{tag}] interior export is at most 1.5 MB", f"{result['bytes']:,} bytes")
+    check(result.get("v") == .2 and result.get("decoded"), f"[{tag}] 0.2 cm cap volume decodes to its declared dimensions")
+    classes = result.get("classes")
+    check(classes == {"SVC": "vessel_wall", "MV_AML": "valve", "MV_PML": "valve"},
+          f"[{tag}] cap tissue classes identify the SVC wall and both mitral leaflets", str(classes))
+    counts = result.get("counts", {})
+    check(counts.get("IVS", 0) >= 5 and counts.get("epicardial_fat", 0) >= 1 and
+          counts.get("central_fibrous_body", 0) + counts.get("membranous_septum", 0) >= 1,
+          f"[{tag}] four-chamber cap shows red IVS, pale fibrous tissue and yellow groove fat", str(counts))
+    check(result.get("tinted", 0) >= 5, f"[{tag}] label colours tint the IVS cap", str(result.get("tinted")))
 
 async def explore_checks_legacy(pg, fr, tag):
     await wait_lab(fr, "explore"); await pg.wait_for_timeout(800)
@@ -90,7 +149,7 @@ async def explore_checks(pg, fr, tag):
     hl = await snap("ext_labels", "EXPLORE_APP.setColour('labels')")
     await snap("cut_a4c_labels", "EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('a4c'); EXPLORE_APP.setLayer('landmarks', true)")
     check(hr != hl and await fr.evaluate("!document.querySelector('.legend').hidden"), f"[{tag}] label colours repaint the heart and show the colour key")
-    await fr.evaluate("EXPLORE_APP.setColour('real')")
+    await cap_checks(fr, tag)
     # layers
     await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false); EXPLORE_APP.render()")
     none = await fr.evaluate("EXPLORE_APP.visibleLabels().length")
