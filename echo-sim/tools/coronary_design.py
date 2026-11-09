@@ -41,7 +41,7 @@ async def main():
     ph = json.load(open(PJ))
     # design on the heart WITHOUT existing vessels/fat (they would fill the grooves): build a temporary lab from a stripped copy
     import subprocess, shutil, tempfile
-    for k in ("coronary_arteries", "cardiac_veins", "epicardial_fat"): ph["structures"].pop(k, None)
+    prev = {k: ph["structures"].pop(k, None) or {} for k in ("coronary_arteries", "cardiac_veins", "epicardial_fat")}   # keep hand-set keys (e.g. coronary_arteries.display)
     root = os.path.join(here, ".."); bak = PJ + ".bak"; shutil.copy(PJ, bak); json.dump(ph, open(PJ, "w"), indent=2, ensure_ascii=False)
     lab = os.path.join(tempfile.gettempdir(), "coronary_design_lab.html")
     try: subprocess.run([sys.executable, os.path.join(here, "build_lab.py"), root, "--out", lab], check=True, capture_output=True)
@@ -158,6 +158,8 @@ async def main():
         "_note": "Designed on the baked heart by tools/coronary_design.py (run again after any change to the outer shape). Right-dominant pattern (Netter 223, BP52): LM → LAD (diagonals, septal perforators, wraps the apex) + LCx (OMs, in the left AV groove); RCA (conus, SA nodal, RV branches, acute marginal, AV nodal, PDA, posterolateral). 'scct' = SCCT/AHA segment number(s); 'territory' = the myocardium it supplies (for the MI lab). Radii (cm) teaching values after Dodge 1992 (verify): LM 0.23, proximal LAD 0.19, LCx 0.17, RCA 0.20."}
     ph["structures"]["cardiac_veins"] = {"type": "tubes", "tissue": "vessel_wall", "veins": veins, "_note": "Great cardiac vein (anterior IV groove → left AV groove), middle cardiac vein (inferior IV groove), small cardiac vein (right AV groove), all draining into the coronary sinus → RA (Netter 218/222; lecture)."}
     ph["structures"]["epicardial_fat"] = {"type": "tubes", "tissue": "fat", "grooves": fat, "_note": "Fat filling the AV and interventricular grooves (vessels run inside it). Echo: faint, mid-grey; 3D: yellow in the grooves."}
+    for k, old in prev.items():
+        for kk, vv in old.items(): ph["structures"][k].setdefault(kk, vv)
     for a_ in ph["structures"]["coronary_arteries"]["arteries"]:
         n_ = {"LM": 99, "LAD": 4, "LCx": 3, "RCA": 5}.get(a_["id"])
         if n_: a_["echoPts"] = min(n_, len(a_["points"]))

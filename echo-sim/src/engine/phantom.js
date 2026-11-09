@@ -159,12 +159,17 @@ const PHANTOM = (() => {
       add(` float rvT = clamp((h.z - ${f(lo.zBase)}) / ${f(lo.zApex - lo.zBase)}, 0.0, 1.0), rvTp = pow(rvT, ${f(lo.taper)});`);
       add(` vec2 rvCc = mix(vec2(${f(lo.centerBase[0])}, ${f(lo.centerBase[1])}), vec2(${f(lo.centerApex[0])}, ${f(lo.centerApex[1])}), rvT);`);
       add(` vec2 rvSm = mix(vec2(${f(lo.semiBase[0])}, ${f(lo.semiBase[1])}), vec2(${f(lo.semiApex[0])}, ${f(lo.semiApex[1])}), rvTp) * rvK;`);
+      if (lo.basalNarrow){ const bn = lo.basalNarrow;
+        /* basal waist: the lateral RV wall pulls in to the tricuspid annulus so the free wall rounds into the AV groove and meets the RA
+           (no flat shelf beyond the RA at the TV plane); the medial (septal) edge stays put */
+        add(` float rvBw = ${f(bn.dx)} * (1.0 - smoothstep(${f(L.TV_center[2] + (bn.from ?? -0.4))}, ${f(L.TV_center[2] + bn.to)}, h.z)) * rvK;`);
+        add(` rvSm.x -= 0.5*rvBw; rvCc.x -= 0.5*rvBw;`); }
       add(` float rvE = (length((h.xy - rvCc) / rvSm) - 1.0) * min(rvSm.x, rvSm.y);`);
       /* base of the RV = tricuspid annulus plane (moves with the beat): cavity and wall stop there, open to the RA (no cap wall) */
       add(` float tvPl = h.z - (${f(L.TV_center[2])} + uP[${pidx.TV_annulusShiftZ}]*0.8);`);
       /* rounded shoulder at the base (smooth intersection): the RV wall curls into the AV groove instead of ending in a flat face */
       add(` float rvOut = max(-smin(-rvE, tvPl + 0.3, ${f(lo.baseRound ?? 1.2)}), h.z - ${f(lo.zApex)}*mix(1.0, rvK, 0.5));`);
-      add(` float rvCav = max(max(-smin(-(rvE + ${f(w)}), tvPl + 0.3, ${f((lo.baseRound ?? 1.2)*0.6)}), h.z - (${f(lo.zApex - w - 0.2)})*mix(1.0, rvK, 0.5)), -lvOut);`);
+      add(` float rvCav = max(max(-smin(-(rvE + ${f(w)}), tvPl + 0.3, ${f((lo.baseRound ?? 1.2))}), h.z - (${f(lo.zApex - w - 0.2)})*mix(1.0, rvK, 0.5)), -lvOut);`);
       add(` vec3 rvC = vec3(rvCc, ${f((lo.zBase+lo.zApex)/2)});`); }
     else {
     add(` vec3 rvC = ${v3(rv.center)}; vec3 rvS = ${v3(rv.semi)};`);

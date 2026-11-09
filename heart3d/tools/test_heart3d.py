@@ -165,6 +165,14 @@ async def explore_checks(pg, fr, tag):
     check("Valves from above" in vc[0] and vc[1] >= 6, f"[{tag}] dissection view card lists what to find", str(vc))
     await fr.click(".panel [data-find]"); await pg.wait_for_timeout(200)
     check(await fr.evaluate("document.querySelector('.panel h2').textContent") != vc[0], f"[{tag}] a 'find' chip opens that structure's card")
+    # turned dissection views stay labelled: back of the 4-chamber cut, side of the valve view (B3/B4)
+    for k in ("a4c", "valves"):
+        await fr.evaluate(f"EXPLORE_APP.setBeat(false, 0); EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('{k}'); EXPLORE_APP.render()")
+        await pg.mouse.move(cx, cy); await pg.mouse.down()
+        for i in range(1, 13): await pg.mouse.move(cx + 390*i/12, cy)
+        await pg.mouse.up(); await pg.wait_for_timeout(900)
+        th = (await fr.evaluate("EXPLORE_APP.camState()"))["theta"]; labs = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
+        check(len(labs) >= 2, f"[{tag}] turned {k} view still shows labels", f"theta {th:.2f} labels {labs}")
     await fr.evaluate("EXPLORE_APP.setMode('ext'); EXPLORE_APP.resetView(); EXPLORE_APP.setBeat(true)")
     if A.shots: await pg.screenshot(path=shot("page_heart3d.png"))
 

@@ -346,14 +346,16 @@ function updateLabelVisibility(){
   const m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
   for (const a of anchors){ let show = !!st.layers[a.layer];
     if (show){ if (ext) show = a.where === "ext" || a.where === "vessel" || ((a.where === "lm") && a.layer === "conduction");
-      else if (cut) show = a.where !== "ext";
-      else show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
+      else if (!cut) show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
     if (show && cut && removed(a.w)) show = false;
-    if (show && cut && CUTS[st.cut].find && !CUTS[st.cut].find.includes(a.id) && st.sel !== a.id) show = false;
-    if (show && a.where === "vessel"){ show = a.nw.dot(cam.position.clone().sub(a.w).normalize()) > .12; if (show && cut) show = !occluded(a.w, occT); }   // vessels: the surface must face you
-    else if (show && occT.length && !(ext && a.layer === "conduction")) show = !occluded(a.w, occT);
+    /* the "find" list curates the cut face only; outer-surface labels stay available so a turned cut (back of the 4C, side of the valve view) is labelled too */
+    const surf = a.where === "ext" || a.where === "vessel";
+    if (show && cut && !surf && CUTS[st.cut].find && !CUTS[st.cut].find.includes(a.id) && st.sel !== a.id) show = false;
+    if (show && a.where === "vessel") show = a.nw.dot(cam.position.clone().sub(a.w).normalize()) > .12;   // vessels: the surface must face you
+    if (show && occT.length && !(ext && (a.layer === "conduction" || a.where === "vessel"))) show = !occluded(a.w, occT);
     a.vis = show; }
+  if (cut){ const inner = new Set(anchors.filter(a => a.vis && a.where !== "ext").map(a => a.id)); for (const a of anchors) if (a.vis && a.where === "ext" && inner.has(a.id)) a.vis = false; }   // one label per structure
   labelsDirty = false; lastLabelCheck = performance.now(); }
 const PRIO = { chambers: 0, valves: 1, conduction: 2, vessels: 3, landmarks: 4 };
 function placeLabels(){ const w = host.clientWidth, h = host.clientHeight, placed = [];

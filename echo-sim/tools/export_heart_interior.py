@@ -240,12 +240,25 @@ def main():
         if A.cache: np.savez_compressed(A.cache, names=np.array(names), out=np.array(out, dtype=object))
     ID = lambda *ns: [names.index(n) for n in ns if n in names]
     H = out["heart"]; LAB, TISv, lo, v = H["labels"], H["tissue"], H["lo"], H["v"]
-    NOT_HEART = ID("", "pericardium", "liver", "diaphragm", "IVC", "hepatic_veins", "descending_aorta", "descending_aorta.abdominal", "ribs", "sternum", "lungs", "stomach_gas", "chest_wall", "LCA", "RCA", "cardiac_veins", "chordae")
+    NOT_HEART = ID("", "pericardium", "liver", "diaphragm", "IVC", "hepatic_veins", "descending_aorta", "descending_aorta.abdominal", "ribs", "sternum", "lungs", "stomach_gas", "chest_wall", "chordae")
+    VESSELS = ID("LCA", "RCA", "cardiac_veins")
     tissue = np.isin(TISv, [TIS["myocardium"], TIS["fibrous"], TIS["vessel_wall"], TIS["fat"]]) & ~np.isin(LAB, NOT_HEART)
-    print(f"  tissue voxels {tissue.sum()}")
+    lab_tissue = tissue & ~np.isin(LAB, VESSELS)     # coronaries fill their grooves in the mesh (no notch in the cut contour) but never name a wall vertex
+    LAB = LAB.copy(); blood = TISv == TIS["blood"]
+    # seal: where right-heart blood touches left-heart blood (sub-voxel fossa ovalis, thin walls) the bake leaves a hole → a 0.2 cm wall
+    # (the fossa is a thin depression, not an ASD). RA|LA contact becomes IAS; any other contact takes the nearest wall's label.
+    RIGHT = np.isin(LAB, ID("RA", "RV_cavity", "RVOT", "PA_main", "RPA", "LPA", "SVC", "coronary_sinus")) & blood
+    LEFT = np.isin(LAB, ID("LA", "LV_cavity", "LVOT", "LAA", "pulmonary_veins", "aortic_root", "aortic_root.ascending", "aortic_arch", "arch_branches")) & blood
+    seal = (RIGHT & ndimage.binary_dilation(LEFT, iterations=1)) | (LEFT & ndimage.binary_dilation(RIGHT, iterations=1))
+    if seal.any():
+        ias = (np.isin(LAB, ID("RA", "LA")) & seal) & ndimage.binary_dilation(np.isin(LAB, ID("RA")) & blood, iterations=2) & ndimage.binary_dilation(np.isin(LAB, ID("LA")) & blood, iterations=2)
+        _, ind = ndimage.distance_transform_edt(~lab_tissue, return_indices=True)
+        LAB[seal] = LAB[ind[0][seal], ind[1][seal], ind[2][seal]]
+        if ID("IAS"): LAB[ias] = ID("IAS")[0]
+        tissue |= seal; lab_tissue |= seal; blood &= ~seal
+    print(f"  tissue voxels {tissue.sum()}  (sealed {int(seal.sum())} blood voxels at right|left contacts)")
     P, F, N = sdf_mesh(tissue, lo, v, sigma=0.7, target_tris=A.tris, min_tris=60)
-    vl = sample_nearest(tissue, LAB, lo, v, P)
-    blood = TISv == TIS["blood"]
+    vl = sample_nearest(lab_tissue, LAB, lo, v, P)
     cav, dcav = sample_nearest(blood, LAB, lo, v, P + N*0.06, return_d=True)
     cav = np.where(dcav <= 0.2, cav, 0).astype(np.uint8)
     WALL = {1: ("LV_myocardium", "IVS", "PW", "papillary_muscles.ALPM", "papillary_muscles.PMPM"), 2: ("RV_free_wall", "moderator_band", "RVOT"),
