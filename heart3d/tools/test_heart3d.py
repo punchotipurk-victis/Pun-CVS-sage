@@ -10,6 +10,7 @@ Checks (two-page mode):
     and "none" hides them all; tapping a label or the model opens its card below the model; a card's simulator chip opens
     #pathology/<scenario>
   - the embedded interior export is at most 1.5 MB and the four-chamber cap shows muscle, fibrous tissue and fat
+  - tapping the cut face of the IVS in the four-chamber section opens the interventricular septum card
   - the top-right switcher in this section shows exactly [heart3d, pathology]
   - no page or console errors in the site or the labs
   - explore: every viewpoint and External / Internal (cut) render; the structure card sits BELOW the 3D view
@@ -101,6 +102,24 @@ async def cap_checks(fr, tag):
           f"[{tag}] four-chamber cap shows red IVS, pale fibrous tissue and yellow groove fat", str(counts))
     check(result.get("tinted", 0) >= 5, f"[{tag}] label colours tint the IVS cap", str(result.get("tinted")))
 
+async def cap_tap_check(fr, tag):
+    viewer = fr.locator(".viewer")
+    pos = await fr.evaluate("""() => {
+        const app = EXPLORE_APP;
+        app.setMode('cut'); app.setCut('a4c');
+        for (const layer of ['chambers', 'landmarks', 'conduction']) app.setLayer(layer, false);
+        app.render();
+        // A voxel inside the lower IVS cap, in front of the RV free wall.
+        const [x, y] = app.screenOf([2.3, app.CUTS.a4c.c.y, 5.7]);
+        const rect = document.querySelector('.viewer canvas').getBoundingClientRect();
+        return {x: x - rect.left, y: y - rect.top};
+    }""")
+    await viewer.click(position=pos)
+    title = await fr.locator(".panel h2").text_content()
+    check(title == "Interventricular septum", f"[{tag}] tap the IVS cut face → its card", repr(title))
+    if A.shots:
+        await fr.locator("#explore").screenshot(path=shot("x3_tap_ivs_cap.png"))
+
 async def explore_checks_legacy(pg, fr, tag):
     await wait_lab(fr, "explore"); await pg.wait_for_timeout(800)
     root = "[data-lab=explore]"
@@ -150,6 +169,7 @@ async def explore_checks(pg, fr, tag):
     await snap("cut_a4c_labels", "EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('a4c'); EXPLORE_APP.setLayer('landmarks', true)")
     check(hr != hl and await fr.evaluate("!document.querySelector('.legend').hidden"), f"[{tag}] label colours repaint the heart and show the colour key")
     await cap_checks(fr, tag)
+    await cap_tap_check(fr, tag)
     # layers
     await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false); EXPLORE_APP.render()")
     none = await fr.evaluate("EXPLORE_APP.visibleLabels().length")
