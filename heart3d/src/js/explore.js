@@ -184,7 +184,7 @@ const capGroups = [[plane, plane2Neg], [plane2, planeNeg]].map(([pl, clipTo], gi
   const b = new T.Mesh(HI.tissue.geometry, stencilMat(T.BackSide, pl)), f = new T.Mesh(HI.tissue.geometry, stencilMat(T.FrontSide, pl));
   b.renderOrder = f.renderOrder = 1 + gi*.2; HI.group.add(b, f);
   const cap = new T.Mesh(new T.PlaneGeometry(80, 80), capMat(clipTo)); cap.renderOrder = 1.1 + gi*.2; cap.onAfterRender = r => r.clearStencil(); scene.add(cap);
-  return { b, f, cap, pl }; });
+  return { b, f, cap, pl, clipTo }; });
 /* ---------- conduction system + teaching landmarks (from the phantom's landmarks) ---------- */
 const COND_IDS = D.LAYERS.find(l => l.id === "conduction").ids;
 const condGroup = HI.landmarkObject(COND_IDS, { radius: .075, colour: 0x22c3ab, pointRadius: .2 });
@@ -435,17 +435,46 @@ function placeLabels(){ const w = host.clientWidth, h = host.clientHeight, place
 const marker = new T.Mesh(new T.SphereGeometry(.14, 16, 12), new T.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: .9 })); marker.renderOrder = 10; marker.visible = false; scene.add(marker);
 function rayAt(x, y){ const r = cvs.getBoundingClientRect(); ray.far = Infinity; ray.setFromCamera(new T.Vector2((x - r.left)/r.width*2 - 1, -(y - r.top)/r.height*2 + 1), cam); }
 const keep = h => !removed(h.point);
+function capLabelAt(point){
+  const p = point.clone().applyMatrix4(capUniforms.uBodyToHeart.value);
+  // Match the cap shader: transform the hit back to the rest-pose bake.
+  const { axialLift, apexZ, baseDepth, radialSqueeze } = BEAT_SHAPE;
+  const lift = axialLift * beatU.uSys.value, z = p.z - lift;
+  const restZ = z / (z >= 0 ? 1 - lift/apexZ : 1 + lift/baseDepth);
+  if (restZ >= -baseDepth && restZ <= apexZ) p.z = restZ;
+  const scale = 1 - radialSqueeze * beatU.uSys.value * T.MathUtils.smoothstep(p.z, -1, 1.5);
+  const [x0, y0, z0] = capData.lo, v = capData.v;
+  const x = Math.floor((p.x/scale - x0)/v), y = Math.floor((p.y/scale - y0)/v), k = Math.floor((p.z - z0)/v);
+  const { data, width, height, depth } = capUniforms.uCapLabels.value.image;
+  if (x < 0 || y < 0 || k < 0 || x >= width || y >= height || k >= depth) return null;
+  const label = data[x + width*(y + height*k)];
+  return label ? intNames[label] : null;
+}
+function pickCap(){
+  if (!capUniforms) return null;
+  let nearest = null;
+  for (const { cap, clipTo } of capGroups){
+    if (!cap.visible) continue;
+    const hit = ray.intersectObject(cap, false)[0];
+    if (!hit || clipTo.distanceToPoint(hit.point) < 0 || (nearest && nearest.distance <= hit.distance)) continue;
+    const id = capLabelAt(hit.point);
+    if (id) nearest = { id, point: hit.point, distance: hit.distance };
+  }
+  return nearest;
+}
 function pickAt(x, y){ rayAt(x, y); const m = st.mode;
-  if (condGroup.visible){ const hc = ray.intersectObjects(condGroup.children, false).filter(keep)[0]; if (hc && (m === "ext" || !nearerTissue(hc))) return { id: hc.object.userData.landmark, point: hc.point }; }
-  if (lmGroup.visible){ const hl = ray.intersectObjects(lmGroup.children.flatMap(g => g.children), false).filter(keep)[0]; if (hl) return { id: hl.object.userData.landmark, point: hl.point }; }
-  if (HM.vessels.visible){ const hv = ray.intersectObjects(HM.vessels.children, false).filter(keep)[0], hs = m === "ext" ? ray.intersectObject(HM.mesh, false)[0] : null;
+  const capHit = m === "cut" ? pickCap() : null;
+  const visibleHit = h => keep(h) && (!capHit || h.distance <= capHit.distance);
+  if (condGroup.visible){ const hc = ray.intersectObjects(condGroup.children, false).find(visibleHit); if (hc && (m === "ext" || !nearerTissue(hc))) return { id: hc.object.userData.landmark, point: hc.point }; }
+  if (lmGroup.visible){ const hl = ray.intersectObjects(lmGroup.children.flatMap(g => g.children), false).find(visibleHit); if (hl) return { id: hl.object.userData.landmark, point: hl.point }; }
+  if (HM.vessels.visible){ const hv = ray.intersectObjects(HM.vessels.children, false).find(visibleHit), hs = m === "ext" ? ray.intersectObject(HM.mesh, false)[0] : null;
     if (hv && (!hs || hv.distance <= hs.distance + .05)) return vesselHit(hv); }
   if (m === "ext"){ const h = ray.intersectObject(HM.mesh, false)[0]; if (!h) return null; const i = h.face.a, nm = extNames[extLab[i]], a = extAha[i];
     if (a && D.AHA_WALL(a)) return { id: "wall:" + D.AHA_WALL(a), point: h.point, label: nm };
     if (nm === "RV_free_wall" || nm === "RVOT" && extWall[i] === 2) return { id: "wall:RV", point: h.point, label: nm };
     return { id: nm, point: h.point }; }
   const targets = [...HI.valves.children.filter(v => v.visible), HI.tissue];
-  const h = ray.intersectObjects(targets, false).filter(keep)[0]; if (!h) return null;
+  const h = ray.intersectObjects(targets, false).find(visibleHit); if (!h) return capHit;
   const g = h.object.geometry, i = h.face.a, nm = intNames[g.attributes.aLabel.array[i]], cv = g.attributes.aCavity ? intNames[g.attributes.aCavity.array[i]] : "";
   if (cv && /^(PW|LV_myocardium|RV_free_wall|LA_wall|RA_wall)$/.test(nm)) return { id: cv, point: h.point, label: nm };   // a tap on the endocardium opens its chamber
   return { id: nm, point: h.point }; }
