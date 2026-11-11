@@ -17,7 +17,7 @@ Each Codex task = one branch `codex/<id>` from `heart3d/rework`, one PR into `he
 | Id | Owner | Status | Task |
 |---|---|---|---|
 | T6.1 | CL | PR #9 | Write `heart3d/data/conduction.json`: nodes and paths from `heart-landmarks.json` with today's activation times (from the legacy `conduction.js`), plus the spec for the activation wave (which tissue activates when, by region). **Done as:** 39 nodes / 44 edges (legacy times reproduced exactly by Dijkstra), regions + timing windows, display/tap rules, modes, scenarios, block sites, re-entry circuits; generator `heart3d/tools/make_conduction_spec.py`. Path lengths flagged in `expertReview`. |
-| T6.2 | C | todo | Activation wave on the refined heart: per-vertex activation time on the tissue and outer meshes (nearest-path / geodesic from T6.1), gold wave in the shader on the ECG clock; the live 12-lead strip back under the card on the 3D Heart page (reuse the ECG engine from `app.js`, extracted into its own module). **Accept:** SA→AV→His timings within ±5 % of the legacy model (test); the ECG traces identical to the legacy normal sinus rhythm. |
+| T6.2 | C | doing (a/3) | Activation wave on the refined heart: per-vertex activation time on the tissue and outer meshes (nearest-path / geodesic from T6.1), gold wave in the shader on the ECG clock; the live 12-lead strip back under the card on the 3D Heart page (reuse the ECG engine from `app.js`, extracted into its own module). **Accept:** SA→AV→His timings within ±5 % of the legacy model (test); the ECG traces identical to the legacy normal sinus rhythm. |
 | T6.3 | C | todo | Remove the warp (`NEO_CFG.warpToLegacy`) once the pathology page no longer needs it (after step 8). |
 
 ## Step 7: cards

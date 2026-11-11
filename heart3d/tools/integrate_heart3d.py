@@ -59,6 +59,24 @@ def set_lab(s, key, title, html):
     return s[:i] + block + s[j:]
 
 
+def set_conduction(s):
+    txt = open(os.path.join(ROOT, "data", "conduction.json"), encoding="utf-8").read().replace("</", "<\\/")
+    block = (f'<script id="pun-conduction" type="application/json">{txt}</script>\n'
+             '<script>Object.defineProperty(window,"PUN_CONDUCTION",{configurable:true,get(){'
+             'if(this.__pcg===undefined)try{this.__pcg=JSON.parse(document.getElementById("pun-conduction").textContent)}'
+             'catch(e){this.__pcg=null}return this.__pcg}});</script>')
+    pattern = re.compile(r'<script id="pun-conduction" type="application/json">.*?</script>\n'
+                         r'<script>Object.defineProperty\(window,"PUN_CONDUCTION".*?</script>', re.S)
+    if pattern.search(s):
+        s = pattern.sub(lambda m: block, s, count=1)
+    else:
+        i = s.find('<script id="pun-heart-interior"')
+        if i < 0: sys.exit("no pun-heart-interior in the page")
+        s = s[:i] + block + "\n" + s[i:]
+    print(f"  conduction embedded once ({len(txt)/1024:.0f} KB, window.PUN_CONDUCTION)")
+    return s
+
+
 def set_tabs(s):
     for key, _, _, long, short in PAGES:
         tab = (f'<a href="#{key}" data-topic="{key}" data-group="heart"><span class="long">{long}</span>'
@@ -110,7 +128,7 @@ def main():
     s = open(a.index, encoding="utf-8").read()
     for key, title, path, _, _ in PAGES:
         s = set_lab(s, key, title, open(os.path.join(ROOT, path), encoding="utf-8").read())
-    s = set_tabs(s); s = set_interior(s, a.interior); s = patch_route(s)
+    s = set_tabs(s); s = set_interior(s, a.interior); s = set_conduction(s); s = patch_route(s)
     out = a.out or a.index
     open(out, "w", encoding="utf-8").write(s); print(f"Wrote {out} ({len(s.encode('utf-8'))/1024/1024:.2f} MB)")
 

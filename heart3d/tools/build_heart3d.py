@@ -34,7 +34,7 @@ THREE = os.path.join(ROOT, "..", "echo-sim", "vendor", "three.min.js")
 MARK = re.compile(r"<!--@(THREE|INC|INCSTRIP|JSON|STANDALONE)(?::([^>]*))?-->")
 
 
-DATA = [("pun-heart-mesh", "PUN_HEART_MESH", "../echo-sim/export/heart-mesh.json"), ("pun-heart-interior", "PUN_HEART_INTERIOR", "../echo-sim/export/heart-interior.json")]
+DATA = [("pun-heart-mesh", "PUN_HEART_MESH", "../echo-sim/export/heart-mesh.json"), ("pun-heart-interior", "PUN_HEART_INTERIOR", "../echo-sim/export/heart-interior.json"), ("pun-conduction", "PUN_CONDUCTION", "data/conduction.json")]
 def data_scripts(rp):
     out = []
     for sid, var, path in DATA:

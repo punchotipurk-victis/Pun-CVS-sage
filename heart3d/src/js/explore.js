@@ -13,7 +13,9 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const host = $(".viewer"), labelLayer = $(".labels"), panel = $(".panel");
 function getData(k){ try { if (window[k]) return window[k]; } catch (e) {} try { if (window.parent && window.parent !== window && window.parent[k]) return window.parent[k]; } catch (e) {} return null; }
 const JM = getData("PUN_HEART_MESH"), JI = getData("PUN_HEART_INTERIOR");
-if (!T || !JM || !JI){ host.innerHTML = '<p class="fallback">The refined 3D heart opens from the Pun CVS Lab site (its data is stored in the site page). Open the site and choose 3D Heart.</p>'; window.EXPLORE_APP = { ready: false, error: "no data" }; return; }
+if (!T || !JM || !JI || !CGRAPH.spec){ host.innerHTML = '<p class="fallback">The refined 3D heart opens from the Pun CVS Lab site (its data is stored in the site page). Open the site and choose 3D Heart.</p>'; window.EXPLORE_APP = { ready: false, error: "no data" }; return; }
+const ecg = ECG.init(ECG.timingFromSpec(CGRAPH.spec.timing.legacy));
+const ecgContext = {ev:ecg.buildEvents(C.SC.normal.rh,C.SC.normal),ST:null,pAmp:1};
 let renderer; try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, stencil: true }); } catch (e) { host.innerHTML = '<p class="fallback">WebGL is not available in this browser, so the 3D model cannot be drawn.</p>'; window.EXPLORE_APP = { ready: false, error: "webgl" }; return; }
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.localClippingEnabled = true; renderer.setClearColor(0x000000, 0);
 host.insertBefore(renderer.domElement, host.firstChild);
@@ -541,6 +543,7 @@ window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== 
 paint(st.colour); applyMode(); resetView(); select(null, null);
 $(".busy").hidden = true;
 window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
+  ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },
   setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
   render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); },

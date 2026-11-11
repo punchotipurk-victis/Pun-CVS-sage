@@ -1123,12 +1123,26 @@ const FX={normal:{view:"ext"},sinusBrady:{view:"ext"},af:{view:"ext",look:[-.3,.
 return{EXTRA,SEE,VALVENOTE,GROUPS,MIS,LOOK,FX}
 })();
 </script>
-<script>/* ===== LAB APP v2: two independent 3D labs (Explore + Pathology simulator), live 12-lead ===== */
+<script>/* ECG templates and rhythm generators extracted from app.js without numerical changes.
+   init() returns an isolated engine; callers supply timing, never heart geometry. */
 (function(){
-"use strict";
-const {STRUCT,SC,TERR,VESSEL,MI_TEXT,WALLNAME}=CONTENT;
-const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
-const D0=Math.round(160+10-CS.TA_AVN-22);
+'use strict';
+// Full-precision pre-extraction timing. Approved for both pages to preserve ECG identity;
+// conduction.json intentionally remains unchanged (its timing values are rounded).
+const LEGACY_TIMING=Object.freeze({"TA_AVN":65.60150841471894,"WPW_LEAD":45,"onset":{"normal":29.735034397615696,"hocm":29.735034397615696,"rbbb":29.735034397615696,"lbbb":37.0210137181529,"lafb":29.735034397615696,"lpfb":29.735034397615696,"bifasc":29.735034397615696,"wpw":0,"hisOnly":0,"vesc":4,"pvc":4,"rvot":4}});
+Object.freeze(LEGACY_TIMING.onset);
+function timingFromSpec(legacy){
+  const timing={TA_AVN:legacy.TA_AVN_ms,WPW_LEAD:legacy.WPW_LEAD_ms,onset:{...legacy.qrsOnset_ms}};
+  if(Math.abs(timing.TA_AVN-LEGACY_TIMING.TA_AVN)>.05||timing.WPW_LEAD!==LEGACY_TIMING.WPW_LEAD||
+     Object.keys(LEGACY_TIMING.onset).some(k=>!Number.isFinite(timing.onset[k])||Math.abs(timing.onset[k]-LEGACY_TIMING.onset[k])>.05))
+    throw new Error('ECG timing contract changed: review the legacy precision calibration');
+  return {TA_AVN:LEGACY_TIMING.TA_AVN,WPW_LEAD:timing.WPW_LEAD,onset:{...LEGACY_TIMING.onset}};
+}
+function init(timing){
+  if(!Number.isFinite(timing.TA_AVN)||!Number.isFinite(timing.WPW_LEAD)||!timing.onset)
+    throw new TypeError('ECG.init requires TA_AVN, WPW_LEAD and onset');
+const {TA_AVN,WPW_LEAD}=timing;
+const D0=Math.round(170-TA_AVN-22);
 
 /* ================= shared ECG engine (ECG frame: x left, y inferior, z anterior) ================= */
 const nrm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
@@ -1169,13 +1183,11 @@ const GAIN=.72,leadVal=(v,k)=>{const l=LEADS[k];return GAIN*(v[0]*l[0]+v[1]*l[1]
 
 /* ================= rhythm generators ================= */
 let rng=1;const rand=()=>{rng=(rng*16807)%2147483647;return(rng-1)/2147483646};
-const HIS_WPW=CS.WPW_LEAD-22;
-function vOnset(mode){if(mode==="wpw")return 0;const t=CS.ventGraph(mode);let m=Infinity;for(const id in CS.N){const n=CS.N[id];if(n.side==="V"&&n.purk&&isFinite(t[id]))m=Math.min(m,t[id])}
-  const M=CS.VMODES[mode];if(M.focus)m=0;return isFinite(m)?m+4:0}
-const ONSET={};for(const k in CS.VMODES)ONSET[k]=vOnset(k);
+const HIS_WPW=WPW_LEAD-22;
+const ONSET=Object.freeze({...timing.onset});
 function Aev(t,o){return Object.assign({t,mode:"sinus",d:D0,cond:true,p:true,dieAt:1},o||{})}
 function Vev(t,mode,o){return Object.assign({t,mode,his:mode==="wpw"?HIS_WPW:0,qrs:mode!=="hisOnly",on:ONSET[mode]||0,st:true},o||{})}
-function conductV(a,mode){if(mode==="wpw")return Vev(a.t+CS.TA_AVN+a.d+22-CS.WPW_LEAD,mode,{from:a});return Vev(a.t+CS.TA_AVN+a.d,mode,{from:a})}
+function conductV(a,mode){if(mode==="wpw")return Vev(a.t+TA_AVN+a.d+22-WPW_LEAD,mode,{from:a});return Vev(a.t+TA_AVN+a.d,mode,{from:a})}
 function buildEvents(rh,sc){rng=12345;const A=[],V=[],H=240000;let cont=null,cl=200;const vm=rh.vmode||"normal",PP=rh.rate?60000/rh.rate:800;
   const sinus=(t,o)=>{const a=Aev(t,o);A.push(a);if(a.cond)V.push(conductV(a,o&&o.vmode||vm));return a};
   switch(rh.type){
@@ -1183,10 +1195,10 @@ function buildEvents(rh,sc){rng=12345;const A=[],V=[],H=240000;let cont=null,cl=
   case"arrest":{let t=200;while(t<H){for(let k=0;k<4;k++){sinus(t);t+=PP}const esc=t-PP+2300;V.push(Vev(esc,"normal"));t=esc+760}break}
   case"saExit":{let k=0;for(let t=200;t<H;t+=PP,k++){if(k%4===3)A.push(Aev(t,{mode:"saOnly",p:false,cond:false}));else sinus(t)}break}
   case"wenck":{let k=0;const add=[0,110,165];for(let t=200;t<H;t+=PP,k++){const j=k%4;if(j<3)sinus(t,{d:D0+add[j]});else A.push(Aev(t,{cond:false,d:D0+230,dieAt:.8}))}break}
-  case"mobitz2":{let k=0;for(let t=200;t<H;t+=PP,k++){const a=Aev(t);A.push(a);V.push(k%3===2?Vev(a.t+CS.TA_AVN+a.d,"hisOnly",{from:a}):conductV(a,"rbbb"))}break}
+  case"mobitz2":{let k=0;for(let t=200;t<H;t+=PP,k++){const a=Aev(t);A.push(a);V.push(k%3===2?Vev(a.t+TA_AVN+a.d,"hisOnly",{from:a}):conductV(a,"rbbb"))}break}
   case"chb":{const pa=60000/rh.rateA,pv=60000/rh.rateV;for(let t=200;t<H;t+=pa)A.push(Aev(t,{cond:false,dieAt:rh.dieAt}));for(let t=520;t<H;t+=pv)V.push(Vev(t,rh.esc));break}
-  case"flutter":{cont="flutter";cl=rh.cl;for(let t=300;t<H;t+=cl*rh.conduct){V.push(Vev(t,"normal"));A.push(Aev(t-CS.TA_AVN-D0,{mode:"avnOnly",p:false}))}break}
-  case"af":{cont="af";for(let t=300;t<H;t+=380+rand()*560){V.push(Vev(t,"normal"));A.push(Aev(t-CS.TA_AVN-D0,{mode:"avnOnly",p:false}))}A.sort((a,b)=>a.t-b.t);break}
+  case"flutter":{cont="flutter";cl=rh.cl;for(let t=300;t<H;t+=cl*rh.conduct){V.push(Vev(t,"normal"));A.push(Aev(t-TA_AVN-D0,{mode:"avnOnly",p:false}))}break}
+  case"af":{cont="af";for(let t=300;t<H;t+=380+rand()*560){V.push(Vev(t,"normal"));A.push(Aev(t-TA_AVN-D0,{mode:"avnOnly",p:false}))}A.sort((a,b)=>a.t-b.t);break}
   case"bigeminy":{let k=0;for(let t=200;t<H;t+=PP,k++){if(k%2===0){sinus(t);const v=V[V.length-1];V.push(Vev(v.t+v.on+430,"pvc"))}else A.push(Aev(t,{cond:false,dieAt:.25}))}break}
   case"rvot":{let t=200;while(t<H){for(let j=0;j<3;j++){sinus(t);t+=PP}const v0=V[V.length-1].t+V[V.length-1].on+400,run=4,ci=355;for(let j=0;j<run;j++)V.push(Vev(v0+j*ci,"rvot"));const vend=v0+(run-1)*ci;
       while(t<vend+420){A.push(Aev(t,{cond:false,dieAt:.35}));t+=PP}}break}
@@ -1195,6 +1207,27 @@ function buildEvents(rh,sc){rng=12345;const A=[],V=[],H=240000;let cont=null,cl=
   if(sc&&sc.tamp)V.forEach((v,i)=>{v.amp=i%2?.32:.48;v.swing=i%2?1:-1});
   return{A,V,cont,cl,end:H-8000}}
 function curEv(ev,t){const ia=bsearch(ev.A,t),iv=bsearch(ev.V,t);return{a:ia>=0?ev.A[ia]:null,v:iv>=0?ev.V[iv]:null,iv}}
+
+
+return {D0,ONSET,LEADS,VCG,PL,TA_LOBE,nrm,g,tShape,sstep,bsearch,vecAt,GAIN,leadVal,Aev,Vev,conductV,buildEvents,curEv};
+}
+window.ECG={init,timingFromSpec,LEGACY_TIMING};
+})();
+</script>
+<script>/* ===== LAB APP v2: two independent 3D labs (Explore + Pathology simulator), live 12-lead ===== */
+(function(){
+"use strict";
+const {STRUCT,SC,TERR,VESSEL,MI_TEXT,WALLNAME}=CONTENT;
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* Preserve the legacy timing provider, including full floating-point precision. */
+const ONSET={};
+for(const mode in CS.VMODES){
+  const t=CS.ventGraph(mode);let m=Infinity;
+  for(const id in CS.N){const n=CS.N[id];if(n.side==='V'&&n.purk&&isFinite(t[id]))m=Math.min(m,t[id])}
+  if(CS.VMODES[mode].focus)m=0;
+  ONSET[mode]=mode==='wpw'?0:isFinite(m)?m+4:0;
+}
+const {D0,LEADS,VCG,nrm,g,sstep,bsearch,vecAt,leadVal,buildEvents,curEv}=ECG.init({TA_AVN:CS.TA_AVN,WPW_LEAD:CS.WPW_LEAD,onset:ONSET});
 
 /* ================= scenarios ================= */
 function miScenario(terrKey,vesselKey,wall,title){const tr=TERR[terrKey],vs=vesselKey?VESSEL[vesselKey]:null,rh=vs?vs.rh:{type:"sinus",rate:84};

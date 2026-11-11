@@ -18,7 +18,7 @@ Checks (two-page mode):
   - the hidden page stops its render loop and resumes when shown again
   - 400 px: no sideways scroll on either page; the switcher fits
 """
-import argparse, asyncio, hashlib, os, sys
+import argparse, asyncio, hashlib, json, os, sys
 from playwright.async_api import async_playwright
 
 ARGS = ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"]
@@ -254,6 +254,103 @@ async def sim_checks(pg, fr, tag):
     if A.shots and not A.baseline:
         await fr.click(f"{root} .panel [data-sc=normal]"); await pg.wait_for_timeout(500); await pg.screenshot(path=shot("page_pathology.png"))
 
+
+async def conduction_core_checks(heart, pathology):
+    """T6.2(a): graph and ECG only. View/taps/strip and muscle maps belong to (b)/(c)."""
+    await heart.wait_for_function("window.EXPLORE_APP && EXPLORE_APP.ready", timeout=180000)
+    await wait_lab(pathology,"sim")
+    result = await heart.evaluate("""() => {
+        const g=CGRAPH, spec=g.spec, before=JSON.stringify(spec), errors=[];
+        const near=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<=Math.max(.05,Math.abs(b)*.05);
+        const compare=(actual,ref,label)=>{
+            for(const [id,t] of Object.entries(ref)){
+                // _purkLV/RV summarize the omitted dense legacy cloud, not nodes of this graph.
+                if(id.startsWith('_'))continue;
+                if(!near(actual[id],t))errors.push([label,id,actual[id],t]);
+            }
+        };
+        for(const [mode,ref] of Object.entries(spec.timing.legacy.atrialNodeTimes))
+            compare(g.atrialTimes(mode),ref,'atrial '+mode);
+        for(const [mode,ref] of Object.entries(spec.timing.legacy.ventricularNodeTimes))
+            compare(g.ventGraph(mode),ref,'ventricular '+mode);
+        const cache=g.ventGraph('normal')===g.ventGraph('normal')&&g.atrialTimes('sinus')===g.atrialTimes('sinus');
+        const isolated=['none','saOnly','avnOnly'].every(mode=>{
+            const t=g.atrialTimes(mode),ids=Object.keys(t).filter(id=>Number.isFinite(t[id]));
+            return mode==='none'?ids.length===0:ids.length===1&&ids[0]===(mode==='saOnly'?'SA':'AVN');
+        });
+        const chain=g.times('A',{SA:0}),qrs=chain.HIS+spec.timing.legacy.qrsOnset_ms.normal;
+        const blocked=g.times('A',{SA:0},['tracts','bach','avn']);
+        const blocks=Object.values(spec.blockSites).filter(x=>typeof x==='object')
+            .every(x=>x.node?!!g.nodes[x.node]:g.edges.some(e=>e.id===x.edge));
+        const circuits=Object.values(spec.circuits).filter(x=>x.ms)
+            .every(x=>x.ms.reduce((a,b)=>a+b,0)===x.CL_ms);
+        const untouched=JSON.stringify(spec)===before&&g.nodes===spec.nodes&&g.edges===spec.edges;
+        // Deliberately unequal segments and a duplicate point catch index-based interpolation.
+        const custom={...spec,nodes:{A:{p:[0,0,0],side:'A'},B:{p:[1,3,0],side:'A'},C:{p:[5,5,5],side:'V'}},edges:[
+            {id:'ab',a:'A',b:'B',side:'A',struct:'lane',points:[[0,0,0],[0,0,0],[1,0,0],[1,3,0]],T_ms:20},
+            {id:'bc',a:'B',b:'C',side:'V',struct:'circuit',points:[[1,3,0],[5,5,5]],T_ms:null,circuitOnly:true}
+        ]};
+        let geometry=false,paths=false;
+        try{
+            g.load(custom);const e=g.edges[0],t={A:10,B:12};
+            geometry=JSON.stringify(g.pointAt(e,.25))==='[1,0,0]'&&JSON.stringify(g.pointAt(e,.5))==='[1,1,0]'&&
+                JSON.stringify(g.pointAt(e,-1))==='[0,0,0]'&&JSON.stringify(g.pointAt(e,2))==='[1,3,0]'&&
+                g.edgeTimeAt(e,.75,t)===17&&g.edgeTimeAt(g.edges[1],.5,t)===Infinity;
+            paths=g.times('A',{A:0}).B===20&&g.times('A',{B:0}).A===20&&
+                g.times('A',{A:0},['lane']).B===Infinity&&g.times('V',{A:0}).B===Infinity&&
+                g.times(null,{A:0}).C===Infinity&&g.times('A',{A:0},['ab']).B===Infinity&&
+                g.times('A',{A:0,B:3}).B===3;
+        }finally{g.load(spec)}
+        return {errors,cache,isolated,chain:[chain.AVN,chain.HIS,qrs],blocked:blocked.AVN===Infinity,
+            blocks,circuits,untouched,geometry,paths,
+            reset:g.atrialTimes('sinus').SA===0,constants:g.constants};
+    }""")
+    check(not result["errors"], "conduction graph: sinus, IAB and every ventricular mode match legacy node times ±5%", str(result["errors"][:5]))
+    check(all(abs(a-b) <= b*.05 for a,b in zip(result["chain"], [65.6,147.6,177.3])),
+          "normal chain: AVN 65.6 → His 147.6 → QRS 177.3 ms", str(result["chain"]))
+    for key, msg in [("cache","mode results cached lazily"),("isolated","silent and node-only atrial modes stay isolated"),
+                     ("geometry","polyline arc length and bidirectional edge timing"),
+                     ("paths","undirected multi-source paths, side/block filters, no circuit-only shortcuts"),
+                     ("blocked","blocked atrial structures stop propagation"),
+                     ("untouched","contract geometry preserved without mutation"),("reset","load resets mode caches"),
+                     ("blocks","every block site resolves"),("circuits","numeric circuit step sums equal cycle lengths")]:
+        check(result[key], "conduction graph: "+msg)
+    check(result["constants"] == {"TA_AVN":65.6,"D0":82,"WPW_LEAD":45,"A_MUSCLE":1,"V_MUSCLE":.6,"JUNCTION_DELAY":4},
+          "conduction constants use the timing contract")
+    fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "ecg-legacy-normal.json")
+    with open(fixture_path, encoding="utf-8") as f: fixture=json.load(f)
+    traces=[]
+    for name, fr in [("3D Heart",heart),("Pathology",pathology)]:
+        actual=await fr.evaluate("""({leads,stepMs,durationMs,isPathology}) => {
+            const samples=[];
+            for(let ms=0;ms<durationMs;ms+=stepMs)samples.push(leads.map(lead=>isPathology?
+                LABCORE.leadVal(LABCORE.vecAt(LABS.sim.cx,ms),lead):EXPLORE_APP.ecgSample(lead,ms)));
+            return samples;
+        }""", {**{k:fixture[k] for k in ("leads","stepMs","durationMs")},"isPathology":name=="Pathology"})
+        diff=max(abs(a-b) for x,y in zip(actual,fixture["samples"]) for a,b in zip(x,y))
+        check(len(actual)==len(fixture["samples"]) and diff<1e-9,
+              f"{name} ECG: 12 leads every 2 ms over 3 beats identical to pre-change fixture", f"max abs diff {diff:.3g}")
+        traces.append(actual)
+        event_texts=await fr.evaluate("""({cases,isPathology}) => {
+            const timing=isPathology?{TA_AVN:CS.TA_AVN,WPW_LEAD:CS.WPW_LEAD,onset:LABCORE.ONSET}:
+                ECG.timingFromSpec(CGRAPH.spec.timing.legacy);
+            const engine=ECG.init(timing);
+            return cases.map(c=>JSON.stringify(engine.buildEvents(c.rhythm,c.scenario||{})));
+        }""", {"cases":fixture["rhythmCases"],"isPathology":name=="Pathology"})
+        bad=[c["rhythm"] for c,txt in zip(fixture["rhythmCases"],event_texts)
+             if hashlib.sha256(txt.encode()).hexdigest()!=c["eventSHA256"]]
+        check(not bad, f"{name} ECG: all 25 rhythm/event fixtures unchanged", str(bad))
+    diff=max(abs(a-b) for x,y in zip(*traces) for a,b in zip(x,y))
+    check(diff<1e-9,"3D Heart and Pathology ECG samples identical",f"max abs diff {diff:.3g}")
+    independent=await heart.evaluate("""() => {
+        const t=ECG.timingFromSpec(CGRAPH.spec.timing.legacy),a=ECG.init(t),b=ECG.init({...t,TA_AVN:t.TA_AVN+10});
+        const r={type:'sinus',rate:72};const before=a.buildEvents(r,{}).V[0].t;b.buildEvents({type:'af'},{});
+        const isolated=a.buildEvents(r,{}).V[0].t===before&&b.D0!==a.D0;
+        let rejects=false;try{ECG.timingFromSpec({...CGRAPH.spec.timing.legacy,qrsOnset_ms:{}})}catch(e){rejects=true}
+        return isolated&&rejects;
+    }""")
+    check(independent,"ECG engines isolate timing and reject stale precision calibration")
+
 async def main():
     url = "file://" + os.path.abspath(A.index)
     if A.shots: os.makedirs(A.shots, exist_ok=True)
@@ -282,6 +379,7 @@ async def main():
                     await fr.wait_for_function("window.EXPLORE_APP", timeout=180000)
                     check(labs == [] and await fr.evaluate("!!window.EXPLORE_APP"), f"#{key} holds the refined 3D Heart page (no legacy lab)", str(labs))
                 else: check(labs == ["sim"], f"#{key} holds only its own lab", str(labs))
+            await conduction_core_checks(await lab_frame(pg, "heart3d"), await lab_frame(pg, "pathology"))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
