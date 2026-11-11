@@ -1,0 +1,3462 @@
+{
+ "meta": {
+  "format": "pun-cvs conduction v1",
+  "task": "T6.1 (spec) → T6.2 (activation wave + ECG on the 3D Heart page) → T8.2 (pathology simulator) → later arrhythmia-mechanism labs",
+  "units": "cm and ms; points in the HEART frame (origin MV centre, Z = LV long axis base→apex, X = toward the RV/septum, Y = inferior-posterior). Place under the same group as heart-interior.json.",
+  "generatedBy": "heart3d/tools/make_conduction_spec.py (+ dump_legacy_conduction.js). Re-run after any landmark change; never hand-edit nodes/edges.",
+  "sources": "Geometry: phantom landmarks (Netter p.224, Anderson & Ho, Dobrzynski 2013). Times: legacy conduction.js (unchanged, so the ECG and the pathology scenarios keep their behaviour). Ventricular sequence: Durrer 1970 (teaching summary). Slow/fast pathway geography: Inoue & Becker; teaching (verify).",
+  "howToRead": [
+   "nodes{}: id → p (cm), side A (atrial clock) or V (ventricular clock), role, src (where the point came from). purkinje:true = Purkinje terminal (seeds muscle). circuitOnly:true = used only by circuits{}.",
+   "edges[]: a→b along points[] (draw as a tube through them). T_ms = conduction time from the legacy model (Dijkstra on these reproduces the legacy node times). T_ms 'avDelay' = set per beat. T_ms null = circuit-only edge, timed by the circuit. struct = what a block mode blocks (legacy ids). tap = which card a tap opens.",
+   "timing.legacy = the numbers T6.2 must reproduce. regions = which tissue activates and how. display = what students see and can tap. modes/scenarios/circuits = what the pathology simulator and arrhythmia demos drive."
+  ],
+  "phantom": "0.5.0-draft",
+  "landmarks": "echo-sim/export/heart-landmarks.json",
+  "fitResidualCm": {
+   "mean": 1.0,
+   "max": 1.52
+  }
+ },
+ "timing": {
+  "clocks": "Two clocks, as legacy. Atrial clock: t = 0 when the SA node fires. Ventricular clock: t = 0 when the penetrating His (node HIS) fires. In a conducted beat, V-clock 0 = A-clock (TA_AVN + avDelay).",
+  "avDelay": "Default D0 = round(170 − TA_AVN − 22) ms (= 82). Rhythm generators add to it (first-degree block, Wenckebach increments). It lives on edge AVN→HIS; the bead stays inside the AV-node ellipsoid for this time (pulsing), so students see 'the pause'.",
+  "atrialSeeds": "Every atrial edge except kinds sa / ine / avn is a fast lane: sample it every 0.3 cm and seed the atrial muscle with t = min(t_a + u·T, t_b + (1−u)·T) (u = arc fraction). Plus a seed at SA at t = 6 ms.",
+  "ventricularSeeds": "Purkinje terminals: every point on an edge of kind bb / fasc / mod / purk sampled every 0.2 cm (time interpolated as above) plus the purkinje:true nodes. An endocardial point s gets t(s) = min over terminals q within 3.5 cm of [ t(q) + |s − q|·10 / 2.6 ] + 4 ms (Purkinje–muscle junction). Ectopic focus: seed the muscle at the focus at t = 0 and enter the Purkinje tree retrogradely at the nearest terminal after retro_ms + distance/0.75 m/s (legacy).",
+  "muscleVelocity_mps": {
+   "atrial": 1.0,
+   "ventricular": 0.6,
+   "note": "Legacy A_MUSCLE / V_MUSCLE. Isotropic (no fibre direction) – enough for teaching the sequence."
+  },
+  "refractory_ms": {
+   "atrial": 150,
+   "ventricular": 250,
+   "note": "Display only: how long activated tissue keeps the 'just fired' tint. Circuits must respect it (the head must not meet its own tail)."
+  },
+  "conversion": "cm → ms at v m/s: t = d_cm · 10 / v.",
+  "legacy": {
+   "TA_AVN_ms": 65.6,
+   "D0_ms": 82,
+   "WPW_LEAD_ms": 45,
+   "qrsOnset_ms": {
+    "normal": 29.7,
+    "hocm": 29.7,
+    "rbbb": 29.7,
+    "lbbb": 37,
+    "lafb": 29.7,
+    "lpfb": 29.7,
+    "bifasc": 29.7,
+    "wpw": 0,
+    "hisOnly": 0,
+    "vesc": 4,
+    "pvc": 4,
+    "rvot": 4
+   },
+   "atrialNodeTimes": {
+    "sinus": {
+     "SA_H": 8,
+     "SA": 0,
+     "SA_T": 10,
+     "ANT1": 19.5,
+     "IAG": 42.2,
+     "BB1": 55.1,
+     "BB2": 67.6,
+     "LAA": 85.5,
+     "MID1": 26.1,
+     "IAS": 48.7,
+     "CT1": 21.4,
+     "CT2": 37.8,
+     "ISTH": 54.8,
+     "INE": 64.8,
+     "AVN": 65.6,
+     "LAI": 120.5,
+     "LAP": 100,
+     "AP_A": 103.2,
+     "HIS": 65.6
+    },
+    "iab": {
+     "SA_H": 8,
+     "SA": 0,
+     "SA_T": 10,
+     "ANT1": 19.5,
+     "IAG": 42.2,
+     "BB2": 184.7,
+     "LAA": 200.2,
+     "MID1": 26.1,
+     "IAS": 48.7,
+     "CT1": 21.4,
+     "CT2": 37.8,
+     "ISTH": 54.8,
+     "INE": 64.8,
+     "AVN": 65.6,
+     "LAI": 131.8,
+     "LAP": 152.3,
+     "AP_A": 182.6,
+     "HIS": 65.6
+    }
+   },
+   "ventricularNodeTimes": {
+    "normal": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LAF1": 23.3,
+     "LAF2": 36,
+     "LAF3": 47.1,
+     "LAFPM": 55.6,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": [
+      28.6,
+      63.1
+     ],
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "hocm": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LAF1": 23.3,
+     "LAF2": 36,
+     "LAF3": 47.1,
+     "LAFPM": 55.6,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": [
+      28.6,
+      63.1
+     ],
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "rbbb": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LAF1": 23.3,
+     "LAF2": 36,
+     "LAF3": 47.1,
+     "LAFPM": 55.6,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "_purkLV": [
+      28.6,
+      63.1
+     ],
+     "_purkRV": null
+    },
+    "lbbb": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": null,
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "lafb": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": [
+      28.6,
+      60.4
+     ],
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "lpfb": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LAF1": 23.3,
+     "LAF2": 36,
+     "LAF3": 47.1,
+     "LAFPM": 55.6,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": [
+      28.6,
+      63.1
+     ],
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "bifasc": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "_purkLV": [
+      28.6,
+      60.4
+     ],
+     "_purkRV": null
+    },
+    "wpw": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "LB1": 15.4,
+     "LSF1": 25.7,
+     "LSF2": 36.5,
+     "LVAP": 52.8,
+     "LAF1": 23.3,
+     "LAF2": 36,
+     "LAF3": 47.1,
+     "LAFPM": 55.6,
+     "LPF1": 27,
+     "LPF2": 38.6,
+     "LPFPM": 47.3,
+     "RB1": 16.3,
+     "RB2": 26.1,
+     "RB3": 34.9,
+     "RBAP": 44,
+     "MODFW": 50.5,
+     "_purkLV": [
+      28.6,
+      63.1
+     ],
+     "_purkRV": [
+      33,
+      63.6
+     ]
+    },
+    "hisOnly": {
+     "HIS": 0,
+     "BIF": 9.4,
+     "_purkLV": null,
+     "_purkRV": null
+    },
+    "vesc": {
+     "BIF": 75.3,
+     "LB1": 69.3,
+     "LSF1": 79.6,
+     "LSF2": 90.4,
+     "LVAP": 106.7,
+     "LAF1": 77.1,
+     "LAF2": 89.8,
+     "LAF3": 100.9,
+     "LAFPM": 109.4,
+     "LPF1": 57.7,
+     "LPF2": 46.1,
+     "LPFPM": 37.4,
+     "RB1": 82.2,
+     "RB2": 92,
+     "RB3": 100.8,
+     "RBAP": 109.9,
+     "MODFW": 116.4,
+     "_purkLV": [
+      35.9,
+      116.9
+     ],
+     "_purkRV": [
+      98.9,
+      129.5
+     ]
+    },
+    "pvc": {
+     "HIS": 85.4,
+     "BIF": 75.9,
+     "LB1": 69.9,
+     "LSF1": 80.2,
+     "LSF2": 91,
+     "LVAP": 107.3,
+     "LAF1": 77.8,
+     "LAF2": 90.5,
+     "LAF3": 101.6,
+     "LAFPM": 110.1,
+     "LPF1": 58.3,
+     "LPF2": 46.8,
+     "LPFPM": 38.1,
+     "RB1": 82.8,
+     "RB2": 92.7,
+     "RB3": 101.5,
+     "RBAP": 110.5,
+     "MODFW": 117.1,
+     "_purkLV": [
+      35.6,
+      117.6
+     ],
+     "_purkRV": [
+      99.6,
+      130.1
+     ]
+    },
+    "rvot": {
+     "BIF": 132.5,
+     "LB1": 138.5,
+     "LSF1": 148.8,
+     "LSF2": 159.6,
+     "LVAP": 175.9,
+     "LAF1": 146.4,
+     "LAF2": 159,
+     "LAF3": 170.2,
+     "LAFPM": 178.6,
+     "LPF1": 150.1,
+     "LPF2": 161.6,
+     "LPFPM": 170.4,
+     "RB1": 125.6,
+     "RB2": 115.8,
+     "RB3": 107,
+     "RBAP": 116,
+     "MODFW": 91.4,
+     "_purkLV": [
+      151.7,
+      186.2
+     ],
+     "_purkRV": [
+      78.3,
+      122.7
+     ]
+    }
+   }
+  }
+ },
+ "regions": {
+  "classify": "Per vertex (heart-mesh.json outer surface and heart-interior.json tissue) from vertex.wall + vertex.label. Atrial and ventricular muscle are computed in SEPARATE passes, so the wave can never cross the AV ring except through the His (and the accessory pathway when a mode enables it). This is the fibrous-skeleton insulation students should see.",
+  "atrialMuscle": {
+   "wall": "atria",
+   "labels": [
+    "RA_wall",
+    "LA_wall",
+    "IAS",
+    "crista_terminalis",
+    "pectinate_muscles",
+    "LAA",
+    "coronary_sinus"
+   ],
+   "sleeves": {
+    "pulmonary_veins": "excitable only within 1.0 cm of the nearest pv_ostia point (myocardial sleeves = AF trigger sites)",
+    "SVC": "excitable only within 1.0 cm of svc_junction / sa_node"
+   }
+  },
+  "ventricularMuscle": {
+   "wall": [
+    "LV",
+    "RV"
+   ],
+   "labels": [
+    "PW",
+    "IVS",
+    "RV_free_wall",
+    "papillary_muscles.ALPM",
+    "papillary_muscles.PMPM",
+    "moderator_band"
+   ],
+   "note": "In the bake 'PW' is the whole LV free wall; IVS has wall = LV."
+  },
+  "neverActivate": [
+   "central_fibrous_body",
+   "membranous_septum",
+   "todaro_tendon",
+   "TV_annulus",
+   "MV_AML",
+   "MV_PML",
+   "TV_*",
+   "AV_cusps.*",
+   "PV_cusps",
+   "chordae",
+   "eustachian_valve",
+   "thebesian_valve",
+   "epicardial_fat",
+   "LCA",
+   "RCA",
+   "cardiac_veins",
+   "aortic_*",
+   "PA_main",
+   "RPA",
+   "LPA",
+   "arch_branches",
+   "pericardium"
+  ],
+  "neverActivateDisplay": "Keep their own colour while the wave passes. Exception: outer-surface epicardial fat / coronary vertices with wall LV or RV show the time of the nearest muscle vertex at 40 % strength ('wave seen through the fat'), so the outer view is not full of holes.",
+  "endocardium": "Interior mesh: vertex.cavity ∈ {LV_cavity, LVOT} → LV endocardium; {RV_cavity, RVOT} → RV endocardium; {RA, LA, LAA} → atrial endocardium. Only endocardial vertices get Purkinje seeds.",
+  "purkinjeFreeZones": [
+   "LV base: no Purkinje seeds where z < 1.8 cm, except on IVS (septal surface). The basal posterolateral LV activates last (Durrer).",
+   "RVOT: no seeds on vertices with cavity RVOT, and none where z < 1.5 cm in the RV. The RVOT / pulmonary conus activates last in the RV."
+  ],
+  "solver": "Recommended: geodesic (Dijkstra / fast marching) on the 0.2 cm label volume from T5.1 (capVolume), 26-neighbour steps, cost = step length / velocity, restricted to the voxels of the class being solved; each mesh vertex then takes the time of its nearest voxel of the same class (≤ 0.3 cm). This goes round the blood pools and through the septum without the legacy 'septal crossing' penalty. Fallback if T5.1 is not merged: legacy Euclidean spread from the seeds, with 1.5× cost + 22 ms when an RV seed reaches LV-class tissue or vice versa. Cache per mode (key = mode + avDelay/hisOffset), as legacy.",
+  "regionTiming": {
+   "note": "Expected times in normal sinus rhythm on the A-clock (atria) and V-clock (ventricles). Use as test windows (±15 % or ±8 ms, whichever is larger). Atrial node times are exact legacy values.",
+   "atria": [
+    {
+     "region": "SA node / high lateral RA",
+     "ms": [
+      0,
+      10
+     ]
+    },
+    {
+     "region": "RA septum (fossa limbus, node IAS)",
+     "ms": 48.7
+    },
+    {
+     "region": "LA roof via Bachmann (BB2)",
+     "ms": 67.6
+    },
+    {
+     "region": "AV node reached (fast pathway)",
+     "ms": 65.6
+    },
+    {
+     "region": "LAA base",
+     "ms": 85.5
+    },
+    {
+     "region": "LA posterior wall (LAP)",
+     "ms": 100.0
+    },
+    {
+     "region": "LA lateral (AP_A)",
+     "ms": 103.2
+    },
+    {
+     "region": "LA inferior / last atrial tissue",
+     "ms": [
+      110,
+      125
+     ]
+    },
+    {
+     "region": "total atrial activation (P duration)",
+     "ms": [
+      90,
+      120
+     ]
+    }
+   ],
+   "ventricles": [
+    {
+     "region": "His bifurcation",
+     "ms": 9.4
+    },
+    {
+     "region": "first muscle: LV mid-septum, LEFT side (septal fascicle) → septal q in I, V6",
+     "ms": [
+      26,
+      34
+     ]
+    },
+    {
+     "region": "RV septal surface + LV anterior/inferior endocardium",
+     "ms": [
+      30,
+      50
+     ]
+    },
+    {
+     "region": "RV free-wall breakthrough via the moderator band",
+     "ms": [
+      45,
+      60
+     ]
+    },
+    {
+     "region": "LV apex and mid walls (epicardial breakthrough)",
+     "ms": [
+      50,
+      75
+     ]
+    },
+    {
+     "region": "last 5 %: basal posterolateral LV, RVOT, basal septum",
+     "ms": [
+      95,
+      125
+     ]
+    },
+    {
+     "region": "total ventricular activation (≈ QRS)",
+     "ms": [
+      80,
+      100
+     ],
+     "legacyQrsMs": 92
+    }
+   ]
+  }
+ },
+ "display": {
+  "goal": "A student must see each part of the system, follow the impulse along it, and tap it, in External (heart 30 % opaque when the Conduction layer is on), X-ray and Cut modes.",
+  "radiiCm": {
+   "tract": 0.1,
+   "bach": 0.16,
+   "cs": 0.09,
+   "ine": 0.11,
+   "his": 0.18,
+   "bb": 0.14,
+   "fasc": 0.12,
+   "mod": 0.14,
+   "purk": 0.05,
+   "ap": 0.16,
+   "cti": 0.14,
+   "septum": 0.08,
+   "SA": "ellipsoid 0.35 × 0.20 × 0.20 at SA, plus a 0.14 tube SA_H–SA–SA_T (crescent along the crista)",
+   "AVN": "ellipsoid 0.30 × 0.18 × 0.20 at AVN, long axis toward HIS"
+  },
+  "pick": {
+   "hitRadiusCm": "max(0.35, 2.5 × tube radius) invisible tube on the same curve; nodes: sphere 0.45 (SA, AVN), 0.35 (HIS, BIF).",
+   "minScreenPx": 22,
+   "rule": "Screen-space fallback: if no 3D hit, take the nearest conduction curve whose projection is within 22 px of the tap (44 px finger target). Purkinje (purk) is tappable only when nothing else is within range.",
+   "priority": [
+    "SA / AVN nodes",
+    "his",
+    "avn_slow / avn_fast",
+    "bundle branches (lbb, rbb, moderator)",
+    "fascicles (lsf, laf, lpf)",
+    "ap",
+    "cti",
+    "atrial tracts (tracts, bach, la)",
+    "purk",
+    "tissue"
+   ],
+   "taps": {
+    "sa": "sa",
+    "tracts": "tracts",
+    "bach": "bach",
+    "la": "la",
+    "avn": "avn",
+    "avn_fast": "avn",
+    "avn_slow": "avn",
+    "his": "his",
+    "lbb": "lbb",
+    "lsf": "lbb",
+    "laf": "laf",
+    "lpf": "lpf",
+    "rbb": "rbb",
+    "moderator": "rbb",
+    "purk": "purk",
+    "ap": "ap",
+    "cti": "tracts",
+    "_note": "tap id → existing card key in content.js STRUCT (T7.1 moves them to structures.json). Ids lsf, avn_fast, avn_slow, moderator, cti need their own cards later (T7.2); until then they open the card shown here, with the short name below as the title."
+   }
+  },
+  "shortNames": {
+   "sa": "SA node",
+   "tracts": "Internodal routes",
+   "bach": "Bachmann's bundle",
+   "la": "Left atrium",
+   "avn": "AV node",
+   "avn_fast": "Fast pathway",
+   "avn_slow": "Slow pathway",
+   "his": "His bundle",
+   "lbb": "Left bundle",
+   "lsf": "Septal fascicle",
+   "laf": "Left anterior fascicle",
+   "lpf": "Left posterior fascicle",
+   "rbb": "Right bundle",
+   "moderator": "Moderator band",
+   "purk": "Purkinje fibres",
+   "ap": "Accessory pathway",
+   "cti": "Cavotricuspid isthmus"
+  },
+  "labels": "One label per tap id at the curve's arc midpoint with a short leader line; hide labels whose anchor is behind a cut. At ≤ 400 px viewer width show only SA, AV node, His, LBB, RBB.",
+  "depth": "Draw conduction on top (depthTest false) but in two passes: parts in front of the nearest tissue at full opacity, parts hidden behind tissue at 45 %. Students then see the network inside the heart and still sense depth.",
+  "colours": {
+   "idle": "#22C3AB (legacy teal)",
+   "wavefront": "#FFF7B8 (pale gold), 12 ms long band along the curve",
+   "justFired": "#6BF2DB fading back to idle over the refractory time",
+   "slowPathway": "#F2A33A (amber) idle colour of avn_slow",
+   "fastPathway": "idle teal",
+   "accessory": "#F28CF2 (magenta), only shown when the mode has ap",
+   "blocked": "#8A8F98 grey AND dashed AND a red ring (#FF3B3B, torus r 0.25 cm) with an × at the block site – never colour alone (colour-blind safe)",
+   "ablationLine": "white dashed line along landmark cti (only in flutter scenes)",
+   "circuitArrow": "animated chevrons along the circuit, gold; slow zone drawn amber"
+  },
+  "tissueWave": {
+   "default": "Gold band on the muscle where 0 ≤ now − t_act < 12 ms, then the just-fired tint fades over the refractory time. Atria and ventricles use the same palette so the student sees one impulse travelling.",
+   "isochroneToggle": "Static map coloured by activation time (10 ms bands, colour-blind-safe sequential ramp, legend in ms; first = light, last = dark). This is the best view for comparing normal vs LBBB vs WPW.",
+   "playback": "Speeds 1×, 0.25×, 0.1×; pause and step ±5 ms. The ECG cursor and the 3D wave share one clock.",
+   "phaseLink": "While the bead is on a part, the ECG phase chip shows what that part makes on the surface ECG (P, PR, QRS…), reusing the legacy phase text (TODO(content) for new parts)."
+  }
+ },
+ "modes": {
+  "_note": "Same keys as legacy (CS.atrialTimes / CS.VMODES), so app.js scenarios keep working. blk = struct ids removed from the graph.",
+  "atrial": {
+   "sinus": {
+    "seed": {
+     "SA": 0
+    }
+   },
+   "iab": {
+    "seed": {
+     "SA": 0
+    },
+    "blk": [
+     "bach"
+    ],
+    "effect": "LA reached late via the CS connection (INE→LAI): wide, notched P; LAA ≈ 200 ms."
+   },
+   "saOnly": {
+    "seed": {
+     "SA": 0
+    },
+    "blk": [
+     "*"
+    ],
+    "effect": "SA node fires but nothing leaves it (exit block): pulse the SA node only."
+   },
+   "avnOnly": {
+    "seed": {
+     "AVN": "TA_AVN"
+    },
+    "effect": "No organised atrial wave (AF, flutter handled by circuits); only the AV node fires."
+   },
+   "none": {
+    "seed": {}
+   },
+   "focal": {
+    "seed": {
+     "<focus node or point>": 0
+    },
+    "new": true,
+    "effect": "Ectopic atrial focus: Dijkstra from the focus on the atrial graph + muscle spread. Default focus CT1 (crista) or a pv_ostia point."
+   },
+   "retro": {
+    "seed": {
+     "AVN": 0
+    },
+    "new": true,
+    "effect": "Retrograde atrial activation from the AV node (junctional rhythm, AVNRT, antidromic AVRT): IAS and the CS ostium first, SA region last."
+   }
+  },
+  "ventricular": {
+   "normal": {
+    "blk": []
+   },
+   "hocm": {
+    "blk": []
+   },
+   "rbbb": {
+    "blk": [
+     "rbb"
+    ]
+   },
+   "lbbb": {
+    "blk": [
+     "lbb",
+     "laf",
+     "lpf"
+    ]
+   },
+   "lafb": {
+    "blk": [
+     "laf"
+    ]
+   },
+   "lpfb": {
+    "blk": [
+     "lpf"
+    ]
+   },
+   "bifasc": {
+    "blk": [
+     "rbb",
+     "laf"
+    ]
+   },
+   "wpw": {
+    "blk": [],
+    "ap": true,
+    "WPW_LEAD_ms": 45
+   },
+   "hisOnly": {
+    "blk": [
+     "lbb",
+     "laf",
+     "lpf",
+     "rbb",
+     "purk"
+    ],
+    "noMuscle": true
+   },
+   "vesc": {
+    "blk": [
+     "his"
+    ],
+    "focus": "vesc"
+   },
+   "pvc": {
+    "blk": [],
+    "focus": "pvc"
+   },
+   "rvot": {
+    "blk": [
+     "his"
+    ],
+    "focus": "rvot"
+   }
+  }
+ },
+ "blockSites": {
+  "_note": "Where the red ring sits: edge id + arc fraction (or a node). From legacy BLOCKPOS.",
+  "SA": {
+   "node": "SA"
+  },
+  "AVN": {
+   "node": "AVN"
+  },
+  "HIS": {
+   "edge": "HIS-BIF",
+   "u": 0.5
+  },
+  "RBB": {
+   "edge": "BIF-RB1",
+   "u": 0.6
+  },
+  "LBB": {
+   "edge": "BIF-LB1",
+   "u": 0.6
+  },
+  "LAF": {
+   "edge": "LB1-LAF1",
+   "u": 0.5
+  },
+  "LPF": {
+   "edge": "LB1-LPF1",
+   "u": 0.5
+  },
+  "BACH": {
+   "edge": "IAG-BB1",
+   "u": 0.5
+  }
+ },
+ "scenarios": {
+  "_note": "Legacy scenario keys (content.js SC) → what the 3D graph shows. rhythm generators stay in app.js; only the 3D side is new.",
+  "normal": {
+   "atrial": "sinus",
+   "ventricular": "normal"
+  },
+  "sinusBrady": {
+   "atrial": "sinus",
+   "ventricular": "normal"
+  },
+  "sinusArrest": {
+   "atrial": "sinus",
+   "ventricular": "normal",
+   "show": "SA node silent during the pause; escape beat starts at HIS (junctional) with atria from 'retro' if conducted back (legacy: none)."
+  },
+  "saExit": {
+   "atrial": "sinus | saOnly on dropped beats",
+   "block": [
+    "SA"
+   ],
+   "show": "SA node pulses, ring at the SA exit on the dropped beat."
+  },
+  "iab": {
+   "atrial": "iab",
+   "block": [
+    "BACH"
+   ]
+  },
+  "avb1": {
+   "atrial": "sinus",
+   "show": "Longer pause inside the AV node (avDelay)."
+  },
+  "wenck": {
+   "atrial": "sinus",
+   "block": [
+    "AVN"
+   ],
+   "show": "AV-node pause grows beat by beat; on the dropped beat the bead dies inside the AV node (dieAt) and the ring appears there."
+  },
+  "mobitz2": {
+   "atrial": "sinus",
+   "ventricular": "rbbb (conducted) / hisOnly (dropped)",
+   "block": [
+    "RBB",
+    "HIS"
+   ],
+   "show": "Constant AV-node pause; dropped beat dies BELOW the AV node (His–bundle level). Teaching contrast with Wenckebach."
+  },
+  "chbJ": {
+   "atrial": "sinus (never conducted)",
+   "ventricular": "normal from HIS (junctional escape)",
+   "block": [
+    "AVN"
+   ]
+  },
+  "chbV": {
+   "atrial": "sinus (never conducted)",
+   "ventricular": "vesc",
+   "block": [
+    "HIS"
+   ]
+  },
+  "rbbb": {
+   "ventricular": "rbbb",
+   "block": [
+    "RBB"
+   ]
+  },
+  "lbbb": {
+   "ventricular": "lbbb",
+   "block": [
+    "LBB"
+   ]
+  },
+  "lafb": {
+   "ventricular": "lafb",
+   "block": [
+    "LAF"
+   ]
+  },
+  "lpfb": {
+   "ventricular": "lpfb",
+   "block": [
+    "LPF"
+   ]
+  },
+  "bifasc": {
+   "ventricular": "bifasc",
+   "block": [
+    "RBB",
+    "LAF"
+   ]
+  },
+  "wpw": {
+   "ventricular": "wpw",
+   "show": "Accessory pathway in magenta; ventricular wave starts at AP_V before the His fires (delta wave)."
+  },
+  "pvc": {
+   "ventricular": "pvc (focus)",
+   "show": "Wave starts at the focus, spreads cell-to-cell (slow, wide), enters the Purkinje late."
+  },
+  "rvot": {
+   "ventricular": "rvot (focus)"
+  },
+  "flutter": {
+   "circuit": "flutterCCW"
+  },
+  "af": {
+   "circuit": "afTriggers"
+  }
+ },
+ "circuits": {
+  "_note": "Re-entry loops for the arrhythmia-mechanism demos. loop = node ids in order (closed). ms = time on each step; the bead goes round once per CL. Each cycle, seed the atrial muscle from the atrial part of the loop at the bead time and send to the ventricles per 'conduct'. Steps between nodes use the edge with those end nodes (either direction); a step marked 'graph' follows the shortest path on the atrial / ventricular graph. All stage texts: T8.1 (Claude).",
+  "flutterCCW": {
+   "name": "Typical (counter-clockwise) atrial flutter",
+   "CL_ms": 200,
+   "conduct": "2:1 (legacy flutter)",
+   "loop": [
+    "CTI_L",
+    "CTI_S",
+    "INE",
+    "IAS",
+    "MID1",
+    "SA_H",
+    "SA",
+    "SA_T",
+    "CT1",
+    "CT2",
+    "CTI_L"
+   ],
+   "ms": [
+    60,
+    10,
+    30,
+    25,
+    20,
+    7,
+    8,
+    15,
+    15,
+    10
+   ],
+   "slowZone": "CTI_L-CTI_S",
+   "barriers": [
+    "TV_annulus (anterior)",
+    "crista_terminalis + IVC / eustachian_valve (posterior)"
+   ],
+   "ablation": "landmark cti (white dashed line); ablating it sets edge CTI_L-CTI_S to blocked and the circuit stops",
+   "teach": "Up the septum, down the lateral wall, through the isthmus: inferior leads see the slow fall of the sawtooth (negative flutter waves in II/III/aVF).",
+   "expertReview": true
+  },
+  "flutterCW": {
+   "name": "Reverse typical (clockwise) flutter",
+   "CL_ms": 200,
+   "conduct": "2:1",
+   "loopReverse": "flutterCCW",
+   "teach": "Same circuit, opposite direction: positive flutter waves inferiorly."
+  },
+  "avnrtTypical": {
+   "name": "Typical AVNRT (slow–fast)",
+   "CL_ms": 340,
+   "conduct": "1:1",
+   "loop": [
+    "INE",
+    "AVN",
+    "IAS",
+    "INE"
+   ],
+   "ms": [
+    240,
+    60,
+    40
+   ],
+   "ventricles": "His fires 10 ms after the bead reaches AVN (lower common pathway); normal ventricular map.",
+   "atria": "Seeded from IAS when the bead arrives (retrograde, 'retro' pattern): P' falls at the end of the QRS (pseudo-r' in V1, pseudo-S in II).",
+   "trigger": "A premature atrial beat blocks in the fast pathway (still refractory) and goes down the slow one: show the fast edge blocked for that one beat.",
+   "slowZone": "INE-AVN"
+  },
+  "avnrtAtypical": {
+   "name": "Atypical AVNRT (fast–slow)",
+   "CL_ms": 400,
+   "conduct": "1:1",
+   "loop": [
+    "IAS",
+    "AVN",
+    "INE",
+    "IAS"
+   ],
+   "ms": [
+    60,
+    280,
+    60
+   ],
+   "atria": "From INE (CS ostium first): long RP, negative P' inferiorly."
+  },
+  "avrtOrthodromic": {
+   "name": "Orthodromic AVRT (left lateral accessory pathway)",
+   "CL_ms": 330,
+   "conduct": "1:1",
+   "loop": [
+    "AVN",
+    "HIS",
+    "AP_V",
+    "AP_A",
+    "AVN"
+   ],
+   "steps": [
+    "avDelay",
+    "ventricular map (time of AP_V in 'normal')",
+    "AP 12 ms (retrograde)",
+    "graph (atrial Dijkstra AP_A → AVN)"
+   ],
+   "avDelay": "chosen so the loop totals CL_ms",
+   "teach": "Narrow QRS (down the normal system); P' after the QRS (RP ≈ 100–140 ms); atria activated LA lateral first (eccentric), so P' is negative in I/aVL."
+  },
+  "avrtAntidromic": {
+   "name": "Antidromic AVRT",
+   "CL_ms": 300,
+   "conduct": "1:1",
+   "loop": [
+    "AP_A",
+    "AP_V",
+    "HIS",
+    "AVN",
+    "AP_A"
+   ],
+   "steps": [
+    "AP 12 ms (antegrade)",
+    "ventricular map from AP_V (fully pre-excited) → retrograde entry into the Purkinje / His",
+    "retrograde AV node: fill to CL",
+    "graph (atrial 'retro' AVN → AP_A)"
+   ],
+   "teach": "Wide, fully pre-excited QRS: the wave starts at the lateral LV base and spreads cell to cell."
+  },
+  "focalAT": {
+   "name": "Focal atrial tachycardia",
+   "atrialMode": "focal",
+   "focusOptions": [
+    "CT1",
+    "pv_ostia.PVein_RU",
+    "pv_ostia.PVein_LU"
+   ],
+   "CL_ms": 400,
+   "teach": "Not re-entry: one spot fires early and repeatedly; P' axis points away from the focus."
+  },
+  "afTriggers": {
+   "name": "Atrial fibrillation (pulmonary-vein triggers)",
+   "atrialMode": "avnOnly + wavelets",
+   "show": "Ectopic firing at the four pv_ostia sleeves, then 3–6 independent wavelets wandering on the atrial muscle (random seeds every 120–200 ms per atrium, each spreading ≤ 3 cm before dying on refractory tissue). AV node conducts irregularly (legacy af timing).",
+   "teach": "Triggers in the PV sleeves + a substrate that keeps re-entering; isolation of the PVs removes the triggers."
+  },
+  "scarVT": {
+   "name": "Scar-related monomorphic VT (for the MI lab)",
+   "status": "placeholder – needs lesion data (T8.1)",
+   "data": {
+    "scarAHA": "list of AHA segments (non-excitable core)",
+    "isthmus": "polyline of surviving channel through the scar, conduction 0.2 m/s",
+    "exit": "point on the scar border",
+    "CL_ms": 380
+   },
+   "teach": "Slow channel through scar → exit → around the scar → back in: the exit site sets the QRS shape."
+  }
+ },
+ "acceptance": [
+  "Graph: Dijkstra on edges with side A, mode sinus, from SA = 0 gives every legacy atrial node time in timing.legacy.atrialNodeTimes.sinus within ±5 % (AVN = 65.6 ms). Mode iab gives LAA within ±5 % of 200.2 ms.",
+  "Graph: Dijkstra on side V from HIS = 0 gives every legacy ventricular node time for each mode in timing.legacy.ventricularNodeTimes within ±5 %.",
+  "Timing chain in a normal beat: SA 0 → AVN 65.6 → HIS 147.6 (TA_AVN + D0) → QRS onset 177.3 (+ qrsOnset.normal 29.7); ECG traces identical to legacy normal sinus rhythm (the VCG templates do not change).",
+  "Maps: every window in regions.regionTiming is met for normal sinus rhythm.",
+  "Insulation: in modes without ap, no atrial vertex gets a ventricular time and no ventricular vertex an atrial time.",
+  "Bundle blocks: rbbb → last 5 % in the RV free wall / RVOT and total ≥ 120 ms; lbbb → septum activated right-to-left first, LV lateral wall last, total ≥ 130 ms; lafb → anterolateral/superior LV later than in normal; lpfb → inferior LV later than in normal; wpw → first ventricular vertex within 1 cm of AP_V.",
+  "Taps: tapping the screen-projected midpoint of every tap id's curve at the default zoom opens its card (test per id in display.pick.taps), in External, X-ray and the 'Four-chamber section' cut.",
+  "Circuits: each loop's ms sum equals CL_ms; the head never enters tissue still within its refractory time (check every step)."
+ ],
+ "nodes": {
+  "SA": {
+   "p": [
+    3.35,
+    0.05,
+    -4.75
+   ],
+   "side": "A",
+   "role": "SA node (pacemaker, t = 0)",
+   "src": "landmark sa_node",
+   "big": "sa",
+   "tapTarget": "sa"
+  },
+  "SA_H": {
+   "p": [
+    3.3,
+    -0.017,
+    -4.233
+   ],
+   "side": "A",
+   "role": "SA node head (superior exit)",
+   "src": "internodal_anterior @0.08",
+   "tapTarget": "sa"
+  },
+  "ANT1": {
+   "p": [
+    3.187,
+    -0.171,
+    -3.504
+   ],
+   "side": "A",
+   "role": "anterior internodal route",
+   "src": "internodal_anterior @0.19"
+  },
+  "IAG": {
+   "p": [
+    2.856,
+    -0.531,
+    -2.106
+   ],
+   "side": "A",
+   "role": "Bachmann origin on the anterior route",
+   "src": "internodal_anterior @0.41 (nearest to bachmann_bundle[0], 0.54 cm)"
+  },
+  "MID1": {
+   "p": [
+    2.023,
+    1.658,
+    -3.129
+   ],
+   "side": "A",
+   "role": "middle (Wenckebach) route",
+   "src": "internodal_middle @0.40"
+  },
+  "IAS": {
+   "p": [
+    1.709,
+    1.005,
+    -1.136
+   ],
+   "side": "A",
+   "role": "septal (fast-pathway) input, fossa limbus",
+   "src": "internodal_middle @0.74"
+  },
+  "SA_T": {
+   "p": [
+    3.926,
+    0.529,
+    -4.222
+   ],
+   "side": "A",
+   "role": "SA node tail (inferior exit)",
+   "src": "internodal_posterior @0.12",
+   "tapTarget": "sa"
+  },
+  "CT1": {
+   "p": [
+    4.403,
+    1.146,
+    -3.544
+   ],
+   "side": "A",
+   "role": "crista terminalis, upper",
+   "src": "internodal_posterior @0.25"
+  },
+  "CT2": {
+   "p": [
+    3.924,
+    2.094,
+    -2.599
+   ],
+   "side": "A",
+   "role": "crista terminalis, lower",
+   "src": "internodal_posterior @0.44"
+  },
+  "ISTH": {
+   "p": [
+    2.794,
+    2.189,
+    -1.569
+   ],
+   "side": "A",
+   "role": "Eustachian ridge / septal isthmus (NOT the CTI)",
+   "src": "internodal_posterior @0.63"
+  },
+  "INE": {
+   "p": [
+    2.31,
+    1.759,
+    -0.939
+   ],
+   "side": "A",
+   "role": "inferior nodal extension (slow-pathway entry), CS-ostium level",
+   "src": "internodal_posterior @0.75 (nearest to cs_ostium, 0.31 cm)"
+  },
+  "AVN": {
+   "p": [
+    2.15,
+    0.25,
+    0.35
+   ],
+   "side": "A",
+   "role": "compact AV node (apex of Koch's triangle)",
+   "src": "landmark av_node",
+   "big": "avn",
+   "tapTarget": "avn"
+  },
+  "BB1": {
+   "p": [
+    1.217,
+    -1.099,
+    -2.696
+   ],
+   "side": "A",
+   "role": "Bachmann's bundle",
+   "src": "bachmann_bundle @0.30"
+  },
+  "BB2": {
+   "p": [
+    -0.551,
+    -1.719,
+    -2.523
+   ],
+   "side": "A",
+   "role": "Bachmann's bundle, LA roof",
+   "src": "bachmann_bundle @0.59"
+  },
+  "LAA": {
+   "p": [
+    -0.75,
+    -2.95,
+    0.35
+   ],
+   "side": "A",
+   "role": "LA appendage base",
+   "src": "bachmann_bundle end"
+  },
+  "AP_A": {
+   "p": [
+    -3.088,
+    -0.521,
+    -0.551
+   ],
+   "side": "A",
+   "role": "accessory pathway, atrial end (left lateral mitral annulus)",
+   "src": "LA_wall vertex at the lateral mitral annulus (LV wall 0.31 cm across the AV groove)"
+  },
+  "LAP": {
+   "p": [
+    -3.86,
+    -0.017,
+    -1.168
+   ],
+   "side": "A",
+   "role": "LA posterior wall",
+   "src": "legacy LAP mapped (similarity fit) + snapped to LA_wall (0.47 cm)"
+  },
+  "LAI": {
+   "p": [
+    -2.533,
+    1.449,
+    -1.292
+   ],
+   "side": "A",
+   "role": "LA inferior wall (CS connection)",
+   "src": "legacy LAI mapped (similarity fit) + snapped to LA_wall (0.61 cm)"
+  },
+  "HIS": {
+   "p": [
+    1.985,
+    0.135,
+    0.465
+   ],
+   "side": "V",
+   "role": "penetrating His bundle (through the central fibrous body); V-clock t = 0",
+   "src": "his_bundle[1] = central_fibrous_body",
+   "tapTarget": "his"
+  },
+  "BIF": {
+   "p": [
+    2.35,
+    -0.35,
+    0.55
+   ],
+   "side": "V",
+   "role": "His bifurcation, crest of the muscular septum",
+   "src": "landmark his_bifurcation",
+   "tapTarget": "his"
+  },
+  "LB1": {
+   "p": [
+    2.25,
+    -0.35,
+    0.55
+   ],
+   "side": "V",
+   "role": "left bundle branch origin (fascicles diverge here)",
+   "src": "lbb_*_fascicle[0]",
+   "tapTarget": "lbb"
+  },
+  "LSF1": {
+   "p": [
+    1.295,
+    0.542,
+    2.138
+   ],
+   "side": "V",
+   "role": "septal fascicle, upper",
+   "src": "lbb path @0.28",
+   "tapTarget": "lsf",
+   "purkinje": true
+  },
+  "LSF2": {
+   "p": [
+    0.842,
+    1.001,
+    4.123
+   ],
+   "side": "V",
+   "role": "septal fascicle, mid",
+   "src": "lbb path @0.56",
+   "tapTarget": "lsf",
+   "purkinje": true
+  },
+  "LVAP": {
+   "p": [
+    1.55,
+    -0.15,
+    7.05
+   ],
+   "side": "V",
+   "role": "LV apex (septal)",
+   "src": "lbb path @1.00",
+   "tapTarget": "lsf",
+   "purkinje": true
+  },
+  "LAF1": {
+   "p": [
+    1.351,
+    -0.6,
+    1.418
+   ],
+   "side": "V",
+   "role": "LAF",
+   "src": "laf path @0.20",
+   "tapTarget": "laf"
+  },
+  "LAF2": {
+   "p": [
+    -0.316,
+    -0.687,
+    2.637
+   ],
+   "side": "V",
+   "role": "LAF",
+   "src": "laf path @0.51",
+   "tapTarget": "laf",
+   "purkinje": true
+  },
+  "LAF3": {
+   "p": [
+    -1.254,
+    -0.658,
+    4.158
+   ],
+   "side": "V",
+   "role": "LAF",
+   "src": "laf path @0.79",
+   "tapTarget": "laf",
+   "purkinje": true
+  },
+  "LAFPM": {
+   "p": [
+    -1.95,
+    -0.75,
+    5.35
+   ],
+   "side": "V",
+   "role": "LAF → anterolateral papillary base",
+   "src": "laf path @1.00",
+   "tapTarget": "laf",
+   "purkinje": true
+  },
+  "LPF1": {
+   "p": [
+    1.281,
+    0.697,
+    2.139
+   ],
+   "side": "V",
+   "role": "LPF",
+   "src": "lpf path @0.36",
+   "tapTarget": "lpf"
+  },
+  "LPF2": {
+   "p": [
+    0.668,
+    1.234,
+    4.087
+   ],
+   "side": "V",
+   "role": "LPF",
+   "src": "lpf path @0.73",
+   "tapTarget": "lpf",
+   "purkinje": true
+  },
+  "LPFPM": {
+   "p": [
+    0.45,
+    1.55,
+    5.65
+   ],
+   "side": "V",
+   "role": "LPF → posteromedial papillary base",
+   "src": "lpf path @1.00",
+   "tapTarget": "lpf",
+   "purkinje": true
+  },
+  "RB1": {
+   "p": [
+    2.994,
+    -0.379,
+    1.69
+   ],
+   "side": "V",
+   "role": "right bundle, upper",
+   "src": "rbb @0.27",
+   "tapTarget": "rbb"
+  },
+  "RB2": {
+   "p": [
+    3.136,
+    -0.35,
+    3.296
+   ],
+   "side": "V",
+   "role": "right bundle, mid",
+   "src": "rbb @0.65",
+   "tapTarget": "rbb"
+  },
+  "RB3": {
+   "p": [
+    3.05,
+    -0.35,
+    4.75
+   ],
+   "side": "V",
+   "role": "right bundle → septal end of the moderator band",
+   "src": "rbb end",
+   "tapTarget": "rbb",
+   "purkinje": true
+  },
+  "MODFW": {
+   "p": [
+    4.4,
+    -0.5,
+    5.2
+   ],
+   "side": "V",
+   "role": "moderator band → anterior papillary muscle (RV free wall)",
+   "src": "moderator_band end",
+   "tapTarget": "rbb",
+   "purkinje": true
+  },
+  "RBAP": {
+   "p": [
+    2.662,
+    0.101,
+    6.556
+   ],
+   "side": "V",
+   "role": "RV apex (septal surface)",
+   "src": "legacy RBAP mapped (similarity fit) + snapped to IVS/RV_free_wall (0.24 cm)",
+   "purkinje": true,
+   "tapTarget": "rbb"
+  },
+  "AP_V": {
+   "p": [
+    -2.893,
+    -0.31,
+    -0.428
+   ],
+   "side": "V",
+   "role": "accessory pathway, ventricular end (left lateral mitral annulus)",
+   "src": "PW (LV) vertex facing AP_A across the AV groove"
+  },
+  "CTI_S": {
+   "p": [
+    2.749,
+    2.062,
+    -0.45
+   ],
+   "side": "A",
+   "role": "septal side of the cavotricuspid isthmus (flutter exit, next to the CS ostium)",
+   "src": "CTI midpoint shifted 0.6× toward cs_ostium, snapped to RA wall (provisional)",
+   "tapTarget": "cti",
+   "circuitOnly": true
+  },
+  "CTI_L": {
+   "p": [
+    4.045,
+    2.241,
+    0.387
+   ],
+   "side": "A",
+   "role": "lateral side of the cavotricuspid isthmus (flutter entry, low lateral RA)",
+   "src": "CTI midpoint shifted 0.6× away from cs_ostium, snapped to RA wall (provisional)",
+   "tapTarget": "cti",
+   "circuitOnly": true
+  }
+ },
+ "edges": [
+  {
+   "id": "SA-SA_H",
+   "a": "SA",
+   "b": "SA_H",
+   "kind": "sa",
+   "struct": "sa",
+   "tap": "sa",
+   "lengthCm": 0.52,
+   "T_ms": 8,
+   "impliedVelocity_mps": 0.65,
+   "legacy": {
+    "id": "SA-SA_H",
+    "lengthMm": 10.1,
+    "T_ms": 8
+   },
+   "points": [
+    [
+     3.35,
+     0.05,
+     -4.75
+    ],
+    [
+     3.3,
+     -0.017,
+     -4.233
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "SA-SA_T",
+   "a": "SA",
+   "b": "SA_T",
+   "kind": "sa",
+   "struct": "sa",
+   "tap": "sa",
+   "lengthCm": 0.92,
+   "T_ms": 10,
+   "impliedVelocity_mps": 0.92,
+   "legacy": {
+    "id": "SA-SA_T",
+    "lengthMm": 15.2,
+    "T_ms": 10
+   },
+   "points": [
+    [
+     3.35,
+     0.05,
+     -4.75
+    ],
+    [
+     3.844,
+     0.45,
+     -4.312
+    ],
+    [
+     3.926,
+     0.529,
+     -4.222
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "SA_H-ANT1",
+   "a": "SA_H",
+   "b": "ANT1",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 0.75,
+   "T_ms": 11.5,
+   "impliedVelocity_mps": 0.66,
+   "legacy": {
+    "id": "SA_H-ANT1",
+    "lengthMm": 18.4,
+    "T_ms": 11.5
+   },
+   "points": [
+    [
+     3.3,
+     -0.017,
+     -4.233
+    ],
+    [
+     3.294,
+     -0.025,
+     -4.169
+    ],
+    [
+     3.187,
+     -0.171,
+     -3.504
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "ANT1-IAG",
+   "a": "ANT1",
+   "b": "IAG",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 1.49,
+   "T_ms": 22.7,
+   "impliedVelocity_mps": 0.66,
+   "legacy": {
+    "id": "ANT1-IAG",
+    "lengthMm": 36.3,
+    "T_ms": 22.7
+   },
+   "points": [
+    [
+     3.187,
+     -0.171,
+     -3.504
+    ],
+    [
+     3.175,
+     -0.187,
+     -3.431
+    ],
+    [
+     3.038,
+     -0.406,
+     -2.594
+    ],
+    [
+     2.856,
+     -0.531,
+     -2.106
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "IAG-AVN",
+   "a": "IAG",
+   "b": "AVN",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 3.94,
+   "T_ms": 31.6,
+   "impliedVelocity_mps": 1.25,
+   "legacy": {
+    "id": "IAG-IAS",
+    "lengthMm": 23.4,
+    "T_ms": 14.7
+   },
+   "note": "Legacy joined the anterior route to the middle one (IAG→IAS→AVN, 14.7+16.9 ms); the landmarks run it to the AV node on its own, so it keeps the sum. Never the fastest route in sinus rhythm.",
+   "points": [
+    [
+     2.856,
+     -0.531,
+     -2.106
+    ],
+    [
+     2.513,
+     -0.512,
+     -2.181
+    ],
+    [
+     2.088,
+     -0.419,
+     -2.419
+    ],
+    [
+     1.819,
+     -0.312,
+     -2.35
+    ],
+    [
+     1.775,
+     -0.219,
+     -1.875
+    ],
+    [
+     1.856,
+     -0.106,
+     -1.175
+    ],
+    [
+     1.988,
+     0.056,
+     -0.419
+    ],
+    [
+     2.15,
+     0.25,
+     0.35
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "SA_H-MID1",
+   "a": "SA_H",
+   "b": "MID1",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 2.63,
+   "T_ms": 18.1,
+   "impliedVelocity_mps": 1.45,
+   "legacy": {
+    "id": "SA_H-MID1",
+    "lengthMm": 29,
+    "T_ms": 18.1
+   },
+   "points": [
+    [
+     3.3,
+     -0.017,
+     -4.233
+    ],
+    [
+     3.179,
+     0.255,
+     -4.45
+    ],
+    [
+     3.125,
+     0.319,
+     -4.356
+    ],
+    [
+     2.781,
+     0.75,
+     -4.0
+    ],
+    [
+     2.325,
+     1.313,
+     -3.575
+    ],
+    [
+     2.023,
+     1.658,
+     -3.129
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "MID1-IAS",
+   "a": "MID1",
+   "b": "IAS",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 2.31,
+   "T_ms": 22.6,
+   "impliedVelocity_mps": 1.02,
+   "legacy": {
+    "id": "MID1-IAS",
+    "lengthMm": 36.2,
+    "T_ms": 22.6
+   },
+   "points": [
+    [
+     2.023,
+     1.658,
+     -3.129
+    ],
+    [
+     1.969,
+     1.719,
+     -3.05
+    ],
+    [
+     1.788,
+     1.788,
+     -2.575
+    ],
+    [
+     1.656,
+     1.606,
+     -2.206
+    ],
+    [
+     1.581,
+     1.344,
+     -1.806
+    ],
+    [
+     1.656,
+     1.088,
+     -1.3
+    ],
+    [
+     1.709,
+     1.005,
+     -1.136
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "IAS-AVN",
+   "a": "IAS",
+   "b": "AVN",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "avn_fast",
+   "lengthCm": 1.72,
+   "T_ms": 16.9,
+   "impliedVelocity_mps": 1.02,
+   "legacy": {
+    "id": "IAS-AVN",
+    "lengthMm": 27,
+    "T_ms": 16.9
+   },
+   "fast": true,
+   "note": "Fast pathway: superior (anterior) approach to the compact node along the tendon-of-Todaro side.",
+   "points": [
+    [
+     1.709,
+     1.005,
+     -1.136
+    ],
+    [
+     1.831,
+     0.813,
+     -0.756
+    ],
+    [
+     2.0,
+     0.519,
+     -0.212
+    ],
+    [
+     2.15,
+     0.25,
+     0.35
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "SA_T-CT1",
+   "a": "SA_T",
+   "b": "CT1",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 1.04,
+   "T_ms": 11.4,
+   "impliedVelocity_mps": 0.92,
+   "legacy": {
+    "id": "SA_T-CT1",
+    "lengthMm": 18.2,
+    "T_ms": 11.4
+   },
+   "points": [
+    [
+     3.926,
+     0.529,
+     -4.222
+    ],
+    [
+     4.269,
+     0.856,
+     -3.85
+    ],
+    [
+     4.403,
+     1.146,
+     -3.544
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "CT1-CT2",
+   "a": "CT1",
+   "b": "CT2",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 1.5,
+   "T_ms": 16.4,
+   "impliedVelocity_mps": 0.92,
+   "legacy": {
+    "id": "CT1-CT2",
+    "lengthMm": 26.2,
+    "T_ms": 16.4
+   },
+   "points": [
+    [
+     4.403,
+     1.146,
+     -3.544
+    ],
+    [
+     4.469,
+     1.288,
+     -3.394
+    ],
+    [
+     4.331,
+     1.731,
+     -2.987
+    ],
+    [
+     3.925,
+     2.094,
+     -2.6
+    ],
+    [
+     3.924,
+     2.094,
+     -2.599
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "CT2-ISTH",
+   "a": "CT2",
+   "b": "ISTH",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 1.56,
+   "T_ms": 17.1,
+   "impliedVelocity_mps": 0.91,
+   "legacy": {
+    "id": "CT2-ISTH",
+    "lengthMm": 27.3,
+    "T_ms": 17.1
+   },
+   "points": [
+    [
+     3.924,
+     2.094,
+     -2.599
+    ],
+    [
+     3.388,
+     2.269,
+     -2.144
+    ],
+    [
+     2.831,
+     2.213,
+     -1.612
+    ],
+    [
+     2.794,
+     2.189,
+     -1.569
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "ISTH-INE",
+   "a": "ISTH",
+   "b": "INE",
+   "kind": "tract",
+   "struct": "tracts",
+   "tap": "tracts",
+   "lengthCm": 0.92,
+   "T_ms": 10,
+   "impliedVelocity_mps": 0.92,
+   "legacy": {
+    "id": "ISTH-INE",
+    "lengthMm": 15.9,
+    "T_ms": 10
+   },
+   "points": [
+    [
+     2.794,
+     2.189,
+     -1.569
+    ],
+    [
+     2.388,
+     1.919,
+     -1.094
+    ],
+    [
+     2.31,
+     1.759,
+     -0.939
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "INE-AVN",
+   "a": "INE",
+   "b": "AVN",
+   "kind": "ine",
+   "struct": "avn",
+   "tap": "avn_slow",
+   "lengthCm": 2.02,
+   "T_ms": 101,
+   "impliedVelocity_mps": 0.2,
+   "legacy": {
+    "id": "INE-AVN",
+    "lengthMm": 12.1,
+    "T_ms": 101
+   },
+   "slow": true,
+   "note": "Slow pathway (inferior nodal extension) along the floor of Koch's triangle between the CS ostium and the TV septal hinge. 0.12 m/s in legacy.",
+   "points": [
+    [
+     2.31,
+     1.759,
+     -0.939
+    ],
+    [
+     2.15,
+     1.431,
+     -0.619
+    ],
+    [
+     2.1,
+     0.85,
+     -0.144
+    ],
+    [
+     2.15,
+     0.25,
+     0.35
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "IAG-BB1",
+   "a": "IAG",
+   "b": "BB1",
+   "kind": "bach",
+   "struct": "bach",
+   "tap": "bach",
+   "lengthCm": 1.91,
+   "T_ms": 12.9,
+   "impliedVelocity_mps": 1.48,
+   "legacy": {
+    "id": "IAG-BB1",
+    "lengthMm": 25.8,
+    "T_ms": 12.9
+   },
+   "points": [
+    [
+     2.856,
+     -0.531,
+     -2.106
+    ],
+    [
+     2.519,
+     -0.712,
+     -2.019
+    ],
+    [
+     1.881,
+     -0.9,
+     -2.369
+    ],
+    [
+     1.238,
+     -1.094,
+     -2.688
+    ],
+    [
+     1.217,
+     -1.099,
+     -2.696
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "BB1-BB2",
+   "a": "BB1",
+   "b": "BB2",
+   "kind": "bach",
+   "struct": "bach",
+   "tap": "bach",
+   "lengthCm": 2.2,
+   "T_ms": 12.4,
+   "impliedVelocity_mps": 1.77,
+   "legacy": {
+    "id": "BB1-BB2",
+    "lengthMm": 24.9,
+    "T_ms": 12.4
+   },
+   "points": [
+    [
+     1.217,
+     -1.099,
+     -2.696
+    ],
+    [
+     0.575,
+     -1.256,
+     -2.944
+    ],
+    [
+     -0.031,
+     -1.387,
+     -3.044
+    ],
+    [
+     -0.431,
+     -1.556,
+     -2.856
+    ],
+    [
+     -0.551,
+     -1.719,
+     -2.523
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "BB2-LAA",
+   "a": "BB2",
+   "b": "LAA",
+   "kind": "bach",
+   "struct": "bach",
+   "tap": "bach",
+   "lengthCm": 3.15,
+   "T_ms": 17.9,
+   "impliedVelocity_mps": 1.76,
+   "legacy": {
+    "id": "BB2-LAA",
+    "lengthMm": 35.9,
+    "T_ms": 17.9
+   },
+   "points": [
+    [
+     -0.551,
+     -1.719,
+     -2.523
+    ],
+    [
+     -0.606,
+     -1.794,
+     -2.369
+    ],
+    [
+     -0.675,
+     -2.05,
+     -1.731
+    ],
+    [
+     -0.75,
+     -2.25,
+     -1.15
+    ],
+    [
+     -0.744,
+     -2.625,
+     -0.369
+    ],
+    [
+     -0.75,
+     -2.95,
+     0.35
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "INE-LAI",
+   "a": "INE",
+   "b": "LAI",
+   "kind": "cs",
+   "struct": "tracts",
+   "tap": "la",
+   "lengthCm": 5.43,
+   "T_ms": 67,
+   "impliedVelocity_mps": 0.81,
+   "legacy": {
+    "id": "INE-LAI",
+    "lengthMm": 67,
+    "T_ms": 67
+   },
+   "note": "Coronary-sinus musculature: inferior interatrial connection (snapped along the posterior AV groove).",
+   "points": [
+    [
+     2.31,
+     1.759,
+     -0.939
+    ],
+    [
+     1.355,
+     1.614,
+     -0.344
+    ],
+    [
+     0.755,
+     1.462,
+     -0.872
+    ],
+    [
+     0.572,
+     1.546,
+     -1.059
+    ],
+    [
+     -0.294,
+     1.522,
+     -1.089
+    ],
+    [
+     -0.769,
+     1.561,
+     -1.122
+    ],
+    [
+     -1.265,
+     1.389,
+     -1.251
+    ],
+    [
+     -1.669,
+     1.381,
+     -1.431
+    ],
+    [
+     -2.533,
+     1.449,
+     -1.292
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "LAI-LAP",
+   "a": "LAI",
+   "b": "LAP",
+   "kind": "tract",
+   "struct": "la",
+   "tap": "la",
+   "lengthCm": 2.29,
+   "T_ms": 20.5,
+   "impliedVelocity_mps": 1.11,
+   "legacy": {
+    "id": "LAI-LAP",
+    "lengthMm": 32.8,
+    "T_ms": 20.5
+   },
+   "points": [
+    [
+     -2.533,
+     1.449,
+     -1.292
+    ],
+    [
+     -2.804,
+     1.36,
+     -1.163
+    ],
+    [
+     -2.878,
+     1.143,
+     -1.181
+    ],
+    [
+     -3.047,
+     1.138,
+     -1.26
+    ],
+    [
+     -3.307,
+     0.963,
+     -1.427
+    ],
+    [
+     -3.649,
+     0.664,
+     -1.346
+    ],
+    [
+     -3.754,
+     0.255,
+     -1.277
+    ],
+    [
+     -3.754,
+     0.255,
+     -1.277
+    ],
+    [
+     -3.86,
+     -0.017,
+     -1.168
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "BB2-LAP",
+   "a": "BB2",
+   "b": "LAP",
+   "kind": "tract",
+   "struct": "la",
+   "tap": "la",
+   "lengthCm": 4.76,
+   "T_ms": 32.4,
+   "impliedVelocity_mps": 1.47,
+   "legacy": {
+    "id": "BB2-LAP",
+    "lengthMm": 51.9,
+    "T_ms": 32.4
+   },
+   "points": [
+    [
+     -0.551,
+     -1.719,
+     -2.523
+    ],
+    [
+     -1.023,
+     -1.649,
+     -2.618
+    ],
+    [
+     -1.264,
+     -1.744,
+     -2.536
+    ],
+    [
+     -2.06,
+     -1.88,
+     -1.935
+    ],
+    [
+     -2.516,
+     -1.66,
+     -1.778
+    ],
+    [
+     -3.327,
+     -0.711,
+     -1.501
+    ],
+    [
+     -3.332,
+     -0.502,
+     -1.613
+    ],
+    [
+     -3.342,
+     -0.289,
+     -1.365
+    ],
+    [
+     -3.86,
+     -0.017,
+     -1.168
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "LAP-AP_A",
+   "a": "LAP",
+   "b": "AP_A",
+   "kind": "tract",
+   "struct": "la",
+   "tap": "la",
+   "lengthCm": 1.2,
+   "T_ms": 30.3,
+   "impliedVelocity_mps": 0.39,
+   "legacy": {
+    "id": "LAP-AP_A",
+    "lengthMm": 48.5,
+    "T_ms": 30.3
+   },
+   "points": [
+    [
+     -3.86,
+     -0.017,
+     -1.168
+    ],
+    [
+     -3.734,
+     -0.187,
+     -1.087
+    ],
+    [
+     -3.734,
+     -0.187,
+     -1.087
+    ],
+    [
+     -3.627,
+     -0.284,
+     -1.072
+    ],
+    [
+     -3.48,
+     -0.444,
+     -0.923
+    ],
+    [
+     -3.48,
+     -0.444,
+     -0.923
+    ],
+    [
+     -3.189,
+     -0.548,
+     -0.689
+    ],
+    [
+     -3.189,
+     -0.548,
+     -0.689
+    ],
+    [
+     -3.088,
+     -0.521,
+     -0.551
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "LAA-AP_A",
+   "a": "LAA",
+   "b": "AP_A",
+   "kind": "tract",
+   "struct": "la",
+   "tap": "la",
+   "lengthCm": 4.54,
+   "T_ms": 17.7,
+   "impliedVelocity_mps": 2.56,
+   "legacy": {
+    "id": "LAA-AP_A",
+    "lengthMm": 28.3,
+    "T_ms": 17.7
+   },
+   "points": [
+    [
+     -0.75,
+     -2.95,
+     0.35
+    ],
+    [
+     -0.734,
+     -2.562,
+     -0.086
+    ],
+    [
+     -1.186,
+     -2.004,
+     -0.265
+    ],
+    [
+     -1.186,
+     -2.004,
+     -0.265
+    ],
+    [
+     -2.371,
+     -2.061,
+     0.042
+    ],
+    [
+     -2.529,
+     -1.446,
+     -0.424
+    ],
+    [
+     -2.529,
+     -1.446,
+     -0.424
+    ],
+    [
+     -2.863,
+     -0.928,
+     -0.748
+    ],
+    [
+     -3.088,
+     -0.521,
+     -0.551
+    ]
+   ],
+   "side": "A"
+  },
+  {
+   "id": "AVN-HIS",
+   "a": "AVN",
+   "b": "HIS",
+   "kind": "avn",
+   "struct": "avn",
+   "tap": "avn",
+   "lengthCm": 0.23,
+   "T_ms": "avDelay",
+   "legacy": {
+    "id": "AVN-HIS",
+    "lengthMm": 6.1,
+    "T_ms": 0
+   },
+   "side": "A",
+   "note": "AV-node delay: set per beat by the rhythm (default D0 below; Wenckebach adds to it). Not a velocity.",
+   "points": [
+    [
+     2.15,
+     0.25,
+     0.35
+    ],
+    [
+     1.985,
+     0.135,
+     0.465
+    ]
+   ]
+  },
+  {
+   "id": "HIS-BIF",
+   "a": "HIS",
+   "b": "BIF",
+   "kind": "his",
+   "struct": "his",
+   "tap": "his",
+   "lengthCm": 0.61,
+   "T_ms": 9.4,
+   "impliedVelocity_mps": 0.65,
+   "legacy": {
+    "id": "HIS-BIF",
+    "lengthMm": 14.1,
+    "T_ms": 9.4
+   },
+   "points": [
+    [
+     1.985,
+     0.135,
+     0.465
+    ],
+    [
+     2.168,
+     -0.107,
+     0.508
+    ],
+    [
+     2.35,
+     -0.35,
+     0.55
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "BIF-LB1",
+   "a": "BIF",
+   "b": "LB1",
+   "kind": "bb",
+   "struct": "lbb",
+   "tap": "lbb",
+   "lengthCm": 0.1,
+   "T_ms": 6,
+   "impliedVelocity_mps": 0.17,
+   "legacy": {
+    "id": "BIF-LB1",
+    "lengthMm": 12,
+    "T_ms": 6
+   },
+   "points": [
+    [
+     2.35,
+     -0.35,
+     0.55
+    ],
+    [
+     2.25,
+     -0.35,
+     0.55
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LB1-LSF1",
+   "a": "LB1",
+   "b": "LSF1",
+   "kind": "fasc",
+   "struct": "lbb",
+   "tap": "lsf",
+   "lengthCm": 2.06,
+   "T_ms": 10.3,
+   "impliedVelocity_mps": 2.0,
+   "legacy": {
+    "id": "LB1-LSF1",
+    "lengthMm": 20.6,
+    "T_ms": 10.3
+   },
+   "points": [
+    [
+     2.25,
+     -0.35,
+     0.55
+    ],
+    [
+     1.719,
+     0.181,
+     1.425
+    ],
+    [
+     1.295,
+     0.542,
+     2.138
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LSF1-LSF2",
+   "a": "LSF1",
+   "b": "LSF2",
+   "kind": "fasc",
+   "struct": "lbb",
+   "tap": "lsf",
+   "lengthCm": 2.16,
+   "T_ms": 10.8,
+   "impliedVelocity_mps": 2.0,
+   "legacy": {
+    "id": "LSF1-LSF2",
+    "lengthMm": 21.6,
+    "T_ms": 10.8
+   },
+   "points": [
+    [
+     1.295,
+     0.542,
+     2.138
+    ],
+    [
+     1.169,
+     0.65,
+     2.35
+    ],
+    [
+     0.831,
+     0.938,
+     3.213
+    ],
+    [
+     0.825,
+     1.013,
+     4.062
+    ],
+    [
+     0.842,
+     1.001,
+     4.123
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LSF2-LVAP",
+   "a": "LSF2",
+   "b": "LVAP",
+   "kind": "fasc",
+   "struct": "lbb",
+   "tap": "lsf",
+   "lengthCm": 3.26,
+   "T_ms": 16.3,
+   "impliedVelocity_mps": 2.0,
+   "legacy": {
+    "id": "LSF2-LVAP",
+    "lengthMm": 32.6,
+    "T_ms": 16.3
+   },
+   "points": [
+    [
+     0.842,
+     1.001,
+     4.123
+    ],
+    [
+     1.1,
+     0.819,
+     5.044
+    ],
+    [
+     1.425,
+     0.369,
+     6.081
+    ],
+    [
+     1.55,
+     -0.15,
+     7.05
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LB1-LAF1",
+   "a": "LB1",
+   "b": "LAF1",
+   "kind": "fasc",
+   "struct": "laf",
+   "tap": "laf",
+   "lengthCm": 1.29,
+   "T_ms": 7.9,
+   "impliedVelocity_mps": 1.63,
+   "legacy": {
+    "id": "LB1-LAF1",
+    "lengthMm": 15.7,
+    "T_ms": 7.9
+   },
+   "points": [
+    [
+     2.25,
+     -0.35,
+     0.55
+    ],
+    [
+     1.931,
+     -0.494,
+     0.969
+    ],
+    [
+     1.351,
+     -0.6,
+     1.418
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LAF1-LAF2",
+   "a": "LAF1",
+   "b": "LAF2",
+   "kind": "fasc",
+   "struct": "laf",
+   "tap": "laf",
+   "lengthCm": 2.07,
+   "T_ms": 12.7,
+   "impliedVelocity_mps": 1.63,
+   "legacy": {
+    "id": "LAF1-LAF2",
+    "lengthMm": 25.3,
+    "T_ms": 12.7
+   },
+   "points": [
+    [
+     1.351,
+     -0.6,
+     1.418
+    ],
+    [
+     1.181,
+     -0.631,
+     1.55
+    ],
+    [
+     0.163,
+     -0.687,
+     2.244
+    ],
+    [
+     -0.316,
+     -0.687,
+     2.637
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LAF2-LAF3",
+   "a": "LAF2",
+   "b": "LAF3",
+   "kind": "fasc",
+   "struct": "laf",
+   "tap": "laf",
+   "lengthCm": 1.81,
+   "T_ms": 11.1,
+   "impliedVelocity_mps": 1.63,
+   "legacy": {
+    "id": "LAF2-LAF3",
+    "lengthMm": 22.3,
+    "T_ms": 11.1
+   },
+   "points": [
+    [
+     -0.316,
+     -0.687,
+     2.637
+    ],
+    [
+     -0.538,
+     -0.687,
+     2.819
+    ],
+    [
+     -0.844,
+     -0.681,
+     3.319
+    ],
+    [
+     -1.131,
+     -0.656,
+     3.938
+    ],
+    [
+     -1.254,
+     -0.658,
+     4.158
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LAF3-LAFPM",
+   "a": "LAF3",
+   "b": "LAFPM",
+   "kind": "fasc",
+   "struct": "laf",
+   "tap": "laf",
+   "lengthCm": 1.39,
+   "T_ms": 8.5,
+   "impliedVelocity_mps": 1.63,
+   "legacy": {
+    "id": "LAF3-LAFPM",
+    "lengthMm": 16.9,
+    "T_ms": 8.5
+   },
+   "points": [
+    [
+     -1.254,
+     -0.658,
+     4.158
+    ],
+    [
+     -1.525,
+     -0.662,
+     4.644
+    ],
+    [
+     -1.95,
+     -0.75,
+     5.35
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LB1-LPF1",
+   "a": "LB1",
+   "b": "LPF1",
+   "kind": "fasc",
+   "struct": "lpf",
+   "tap": "lpf",
+   "lengthCm": 2.15,
+   "T_ms": 11.6,
+   "impliedVelocity_mps": 1.85,
+   "legacy": {
+    "id": "LB1-LPF1",
+    "lengthMm": 23.2,
+    "T_ms": 11.6
+   },
+   "points": [
+    [
+     2.25,
+     -0.35,
+     0.55
+    ],
+    [
+     2.044,
+     0.0,
+     1.019
+    ],
+    [
+     1.663,
+     0.4,
+     1.594
+    ],
+    [
+     1.281,
+     0.697,
+     2.139
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LPF1-LPF2",
+   "a": "LPF1",
+   "b": "LPF2",
+   "kind": "fasc",
+   "struct": "lpf",
+   "tap": "lpf",
+   "lengthCm": 2.15,
+   "T_ms": 11.5,
+   "impliedVelocity_mps": 1.87,
+   "legacy": {
+    "id": "LPF1-LPF2",
+    "lengthMm": 23.1,
+    "T_ms": 11.5
+   },
+   "points": [
+    [
+     1.281,
+     0.697,
+     2.139
+    ],
+    [
+     1.181,
+     0.775,
+     2.281
+    ],
+    [
+     0.863,
+     1.019,
+     2.931
+    ],
+    [
+     0.738,
+     1.15,
+     3.544
+    ],
+    [
+     0.668,
+     1.234,
+     4.087
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "LPF2-LPFPM",
+   "a": "LPF2",
+   "b": "LPFPM",
+   "kind": "fasc",
+   "struct": "lpf",
+   "tap": "lpf",
+   "lengthCm": 1.61,
+   "T_ms": 8.7,
+   "impliedVelocity_mps": 1.85,
+   "legacy": {
+    "id": "LPF2-LPFPM",
+    "lengthMm": 17.5,
+    "T_ms": 8.7
+   },
+   "points": [
+    [
+     0.668,
+     1.234,
+     4.087
+    ],
+    [
+     0.65,
+     1.256,
+     4.225
+    ],
+    [
+     0.55,
+     1.388,
+     4.944
+    ],
+    [
+     0.45,
+     1.55,
+     5.65
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "BIF-RB1",
+   "a": "BIF",
+   "b": "RB1",
+   "kind": "bb",
+   "struct": "rbb",
+   "tap": "rbb",
+   "lengthCm": 1.39,
+   "T_ms": 6.9,
+   "impliedVelocity_mps": 2.01,
+   "legacy": {
+    "id": "BIF-RB1",
+    "lengthMm": 13.8,
+    "T_ms": 6.9
+   },
+   "points": [
+    [
+     2.35,
+     -0.35,
+     0.55
+    ],
+    [
+     2.55,
+     -0.25,
+     0.65
+    ],
+    [
+     2.744,
+     -0.337,
+     1.056
+    ],
+    [
+     2.95,
+     -0.381,
+     1.531
+    ],
+    [
+     2.994,
+     -0.379,
+     1.69
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "RB1-RB2",
+   "a": "RB1",
+   "b": "RB2",
+   "kind": "bb",
+   "struct": "rbb",
+   "tap": "rbb",
+   "lengthCm": 1.62,
+   "T_ms": 9.8,
+   "impliedVelocity_mps": 1.66,
+   "legacy": {
+    "id": "RB1-RB2",
+    "lengthMm": 19.6,
+    "T_ms": 9.8
+   },
+   "points": [
+    [
+     2.994,
+     -0.379,
+     1.69
+    ],
+    [
+     3.094,
+     -0.375,
+     2.05
+    ],
+    [
+     3.144,
+     -0.356,
+     2.581
+    ],
+    [
+     3.144,
+     -0.35,
+     3.125
+    ],
+    [
+     3.136,
+     -0.35,
+     3.296
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "RB2-RB3",
+   "a": "RB2",
+   "b": "RB3",
+   "kind": "bb",
+   "struct": "rbb",
+   "tap": "rbb",
+   "lengthCm": 1.46,
+   "T_ms": 8.8,
+   "impliedVelocity_mps": 1.66,
+   "legacy": {
+    "id": "RB2-RB3",
+    "lengthMm": 17.7,
+    "T_ms": 8.8
+   },
+   "points": [
+    [
+     3.136,
+     -0.35,
+     3.296
+    ],
+    [
+     3.119,
+     -0.35,
+     3.675
+    ],
+    [
+     3.081,
+     -0.35,
+     4.219
+    ],
+    [
+     3.05,
+     -0.35,
+     4.75
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "RB3-MODFW",
+   "a": "RB3",
+   "b": "MODFW",
+   "kind": "mod",
+   "struct": "rbb",
+   "tap": "moderator",
+   "lengthCm": 1.49,
+   "T_ms": 15.6,
+   "impliedVelocity_mps": 0.96,
+   "legacy": {
+    "id": "RB3-MODFW",
+    "lengthMm": 31.2,
+    "T_ms": 15.6
+   },
+   "points": [
+    [
+     3.05,
+     -0.35,
+     4.75
+    ],
+    [
+     3.1,
+     -0.3,
+     4.7
+    ],
+    [
+     3.75,
+     -0.4,
+     4.95
+    ],
+    [
+     4.4,
+     -0.5,
+     5.2
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "RB3-RBAP",
+   "a": "RB3",
+   "b": "RBAP",
+   "kind": "purk",
+   "struct": "purk",
+   "tap": "purk",
+   "lengthCm": 1.9,
+   "T_ms": 9.1,
+   "impliedVelocity_mps": 2.09,
+   "legacy": {
+    "id": "RB3-RBAP",
+    "lengthMm": 23.6,
+    "T_ms": 9.1
+   },
+   "points": [
+    [
+     3.05,
+     -0.35,
+     4.75
+    ],
+    [
+     2.662,
+     0.101,
+     6.556
+    ]
+   ],
+   "side": "V"
+  },
+  {
+   "id": "AP_A-AP_V",
+   "a": "AP_A",
+   "b": "AP_V",
+   "kind": "ap",
+   "struct": "ap",
+   "tap": "ap",
+   "lengthCm": 0.31,
+   "T_ms": 12,
+   "impliedVelocity_mps": 0.26,
+   "legacy": {
+    "id": "AP_A-AP_V",
+    "lengthMm": 24.7,
+    "T_ms": 12
+   },
+   "side": "AP",
+   "note": "Kent bundle across the left lateral mitral annulus. Only exists in modes with ap:true. Fixed 12 ms, no decrement.",
+   "points": [
+    [
+     -3.088,
+     -0.521,
+     -0.551
+    ],
+    [
+     -2.893,
+     -0.31,
+     -0.428
+    ]
+   ]
+  },
+  {
+   "id": "CT2-CTI_L",
+   "a": "CT2",
+   "b": "CTI_L",
+   "kind": "tract",
+   "struct": "flutter",
+   "tap": "tracts",
+   "lengthCm": 3.47,
+   "T_ms": null,
+   "circuitOnly": true,
+   "points": [
+    [
+     3.924,
+     2.094,
+     -2.599
+    ],
+    [
+     3.87,
+     2.04,
+     -2.188
+    ],
+    [
+     4.091,
+     2.154,
+     -1.878
+    ],
+    [
+     4.263,
+     2.15,
+     -1.619
+    ],
+    [
+     4.325,
+     2.425,
+     -1.047
+    ],
+    [
+     4.022,
+     2.337,
+     -0.565
+    ],
+    [
+     4.102,
+     2.123,
+     -0.456
+    ],
+    [
+     4.105,
+     2.119,
+     0.098
+    ],
+    [
+     4.045,
+     2.241,
+     0.387
+    ]
+   ]
+  },
+  {
+   "id": "CTI_L-CTI_S",
+   "a": "CTI_L",
+   "b": "CTI_S",
+   "kind": "cti",
+   "struct": "flutter",
+   "tap": "cti",
+   "lengthCm": 1.56,
+   "T_ms": null,
+   "circuitOnly": true,
+   "slow": true,
+   "note": "Crosses the CTI ablation line at its midpoint. Slow zone of typical flutter.",
+   "points": [
+    [
+     4.045,
+     2.241,
+     0.387
+    ],
+    [
+     3.4,
+     2.165,
+     -0.078
+    ],
+    [
+     2.749,
+     2.062,
+     -0.45
+    ]
+   ]
+  },
+  {
+   "id": "CTI_S-INE",
+   "a": "CTI_S",
+   "b": "INE",
+   "kind": "tract",
+   "struct": "flutter",
+   "tap": "tracts",
+   "lengthCm": 0.72,
+   "T_ms": null,
+   "circuitOnly": true,
+   "points": [
+    [
+     2.749,
+     2.062,
+     -0.45
+    ],
+    [
+     2.31,
+     1.759,
+     -0.939
+    ]
+   ]
+  },
+  {
+   "id": "INE-IAS",
+   "a": "INE",
+   "b": "IAS",
+   "kind": "tract",
+   "struct": "septum",
+   "tap": "tracts",
+   "lengthCm": 1.54,
+   "T_ms": null,
+   "circuitOnly": true,
+   "note": "Atrial septal myocardium between the slow- and fast-pathway inputs: the upper/lower turning point of AVNRT and the septal limb of flutter.",
+   "points": [
+    [
+     2.31,
+     1.759,
+     -0.939
+    ],
+    [
+     2.191,
+     1.708,
+     -0.632
+    ],
+    [
+     1.899,
+     1.564,
+     -0.806
+    ],
+    [
+     1.846,
+     1.449,
+     -0.936
+    ],
+    [
+     1.846,
+     1.449,
+     -0.936
+    ],
+    [
+     1.729,
+     1.341,
+     -1.028
+    ],
+    [
+     1.729,
+     1.341,
+     -1.028
+    ],
+    [
+     1.58,
+     1.106,
+     -1.036
+    ],
+    [
+     1.709,
+     1.005,
+     -1.136
+    ]
+   ]
+  }
+ ],
+ "foci": {
+  "vesc": {
+   "p": [
+    0.462,
+    1.207,
+    5.154
+   ],
+   "retro_ms": 30,
+   "src": "legacy focus mapped + snapped to PW/papillary_muscles.PMPM (1.21 cm)"
+  },
+  "pvc": {
+   "p": [
+    0.314,
+    1.111,
+    4.68
+   ],
+   "retro_ms": 30,
+   "src": "legacy focus mapped + snapped to PW/papillary_muscles.PMPM (1.36 cm)"
+  },
+  "rvot": {
+   "p": [
+    2.837,
+    -2.263,
+    0.619
+   ],
+   "retro_ms": 45,
+   "src": "legacy focus mapped + snapped to RV_free_wall (0.65 cm)"
+  }
+ },
+ "expertReview": [
+  {
+   "item": "His bundle (AV node → bifurcation)",
+   "modelCm": 0.84,
+   "realCm": "≈1–2",
+   "status": "SHORT",
+   "effect": "Kept the legacy 9.4 ms HIS→BIF, so the implied His velocity is low. Lengthen in the phantom only if staff agree; times stay."
+  },
+  {
+   "item": "Cavotricuspid isthmus (TV annulus → IVC, ablation line)",
+   "modelCm": 1.87,
+   "realCm": "≈2.5–3.5",
+   "status": "SHORT",
+   "effect": "Flutter circuit timing is set by its own cycle length, so a short CTI only changes how long the slow zone looks."
+  },
+  {
+   "item": "Internodal routes SA → AV node (anterior / middle / posterior)",
+   "modelCm": [
+    6.7,
+    6.69,
+    7.96
+   ],
+   "realCm": "teaching layout (verify)",
+   "status": "CHECK"
+  },
+  {
+   "item": "Bachmann's bundle (RA → LAA base)",
+   "modelCm": 7.61,
+   "realCm": "teaching (verify)",
+   "status": "CHECK"
+  },
+  {
+   "item": "Right bundle branch (bifurcation → moderator band)",
+   "modelCm": 4.22,
+   "realCm": "≈4–5 (verify)",
+   "status": "CHECK"
+  },
+  {
+   "item": "Left bundle stem (bifurcation → fascicles)",
+   "modelCm": 0.1,
+   "realCm": "≈1–2 (verify)",
+   "status": "SHORT",
+   "effect": "Fascicles fan out almost at once; the 6 ms BIF→LB1 is kept."
+  },
+  {
+   "item": "Positions mapped from the legacy heart (LA posterior/inferior, RV apex, foci)",
+   "modelCm": {
+    "LAP": 0.47,
+    "LAI": 0.61,
+    "RBAP": 0.24
+   },
+   "realCm": "snap distance (cm)",
+   "status": "CHECK",
+   "effect": "Similarity fit on 9 landmark pairs, residual 1.00 cm mean / 1.52 cm max."
+  },
+  {
+   "item": "Accessory pathway site (left lateral mitral annulus)",
+   "modelCm": {
+    "AP_A": [
+     -3.088,
+     -0.521,
+     -0.551
+    ],
+    "AP_V": [
+     -2.893,
+     -0.31,
+     -0.428
+    ],
+    "gap": 0.31
+   },
+   "status": "CHECK",
+   "effect": "Teaching default (most common AP site). Other sites (posteroseptal, right free wall) can be added the same way."
+  },
+  {
+   "item": "Flutter isthmus entry/exit points CTI_L / CTI_S",
+   "status": "CHECK",
+   "effect": "Derived from the CTI line and the CS ostium; confirm on the 4C / RA-opened views."
+  }
+ ]
+}
