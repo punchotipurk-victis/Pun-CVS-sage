@@ -56,7 +56,7 @@ function makeInset(APP, S){
     aimCut(r);
     const sgn = APP.conv === "ASE" ? 1 : -1;           // keep the half of the heart on the far side of the cut, as the camera sees it
     if (st.section) S.clip.setFromNormalAndCoplanarPoint(S.elevWorld.clone().multiplyScalar(st.preset === "follow" ? sgn : 1), S.originWorld); else S.clip.constant = 1e5;
-    S.skeleton.visible = st.ribs; S.lungs.visible = st.lungs && S.heartReady(); S.liver.visible = S.vessels.visible = st.liver && S.heartReady(); S.heart.visible = S.heartReady();
+    S.skeleton.visible = st.ribs; S.lungs.visible = st.lungs && S.heartReady(); S.liver.visible = S.vessels.visible = st.liver && S.heartReady(); S.heart.visible = S.heartReady(); S.coronary.visible = S.heartReady();
     S.cutFace.visible = st.section; S.fanFill.visible = false;
     renderer.render(S.scene, cam);
     S.fanFill.visible = true; S.cutFace.visible = true; S.clip.set(new T.Vector3(0, 0, 1), 1e5);

@@ -15,14 +15,14 @@ function EchoEngine(renderer, ph, opts = {}) {
   const nTis = P.TISSUES.length;
   const U = {
     uP: { value: new Float32Array(comp.names.length) }, uW2H: { value: new T.Matrix4() },
-    uNotchC: { value: new T.Vector3() }, uNotchS: { value: new T.Vector3(1, 1, 1) }, uRibSpaceScale: { value: 1 },
+    uNotchC: { value: new T.Vector3() }, uNotchS: { value: new T.Vector3(1, 1, 1) }, uRibSpaceScale: { value: 1 }, uSkipBody: { value: 0 },
     uOrigin: { value: new T.Vector3() }, uBeam: { value: new T.Vector3(0, 0, -1) }, uLat: { value: new T.Vector3(1, 0, 0) },
     uDepth: { value: 16 }, uSector: { value: 80 * Math.PI / 180 }, uNL: { value: NL }, uNS: { value: NS },
     uBright: { value: tables.bright }, uTrans: { value: tables.trans }, uGrain: { value: tables.grain }, uEdge: { value: tables.edge },
     uTime: { value: 0 }, uFreq: { value: ph.imaging_defaults.frequencyMHz }, uAtt: { value: ph.imaging_defaults.attenuation_dB_per_cm_MHz },
     uTissue: { value: rtA.texture }, uBeamTex: { value: rtB.texture },
     uGain: { value: 0 }, uDR: { value: ph.imaging_defaults.dynamicRange_dB }, uMarkerRight: { value: 1 }, uTint: { value: 0 },
-    uPalette: { value: new Array(48).fill(0).map(() => new T.Vector3()) }, uAspect: { value: 1 }
+    uPalette: { value: new Array(64).fill(0).map(() => new T.Vector3()) }, uAspect: { value: 1 }
   };
   const common = `precision highp float; precision highp int;
 uniform vec3 uOrigin, uBeam, uLat; uniform float uDepth, uSector, uNL, uNS;
@@ -82,7 +82,7 @@ void main(){
   o = vec4(amp*att*tgc, 0.0, 0.0, 1.0);
 }` });
   const matC = new T.RawShaderMaterial({ glslVersion: T.GLSL3, uniforms: U, vertexShader: vs, fragmentShader: `precision highp float;
-uniform sampler2D uBeamTex, uTissue; uniform float uSector, uGain, uDR, uMarkerRight, uTint, uAspect; uniform vec3 uPalette[48];
+uniform sampler2D uBeamTex, uTissue; uniform float uSector, uGain, uDR, uMarkerRight, uTint, uAspect; uniform vec3 uPalette[64];
 in vec2 vUv; out vec4 o;
 void main(){
   /* screen: apex at top-centre; x to the marker side = the probe's notch (lateral) side */
@@ -114,7 +114,7 @@ void main(){
     "aortic_root.ascending":"Ao", PA_main:"PA", MV_AML:"valves", MV_PML:"valves", TV_septal:"valves", TV_anterior:"valves", "AV_cusps.RCC":"valves",
     "AV_cusps.LCC":"valves", "AV_cusps.NCC":"valves", PV_cusps:"valves", IVS:"LV_myocardium", PW:"LV_myocardium", LV_myocardium:"LV_myocardium",
     "papillary_muscles.ALPM":"LV_myocardium", "papillary_muscles.PMPM":"LV_myocardium", RV_free_wall:"RV_free_wall", moderator_band:"RV_free_wall",
-    pericardium:"pericardium", liver:"liver", IVC:"IVC", hepatic_veins:"IVC", descending_aorta:"DA", "descending_aorta.abdominal":"DA", coronary_sinus:"CS" };
+    pericardium:"pericardium", liver:"liver", IVC:"IVC", hepatic_veins:"IVC", descending_aorta:"DA", "descending_aorta.abdominal":"DA", coronary_sinus:"CS", LA_wall:"LA_wall", RA_wall:"RA_wall", aortic_arch:"Ao", arch_branches:"Ao", RPA:"PA", LPA:"PA", crista_terminalis:"RA_wall", TV_posterior:"valves", TV_annulus:"valves", chordae:"valves", LCA:"Ao", RCA:"Ao", cardiac_veins:"CS", epicardial_fat:"pericardium" };
   function setPalette(pal){ U.uPalette.value.forEach((v,i)=>{ const hex = pal[TINT_KEY[P.LABELS[i]]]; if (hex){ const c = new T.Color(hex); v.set(c.r,c.g,c.b); } else v.set(0,0,0); }); }
   setPalette(ph.palette_anatomyTint);
   setPatientPosition("supine");

@@ -299,6 +299,21 @@ Check each of these, and look at the screenshots yourself:
 - **Build markers:** match `JSON?|JSON|JS` in that order, or `JS` swallows `JSON` markers.
 - **three r158:** use `RawShaderMaterial` with `glslVersion: THREE.GLSL3`, and declare `in vec3 position`, the precision qualifiers and an `out` colour yourself.
 
+### Found in P1.5 (heart refinement, phantom 0.4)
+- **The LV wall closed the mitral orifice.** `lvOut` reached 0.3 cm above the annulus across the whole opening (a muscle plate between LA and LV in every cut). The orifice is now carved out of `lvOut`; the wall above the annulus is a ring only.
+- **Leaflets had half their width.** The commissural `arc` shift was added to the centre-line but not removed before projecting onto the leaflet axis. Subtract it first (see `leaflet()`), or wide leaflets thin out to a strip.
+- **Closed valves must seal.** Check with the ray-cast preview (`tools/valve_views.py`), not only 2D slices: aim each closed leaflet at a shared coaptation point (MV: posterior third, ~0.55 cm into the LV; TV: centre), length = hinge→coaptation + overlap.
+- **Semilunar cusps are bellies + vertical coaptation walls.** A short-axis slice shows the Mercedes Y only where it cuts the walls, so PSAX-AV is derived through `AV_coaptation` (0.8 cm above the annulus), not the annulus.
+- **plane3 lateral must lie in the plane.** A side landmark off the derived plane silently rotated A4C ~12°; project it onto the plane (it only picks the sign).
+- **Sinus term:** measure the root radius from the *clamped* axis point, or the ascending aorta becomes an endless cylinder.
+- **A flat cap on a tapering cavity** turns into a square tab once the wall is added: build the LV from round cones (exact distances).
+- **The bake must skip the body wall** (`uSkipBody`), or the chest-wall layer cuts the anterior RV flat in the 3D heart.
+- **Coronaries are sub-voxel.** Evaluating the full tree in `scene()` made the echo ~5× slower and the bake ~10×. Detail levels: `compile(ph, {detail:'echo'|'bake'|'full'})`; the 3D view sweeps tubes from the same centrelines (display radius ×2.2 so they can be tapped). Re-run `tools/coronary_design.py` after any change to the outer shape (it designs on a bake *without* vessels/fat).
+- **Label palette is 64 entries** (`uPalette[64]`); the validator errors if the label list outgrows it.
+- **Don't run test_lab.py in parallel with other SwiftShader jobs**: clicks time out under CPU load.
+- **No blood–blood contact between two named cavities.** In the echo a blood/blood boundary is invisible, so it reads as a hole (PLAX LA↔LVOT, 8 Nov). Every pair of cavities needs a wall that is *assigned a tissue* in the priority list, not just a carve: a band carved out of one cavity that matches no later rule renders as dashes (`lvlaW` → fibrous).
+- **AML hinge on the line of the posterior aortic wall.** The aortomitral curtain (~0.6–1 cm) is a *sheet* (2.6 cm wide), not a rod; the LVOT tube is clipped to its ventricular side; the anterior ±60° of the mitral ring is removed (D-shaped annulus: its straight side is the curtain). A hinge on the round ring sat 1.7 cm from the aortic annulus, close to the septum: gap to the LA and a narrow LVOT. Check PLAX at t = 0, 0.3, 0.38 and in diastole (`tools/phases.py`).
+
 ## Extending to pathology (P6)
 - Prefer changing **parameters**: e.g. `effusion_cm`, which the shader already supports as a fluid shell, wall thickness, cavity size, and leaflet thickness or opening.
 - Add new structures to `compile()` with an explicit drawing priority.

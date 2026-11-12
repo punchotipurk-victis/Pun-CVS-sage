@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slice lab</title>
+<style>
+:root{--bg:#0d1214;--ink:#e6ecea;--muted:#9fb0ad;--bad:#ff7a6b;--rule:#243130}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 4px}p{margin:0 0 10px;color:var(--muted)}
+#status{padding:8px 10px;border:1px solid var(--rule);border-radius:6px;margin-bottom:12px}#status.bad{color:var(--bad);border-color:var(--bad);white-space:pre-wrap}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+figure{margin:0;background:#000;border:1px solid var(--rule);border-radius:6px;overflow:hidden}img{width:100%;display:block}
+figcaption{padding:6px 8px;font-size:12px;color:var(--muted)}#log{white-space:pre-wrap;font:12px ui-monospace,monospace;color:var(--muted);margin-top:12px}
+</style></head><body>
+<h1>Echo render test</h1>
+<p>Every v1 view at its computed probe target (end-diastole), plus a pitfall, an off-target pose and the anatomy tint. Simulation for learning only.</p>
+<div id="status">Starting… (needs Chrome or Edge with hardware acceleration)</div>
+<div id="grid"></div><div id="log"></div>
+<!--@THREE-->
+<!--@JSON:phantom:data/phantom-normal.json-->
+<!--@JSON:views:data/views.json-->
+<!--@JS:src/engine/phantom.js-->
+<!--@JS:src/engine/probe.js-->
+<!--@JS:src/engine/derive.js-->
+<!--@JS:src/engine/echo.js-->
+<!--@JS:src/engine/scoring.js-->
+<!--@JS:src/dev/slice.js-->
+</body></html>

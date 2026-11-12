@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Heart mesh export preview</title>
+<style>body{margin:0;background:#111416;color:#e6ecea;font:14px system-ui}#c{width:100vw;height:84vh;display:block}#bar{padding:8px;display:flex;gap:6px;flex-wrap:wrap}button{background:#1d2427;color:#e6ecea;border:1px solid #33403f;padding:6px 10px;border-radius:4px}#info{padding:4px 10px;min-height:1.4em}</style></head>
+<body><canvas id="c"></canvas><div id="bar"></div><div id="info">Tap the heart or a vessel.</div>
+<script>/*THREE*/</script><script>/*LOADER*/</script><script id="hm" type="application/json">/*JSON*/</script>
+<script>
+const T = THREE, J = JSON.parse(document.getElementById("hm").textContent), cv = document.getElementById("c"), R = new T.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+const sc = new T.Scene(), cam = new T.PerspectiveCamera(30, 1, .01, 100); sc.add(new T.HemisphereLight(0xffffff, 0x443344, 1.1)); const dl = new T.DirectionalLight(0xffffff, 1.1); dl.position.set(2, 3, 5); sc.add(dl);
+const H = HeartMesh.load(J, T, { frame: "H3" }); sc.add(H.root);
+let yaw = 0, pitch = 0; const tgt = new T.Vector3(.3, .2, 0);
+function view(y, p){ yaw = y; pitch = p; } function draw(){ const W = cv.clientWidth, Hh = cv.clientHeight; R.setSize(W, Hh, false); cam.aspect = W/Hh; cam.updateProjectionMatrix();
+  cam.position.set(tgt.x + 5.2*Math.sin(yaw)*Math.cos(pitch), tgt.y + 5.2*Math.sin(pitch), tgt.z + 5.2*Math.cos(yaw)*Math.cos(pitch)); cam.lookAt(tgt); R.render(sc, cam); }
+window.PV = { H, view, draw, mark(m, c){ const col = H.mesh.geometry.attributes.color; for (let i = 0; i < m.length; i++) if (m[i]) col.setXYZ(i, ...c); col.needsUpdate = true; },
+  pickAt(x, y){ const r = new T.Raycaster(); r.setFromCamera(new T.Vector2(x, y), cam); return H.pick(r); } };
+[["Real", "real"], ["AHA 17", "aha"], ["Territory (AHA)", "territory"], ["Territory (model tree)", "territoryModel"]].forEach(([t, m]) => { const b = document.createElement("button"); b.textContent = t; b.onclick = () => { H.colourBy(m); draw(); }; document.getElementById("bar").appendChild(b); });
+cv.addEventListener("click", e => { const r = cv.getBoundingClientRect(), h = PV.pickAt((e.clientX - r.left)/r.width*2 - 1, -(e.clientY - r.top)/r.height*2 + 1); document.getElementById("info").textContent = h ? JSON.stringify(h) : "—"; });
+let drag = null; cv.addEventListener("pointerdown", e => drag = [e.clientX, e.clientY]); addEventListener("pointerup", () => drag = null);
+cv.addEventListener("pointermove", e => { if (!drag) return; yaw -= (e.clientX - drag[0])*.01; pitch = Math.max(-1.4, Math.min(1.4, pitch + (e.clientY - drag[1])*.01)); drag = [e.clientX, e.clientY]; draw(); });
+addEventListener("resize", draw); draw();
+</script></body></html>

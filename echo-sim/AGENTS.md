@@ -14,6 +14,8 @@ Super App's `index.html` (`LABS.echo`, route `#echo`).
 ## Non-negotiable rules
 1. **One source of truth.** Anatomy only lives in `data/phantom-normal.json` → `PHANTOM.compile()` → GLSL `scene()`.
    The echo, the Heart-cutaway cut face and the 3D heart mesh all come from `scene()`. Never hand-copy anatomy.
+   One documented exception (P1.5): coronary arteries/veins are thinner than a bake voxel, so the 3D view sweeps tubes from the
+   SAME phantom centrelines (`structures.coronary_arteries/cardiac_veins`) at a display radius; `scene()` uses the same data (detail levels).
 2. **Units and frames.** cm. Body frame: +x patient's LEFT, +y HEAD, +z ANTERIOR, origin at the suprasternal-notch skin.
    Probe pose `{x,y,notchDeg,tiltDeg,rockDeg}` + `pressCm` is stored in the BODY frame; LLD body roll is display only.
    notchDeg 0 = 12 o'clock (head), +90 = 3 o'clock (patient's left).
@@ -27,6 +29,8 @@ Super App's `index.html` (`LABS.echo`, route `#echo`).
 7. **Medical content.** Friendly, mechanism-first, layered (Core → Deeper → Fellow pearl → Why it looks like this).
    Every number has a source tag (`ASE 2015`, `POCUS101`, `teaching (verify)`); show ASE vs POCUS101 side by side when
    they differ. No copied text/images from references. Footer disclaimer always on.
+
+- Heart anatomy (P1.5): one structure at a time; after each, `validate_data.py`, slices (`tools/slices.py` on a `src/dev/slice.html` build), valve ray-cast (`tools/valve_views.py`) and `test_lab.py` alone. Coronaries: `tools/coronary_design.py` after any outer-shape change. Export for other labs: `tools/export_heart_mesh.py` (format in docs/HEART-MESH-EXPORT.md). Pitfalls: docs/ENGINE.md.
 
 ## Commands
 ```bash

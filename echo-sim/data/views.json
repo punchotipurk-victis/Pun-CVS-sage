@@ -202,10 +202,13 @@
           "LV_apex_endo",
           "AV_center"
         ],
-        "aimAt": "midpoint(MV_center, AV_center)",
+        "aimAt": "AV_center",
         "notchSideLandmark": "Ao_asc_end",
-        "beamPerpTo": "LV_long",
-        "_beamPerpNote": "The PLAX beam should be ⟂ to the LV long axis so the LV and aorta lie horizontal on screen (POCUS101 reference image)."
+        "beamPerpTo": [
+          "-LV_long",
+          "aortic_root"
+        ],
+        "_beamPerpNote": "Beam ⟂ the bisector of the LV long axis (toward the base) and the aortic root axis: the LV and aorta then both lie near-horizontal, the aorta rising slightly toward screen right, as on a real PLAX (POCUS101; ASE 2019). Was ⟂ LV_long only, which tipped the aorta ~45° up and out of the fan."
       },
       "seedPose": {
         "skinPoint_patient": [
@@ -784,9 +787,10 @@
       "derivation": {
         "method": "fanFromWindow",
         "probeAt": "seedICS3",
-        "levelCenter": "AV_center",
+        "levelCenter": "AV_coaptation",
         "axisRef": "aortic_root",
-        "notchSideLandmark": "PV_center"
+        "notchSideLandmark": "PV_center",
+        "_levelNote": "Plane through the cusps' coaptation level (0.8 cm above the annulus, mid-sinus), where the closed cusps show the Mercedes Y."
       },
       "seedPose": {
         "skinPoint_patient": [
@@ -958,7 +962,7 @@
           "TV_center"
         ],
         "aimAt": "crux",
-        "notchSideLandmark": "LAA_tip",
+        "notchSideLandmark": "LV_lateral_mid",
         "notchSideRule": "LV lateral wall on notch side"
       },
       "seedPose": {

@@ -137,6 +137,79 @@ def main():
     la_post = tp("LA_center")[2] - 1.6; da_front = da["points"][1][2] + da["r"]
     rng("gap LA posterior wall → descending aorta", la_post - da_front, 0, 2.5, " cm")
 
+    import re
+    # 5. base of the heart round the aortic root (P1.5): clock face seen from above, 12 = anterior, 3 = patient's left.
+    #    Netter plates 216/218/220/226: PV anterior-left of the AV and higher; TV on the right; LA behind the root; RA right-posterior; LAA left.
+    a = norm(V3(P["axes_heart"]["aortic_root"])); AV = V3(L["AV_center"])
+    toH = lambda v: [dot(v, X), dot(v, Y), dot(v, Z)]
+    ant = toH([0, 0, 1]); ant = norm(sub(ant, mul(a, dot(ant, a)))); left = cross(a, ant)
+    if add(mul(X, left[0]), add(mul(Y, left[1]), mul(Z, left[2])))[0] < 0: left = mul(left, -1)
+    def clk(pt):
+        q = sub(V3(pt), AV); up = dot(q, a); q2 = sub(q, mul(a, up)); ang = deg(math.atan2(dot(q2, left), dot(q2, ant))) % 360
+        return ang/30, math.sqrt(dot(q2, q2)), up
+    def clock_ok(nm, pt, c0, c1, r0, r1):
+        c, r, up = clk(pt); inside = (c0 <= c <= c1) if c0 <= c1 else (c >= c0 or c <= c1)
+        (info if inside and r0 <= r <= r1 else warn)(f"base layout: {nm} at {c:4.1f} o'clock, {r:.1f} cm from the AV (expected {c0}–{c1} o'clock, {r0}–{r1} cm)")
+    S = P["structures"]
+    clock_ok("PV", L["PV_center"], 0.5, 3.0, 2.3, 3.8)
+    clock_ok("LA centre", L["LA_center"], 5.0, 7.0, 2.3, 4.2)
+    clock_ok("RA centre", L["RA_center"], 7.5, 9.8, 2.8, 4.8)
+    clock_ok("TV centre", L["TV_center"], 9.0, 11.5, 2.0, 4.0)
+    clock_ok("LAA tip", L["LAA_tip"], 1.5, 4.5, 3.0, 5.0)
+    if S["RVOT"].get("points"):
+        cs = [clk(q)[0] for q in S["RVOT"]["points"]]
+        (info if cs[0] > 9 and (cs[-1] < 3 or cs[-1] > 11.5) else warn)(f"RVOT conus runs {cs[0]:.1f} → {cs[-1]:.1f} o'clock over the front of the aorta (expected from ~10–11 to ~1)")
+    lv = S["LVOT"]; la_, lb_ = V3(lv["a"]), V3(lv["b"]) if isinstance(lv["b"], list) else AV
+    rng("LVOT axis vs aortic root axis", deg(math.acos(min(1, abs(dot(norm(sub(lb_, la_)), a))))), 0, 15, "°")
+    if "aortomitral_curtain" in S:
+        cu = S["aortomitral_curtain"]; c, r, up = clk(cu["a"])
+        rng("aortomitral curtain: top on the posterior aortic annulus (distance from the root axis)", r, 0.9, 1.7, " cm")
+        rng("aortomitral curtain length (posterior aortic annulus → AML hinge)", math.sqrt(dot(sub(V3(cu["b"]), V3(cu["a"])), sub(V3(cu["b"]), V3(cu["a"])))), 0.6, 2.0, " cm")
+    else: warn("no aortomitral_curtain: the LVOT may open into the LA in PLAX")
+    # atria sizes (ED semi-axes, cm) — Lang 2015 (verify): LA AP 3.0–4.0, RA minor 2.9–4.5
+    for k, rng_ in (("LA", (2.7, 4.2)), ("RA", (2.9, 4.6))):
+        sx = [s_["ed"] for s_ in S[k]["semi"]]; rng(f"{k} ED short diameter", 2*min(sx), *rng_, " cm")
+    lo = S["RV_cavity"].get("loft")
+    if lo:
+        rng("RV apex short of the LV apex (LV_apex_epi z − RV loft apex z)", L["LV_apex_epi"][2] - lo["zApex"], 1.0, 3.5, " cm")
+        rng("RV basal outer half-width beyond the septum (semiBase x + centre x − LV outer radius)", lo["semiBase"][0] + lo["centerBase"][0] - 3.3, 2.8, 4.8, " cm")
+    fo = S.get("IAS", {}).get("fossaOvalis", {})
+    if fo and fo.get("thicknessES", 1) < 0.1: warn("fossa ovalis thinner than 0.1 cm in systole: it will vanish (reads as an ASD)")
+    # great vessels (P1.5): arch height, branch order, bake box
+    res = lambda q: V3(L[q]) if isinstance(q, str) else V3(q)
+    toB = lambda hp: add(O, add(mul(X, hp[0]), add(mul(Y, hp[1]), mul(Z, hp[2]))))
+    if "aortic_arch" in S:
+        top = max(toB(res(q))[1] for q in S["aortic_arch"]["points"])
+        rng("top of the aortic arch below the suprasternal notch", -top, 1.0, 4.0, " cm")
+        xs = [toB(res(it["points"][0]))[0] for it in S["arch_branches"]["items"]]
+        (info if xs == sorted(xs) else warn)(f"arch branch origins run right → left (brachiocephalic, LCCA, LSA): x = {[round(x,1) for x in xs]}")
+        mb = P.get("_mesh", {}); lo_, hi_ = mb.get("boxLo", [-8.5, -10.5, -9.5]), mb.get("boxHi", [8, 8, 11])
+        allp = [res(q) for q in S["aortic_arch"]["points"]] + [res(q) for it in S["arch_branches"]["items"] + S["PA_branches"]["items"] for q in it["points"]]
+        out = [p_ for p_ in allp if any(p_[i] - 1.5 < lo_[i] or p_[i] + 1.5 > hi_[i] for i in range(3))]
+        (warn if out else info)(f"3D bake box holds the great vessels ({len(out)} points within 1.5 cm of the box edge)")
+    if len(LBL_ALL := re.findall(r'"([A-Za-z_.]+)"', re.search(r"const LABELS = \[(.*?)\];", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read(), re.S).group(1))) + 1 > 64:
+        err(f"{len(LBL_ALL)} engine labels: the palette arrays hold 64 (raise uPalette in echo.js/scene.js)")
+    CA = S.get("coronary_arteries")
+    if CA:
+        ids_ = {a["id"] for a in CA["arteries"]}
+        for a_ in CA["arteries"]:
+            if a_.get("parent") and a_["parent"] not in ids_: err(f"coronary {a_['id']}: parent {a_['parent']} missing")
+            if a_["r1"] > a_["r0"] + 1e-6: warn(f"coronary {a_['id']} widens downstream (r0 {a_['r0']} < r1 {a_['r1']})")
+            if a_.get("echoPts", 0) > len(a_["points"]): err(f"coronary {a_['id']}: echoPts > number of points")
+        need = {"LM", "LAD", "LCx", "RCA", "PDA", "D1", "OM1", "AM", "PLB", "CB", "SAN", "AVN", "S1"}
+        (err if need - ids_ else info)(f"coronary tree: {len(ids_)} vessels; required branches present: {sorted(need & ids_)}{' MISSING ' + str(sorted(need - ids_)) if need - ids_ else ''}")
+        lad = next(a_ for a_ in CA["arteries"] if a_["id"] == "LAD"); ap = V3(L["LV_apex_epi"]); end = V3(lad["points"][-1])
+        rng("LAD end → LV apex (LAD reaches / wraps the apex)", math.sqrt(dot(sub(end, ap), sub(end, ap))), 0, 3.0, " cm")
+        rca = next(a_ for a_ in CA["arteries"] if a_["id"] == "RCA"); pda = next(a_ for a_ in CA["arteries"] if a_["id"] == "PDA")
+        g_ = sub(V3(rca["points"][-1]), V3(pda["points"][0])); rng("RCA end → PDA origin (right-dominant crux)", math.sqrt(dot(g_, g_)), 0, 1.0, " cm")
+    # 6. every label id that views.json uses must exist in the engine's LABELS list (ids stay)
+    import re
+    js = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "engine", "phantom.js")).read()
+    LBL = set(re.findall(r'"([A-Za-z_.]+)"', re.search(r"const LABELS = \[(.*?)\];", js, re.S).group(1)))
+    for v in views:
+        for r_ in v.get("labels", []):
+            if r_ not in LBL and r_.split(".")[0] not in LBL and not any(x.startswith(r_ + ".") for x in LBL): err(f"{v['id']}: label '{r_}' is not an engine label id (phantom.js LABELS)")
+
     print(f"\n{len(ERR)} error(s), {len(WARN)} warning(s)")
     sys.exit(1 if ERR else 0)
 
