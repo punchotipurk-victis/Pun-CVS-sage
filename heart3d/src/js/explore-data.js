@@ -93,5 +93,9 @@ const EXPLORE_DATA = (() => {
   const ART_NAME = { LM: "Left main", LAD: "Left anterior descending (LAD)", D1: "First diagonal", D2: "Second diagonal", LCx: "Left circumflex (LCx)", OM1: "First obtuse marginal", OM2: "Second obtuse marginal",
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
-  return { CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  const UI_FLAGS={activationTimingMap:false};
+  // TODO(content): Claude supplies approved label ids for each view. A conduction
+  // id uses the existing "conduction:<tap id>" namespace. Do not infer a syllabus.
+  const RELEVANT_LABELS=Object.fromEntries(['external','seeThrough','valves','a4c','raOpen','rvOpen','laOpen','lvOpen','sax','coronal','axial','sagittal'].map(id=>[id,[]]));
+  return { UI_FLAGS, RELEVANT_LABELS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();

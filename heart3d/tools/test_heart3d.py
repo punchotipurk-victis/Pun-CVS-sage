@@ -149,11 +149,12 @@ async def explore_checks(pg, fr, tag):
     import json as _j; app = _j.loads(app)
     check(app["r"] and not app["legacy"] and app["n"] > 40, f"[{tag}] refined heart loaded (no legacy heart), {app['n']} label anchors", str(app))
     if not app["r"]: return
+    await fr.evaluate("EXPLORE_APP.labelMode('all')")
     order = await fr.evaluate("""(() => { const v = document.querySelector('.viewer').getBoundingClientRect(), p = document.querySelector('.panel').getBoundingClientRect();
         return {viewerH: Math.round(v.height), viewerW: Math.round(v.width), panelTop: Math.round(p.top), viewerBottom: Math.round(v.bottom), pageW: innerWidth, pageH: innerHeight}; })()""")
     check(order["panelTop"] >= order["viewerBottom"] - 1, f"[{tag}] structure card sits below the 3D view", str(order))
-    check(order["viewerW"] >= order["pageW"]*0.8 and order["viewerH"] >= order["pageH"]*0.55, f"[{tag}] large 3D view", str(order))
-    viewer = await fr.query_selector(".viewer")
+    check(order["viewerW"] >= order["pageW"]*0.5 and order["viewerH"] >= order["pageH"]*0.55, f"[{tag}] large 3D view", str(order))
+    viewer = await fr.query_selector(".model-stage")
     async def snap(name, js):
         await fr.evaluate(js + "; EXPLORE_APP.render()"); await pg.wait_for_timeout(200)
         b = await viewer.screenshot(path=shot(f"x3_{name}.png") if A.shots else None); return hashlib.md5(b).hexdigest()
@@ -172,11 +173,12 @@ async def explore_checks(pg, fr, tag):
     await cap_checks(fr, tag)
     await cap_tap_check(fr, tag)
     # layers
-    await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false); EXPLORE_APP.render()")
+    await fr.evaluate("EXPLORE_APP.select(null,null);for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false); EXPLORE_APP.render()")
     none = await fr.evaluate("EXPLORE_APP.visibleLabels().length")
     per = {}
     for k, mode in (("chambers", "ext"), ("vessels", "ext"), ("conduction", "ext"), ("valves", "xray"), ("landmarks", "cut")):
         await fr.evaluate(f"for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, k === '{k}'); EXPLORE_APP.setMode('{mode}'); {'EXPLORE_APP.setCut(\'a4c\')' if mode == 'cut' else 'EXPLORE_APP.setView(\'Front\')'}; EXPLORE_APP.render()")
+        if k=='vessels':await fr.evaluate('EXPLORE_APP.setCoronaries(true);EXPLORE_APP.render()')
         per[k] = await fr.evaluate("EXPLORE_APP.visibleLabels().filter(l => l.layer === '" + k + "').length")
     check(none == 0 and all(per.values()), f"[{tag}] each label layer shows its labels; 'None' hides all", f"none={none} {per}")
     await fr.evaluate("for (const k of ['chambers','valves','vessels','conduction']) EXPLORE_APP.setLayer(k, true); EXPLORE_APP.setLayer('landmarks', false); EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Front'); EXPLORE_APP.render()")
@@ -216,14 +218,14 @@ async def explore_checks(pg, fr, tag):
     await fr.evaluate("EXPLORE_APP.resetView(); EXPLORE_APP.render()")
     labs = await fr.evaluate("EXPLORE_APP.visibleLabels()"); L0 = labs[0] if labs else {"x": vb[0] + vb[2]*.5, "y": vb[1] + vb[3]*.5}
     d0 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
-    await pg.mouse.move(fb["x"] + L0["x"], fb["y"] + L0["y"])
+    await pg.mouse.move(cx, cy)
     for _ in range(4): await pg.mouse.wheel(0, 200); await pg.wait_for_timeout(60)
     d1 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
     for _ in range(8): await pg.mouse.wheel(0, -200); await pg.wait_for_timeout(60)
     d2 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
     await fr.click(".bZout"); d3 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
     await fr.click(".bZin"); await fr.click(".bZin"); d4 = (await fr.evaluate("EXPLORE_APP.camState()"))["dist"]
-    check(d1 > d0*1.2 and d2 < d1*.7 and d3 > d2 and d4 < d3, f"[{tag}] zoom out / in with the wheel (also over a label) and with − / + buttons",
+    check(d1 > d0*1.2 and d2 < d1*.7 and d3 > d2 and d4 < d3, f"[{tag}] zoom out / in inside the viewer with the wheel and − / + buttons",
           f"dist {d0:.1f} → out {d1:.1f} → in {d2:.1f} → − {d3:.1f} → + {d4:.1f} (label '{L0.get('text', '-')}')")
     # Below view and a dissection view: the up-axis never changes while dragging (no roll), and up/down drags both move (no sticking)
     for setup in ("EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Below')", "EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('raOpen')"):
@@ -235,7 +237,7 @@ async def explore_checks(pg, fr, tag):
         check(len(ups) == 1 and ph[1] < ph[0] - .2 and ph[2] > ph[1] + .4, f"[{tag}] smooth drag in {setup.split('(')[-1][1:-2]} (no roll, up and down both move)", f"phi {[round(x, 2) for x in ph]}, up-axes {len(ups)}")
     # labels refresh with the beat off; vessel labels (RCA, PDA) show when their surface faces you
     await fr.evaluate("EXPLORE_APP.setBeat(false, 0); EXPLORE_APP.setMode('ext'); EXPLORE_APP.setView('Front'); for (const k of ['chambers','valves','vessels','conduction','landmarks']) EXPLORE_APP.setLayer(k, false)")
-    await pg.wait_for_timeout(600); await fr.evaluate("EXPLORE_APP.setLayer('chambers', true); EXPLORE_APP.setLayer('vessels', true)"); await pg.wait_for_timeout(700)
+    await pg.wait_for_timeout(600); await fr.evaluate("EXPLORE_APP.setLayer('chambers', true); EXPLORE_APP.setLayer('vessels', true); EXPLORE_APP.setCoronaries(true)"); await pg.wait_for_timeout(700)
     front = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
     await fr.evaluate("EXPLORE_APP.setView('Below')"); await pg.wait_for_timeout(700)
     below = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
@@ -409,7 +411,7 @@ async def conduction_view_checks(pg, fr):
             expected=await fr.evaluate("id=>CGRAPH.spec.display.shortNames[id]",tap)
             if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
             counts[mode]+=1
-        # Every visible label remains a keyboard/pointer card target, including crowded fascicles.
+        # Every visible callout remains a pointer card target, including crowded fascicles.
         for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
             await fr.locator(f'.conduction-label[data-tap="{tap}"]').click()
             if await fr.evaluate("CONDUCTION_VIEW.state.selected")!=tap:errors.append([mode,tap,'label'])
@@ -454,7 +456,7 @@ async def conduction_view_checks(pg, fr):
     check(speeds==[.1,.25,1],"playback offers 0.1×, 0.25× and 1×")
     # Reuse hook remains explicit about the next task instead of inventing circuit behavior.
     check(await fr.evaluate("(()=>{try{CONDUCTION_VIEW.playCircuit('flutterCCW')}catch(e){return e.message==='T8.2'}return false})()"),"circuit playback remains a T8.2 stub")
-    await fr.evaluate("EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    await fr.evaluate("EXPLORE_APP.labelMode('explore');EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
     # Warm both the network and its compositor layers before comparing steady work.
     await fr.evaluate("EXPLORE_APP.conduction(true)")
     await fr.evaluate("async()=>new Promise(resolve=>{let n=0;function frame(){if(++n<32)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)})")
@@ -478,6 +480,7 @@ async def activation_checks(pg,fr):
     """
     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.conduction(true);EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false)")
     await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+    await fr.evaluate("EXPLORE_DATA.UI_FLAGS.activationTimingMap=true") # QA fixture; shipped flag remains off.
     state=await fr.evaluate('EXPLORE_APP.activationState()')
     check(state['ready'] and state['worker'] and state['diagnostics']['solver']=='geodesic-26','activation uses the capVolume geodesic worker; precompute ms',str(state))
     synthetic=await fr.evaluate('''async()=>{
@@ -570,7 +573,73 @@ async def activation_checks(pg,fr):
     offscreen=await fr.evaluate("Promise.race([EXPLORE_APP.activationReady().then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15000))])")
     check(offscreen,'an explicit map readiness request completes after scrolling to the ECG')
     await fr.evaluate("EXPLORE_APP.setMode({avDelay:82})")
-    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false);EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    await fr.evaluate("EXPLORE_DATA.UI_FLAGS.activationTimingMap=false;EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false);EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+
+async def ui_phase_a_checks(pg,fr):
+    await pg.evaluate("location.hash='#heart3d'")
+    await fr.wait_for_function('EXPLORE_APP.ready')
+    initial=await fr.evaluate('EXPLORE_APP.uiState()')
+    check(initial['labelMode']=='explore' and not initial['coronaries'] and not initial['callouts'],
+          'UI: Explore starts without labels and coronaries are off')
+    await fr.evaluate("EXPLORE_APP.isochrones(true);EXPLORE_APP.render()")
+    check(not initial['timingMapEnabled'] and await fr.locator('.bIsochrones').is_hidden() and
+          not await fr.evaluate('EXPLORE_APP.activationState().isochrones'),
+          'UI: Activation timing map is hidden and cannot be enabled with the shipped flag off')
+    check(initial['colours']=={'impulse':'ffffff','muscle':'ffc83d','after':'d9a441'},
+          'UI: white impulse, amber muscle wave and fading tint uniforms',str(initial['colours']))
+    check(await fr.evaluate("[...document.querySelectorAll('.outside-legends .legend,.signalLegend')].every(e=>!e.closest('.viewer'))"),
+          'UI: legends sit outside the canvas')
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(true);EXPLORE_APP.seek(180)")
+    for width,height,name in [(1920,1000,'desktop'),(400,860,'phone')]:
+        await pg.set_viewport_size({'width':width,'height':height})
+        await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();EXPLORE_APP.labelMode('explore');EXPLORE_APP.select(null,null);EXPLORE_APP.render();document.querySelector('.model-stage').scrollIntoView({block:'center'})")
+        await pg.wait_for_timeout(300)
+        point=await fr.evaluate("EXPLORE_APP.conductionMidpoint('sa')")
+        origin=await fr.locator('.viewer').evaluate('e=>{const r=e.getBoundingClientRect();return {x:r.left,y:r.top}}')
+        await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
+        await fr.evaluate('EXPLORE_APP.render()')
+        labels=await fr.evaluate('EXPLORE_APP.visibleLabels()')
+        check([x['id'] for x in labels]==['conduction:sa'] and await fr.evaluate("EXPLORE_APP.card()==='SA node'"),
+              f'UI {name}: a real Explore tap opens one SA callout and card',str(labels))
+        async def capture(suffix):
+            await fr.evaluate("EXPLORE_APP.render();document.querySelector('.model-stage').scrollIntoView({block:'center'})")
+            if A.shots:
+                await fr.locator('.model-workspace' if width>1700 else '.model-stage').screenshot(path=shot(f'ui_{name}_{suffix}.png'))
+                if suffix in ('explore_tap','relevant','all','wave'):
+                    await fr.locator('.toolbar').evaluate("e=>e.scrollIntoView({block:'start'})")
+                    await pg.screenshot(path=shot(f'ui_{name}_{suffix}_context.png'))
+        await capture('explore_tap')
+        await fr.evaluate("EXPLORE_APP.select('RA',null);EXPLORE_APP.render()")
+        check((await fr.evaluate('EXPLORE_APP.uiState().focusVertices'))>0,f'UI {name}: anatomy selection highlights existing mesh vertices')
+        await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.push('RA');EXPLORE_APP.labelMode('relevant');EXPLORE_APP.select(null,null);EXPLORE_APP.render()")
+        check([x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]==['RA'],f'UI {name}: Relevant reads the per-view list')
+        await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.length=0;EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
+        check(await fr.locator('.labelStatus').inner_text()=='No labels configured for this view. Tap a structure to explore.' and
+              [x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]==['conduction:sa'],
+              f'UI {name}: Relevant preserves an unlisted tapped structure and explains an empty list')
+        await capture('relevant')
+        await fr.evaluate("EXPLORE_APP.labelMode('all');EXPLORE_APP.render()")
+        boxes=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),b:EXPLORE_APP.uiState().callouts.map(c=>c.box)}})()")
+        outside=all(b['right']<=boxes['v']['left']+1 or b['left']>=boxes['v']['right']-1 or b['top']>=boxes['v']['bottom']-1 for b in boxes['b'])
+        overlap=any(a['left']<b['right'] and b['left']<a['right'] and a['top']<b['bottom'] and b['top']<a['bottom'] for i,a in enumerate(boxes['b']) for b in boxes['b'][i+1:])
+        check(outside and not overlap and (len(boxes['b'])==1 if width==400 else len(boxes['b'])>4),
+              f'UI {name}: callouts are outside the viewer and collision-free',str(len(boxes['b'])))
+        layout=await fr.evaluate("(()=>{const p=document.querySelector('.panel').getBoundingClientRect(),s=document.querySelector('.model-stage').getBoundingClientRect();return {side:p.left>=s.right,below:p.top>=s.bottom}})()")
+        check(layout['side'] if width>1700 else layout['below'],f'UI {name}: card uses the appropriate side/below placement',str(layout))
+        await capture('all')
+        await fr.evaluate("EXPLORE_APP.seeThrough(true);EXPLORE_APP.render()")
+        check(await fr.evaluate('EXPLORE_APP.uiState().seeThrough') and await fr.locator('.bSeeThrough').is_visible(),f'UI {name}: See-through is available in External')
+        for cut in await fr.evaluate('Object.keys(EXPLORE_APP.CUTS)'):
+            state=await fr.evaluate("cut=>{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(cut);EXPLORE_APP.labelMode('explore');EXPLORE_APP.seeThrough(true);EXPLORE_APP.render();return EXPLORE_APP.uiState()}",cut)
+            check(state['cutOpacity']==1 and not state['cutTransparent'] and not state['seeThrough'] and not state['coronaries'] and await fr.locator('.bSeeThrough').is_hidden(),f'UI {name} {cut}: opaque cut, coronaries off, no See-through')
+            await capture('cut_'+cut)
+        await fr.evaluate("EXPLORE_APP.setCut('a4c');EXPLORE_APP.setBeat(true);EXPLORE_APP.seek(220);EXPLORE_APP.render()")
+        await fr.evaluate('EXPLORE_APP.activationReady()')
+        await fr.evaluate("EXPLORE_APP.seek(220);EXPLORE_APP.render()")
+        await capture('wave')
+        check(await fr.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'UI {name}: no horizontal overflow')
+    await pg.set_viewport_size({'width':1440,'height':900})
+    await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null,null);EXPLORE_APP.labelMode('explore');EXPLORE_APP.conduction(false);EXPLORE_APP.resetView();EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
 
 async def main():
     url = "file://" + os.path.abspath(A.index)
@@ -600,6 +669,7 @@ async def main():
                     await fr.wait_for_function("window.EXPLORE_APP", timeout=180000)
                     check(labs == [] and await fr.evaluate("!!window.EXPLORE_APP"), f"#{key} holds the refined 3D Heart page (no legacy lab)", str(labs))
                 else: check(labs == ["sim"], f"#{key} holds only its own lab", str(labs))
+            await ui_phase_a_checks(pg,await lab_frame(pg,"heart3d"))
             await conduction_core_checks(await lab_frame(pg, "heart3d"), await lab_frame(pg, "pathology"))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await conduction_view_checks(pg,await lab_frame(pg,"heart3d"))
@@ -645,11 +715,12 @@ async def main():
                     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(true);EXPLORE_APP.seek(2000);EXPLORE_APP.render()")
                     after_phone=await fr.evaluate("(()=>{const r=document.querySelector('.conduction-panel').getBoundingClientRect();return [r.top+scrollY,r.height]})()")
                     check(before_phone==after_phone,"phone Conduction toggle keeps the reserved ECG panel height and position",str([before_phone,after_phone]))
+                    await fr.evaluate("EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
                     phone=await fr.evaluate("({leads:document.querySelector('.conduction-panel').dataset.leadCount,selected:document.querySelector('.conLead select').value,labels:CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id),width:[document.documentElement.scrollWidth,innerWidth]})")
                     check(phone['leads']=='1' and phone['selected']=='II' and phone['width'][0]<=phone['width'][1],
                           "phone Conduction strip collapses to lead II without horizontal scroll",str(phone))
-                    check(set(phone['labels'])<= {'sa','avn','his','lbb','rbb'} and len(phone['labels'])>=3,
-                          "phone Conduction labels use the five compact contract names",str(phone['labels']))
+                    check(phone['labels']==['sa'],
+                          "phone Explore shows only the tapped conduction callout",str(phone['labels']))
                     if A.shots:await fr.locator('.conduction-panel').screenshot(path=shot('phone_conduction_ecg.png'))
             await ctx.close()
             ctx=await b.new_context(viewport={"width":400,"height":860},reduced_motion='reduce');pg=await ctx.new_page()

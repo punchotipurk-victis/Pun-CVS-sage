@@ -156,10 +156,10 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
   }
   return {get,cache,worker:!!worker,request(mode){const entry=get(mode);if(!entry.ready){entry.requested=true;get(mode)}return entry.promise},visibility(on){visible=!!on;if(visible&&latestMode)get(latestMode)}};
 }
-function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend}){
+function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,palette={}}){
   const uniforms={uActEnabled:{value:0},uIso:{value:0},uActA:{value:0},uActV:{value:0},uIsoMin:{value:0},uIsoMax:{value:150},
-    uActHot:{value:new T.Color(CGRAPH.spec.display.colours.wavefront.match(/#[0-9a-f]{6}/i)[0])},
-    uActAfter:{value:new T.Color(CGRAPH.spec.display.colours.justFired.match(/#[0-9a-f]{6}/i)[0])}};
+    uActHot:{value:new T.Color(palette.muscleWave||CGRAPH.spec.display.colours.wavefront.match(/#[0-9a-f]{6}/i)[0])},
+    uActAfter:{value:new T.Color(palette.muscleAfter||CGRAPH.spec.display.colours.justFired.match(/#[0-9a-f]{6}/i)[0])}};
   const common=`uniform float uActEnabled,uIso,uActA,uActV,uIsoMin,uIsoMax;uniform vec3 uActHot,uActAfter;
     vec3 isoInk(float t){float x=clamp((floor(t/10.0)*10.0-uIsoMin)/(uIsoMax-uIsoMin),0.0,1.0)*4.0;
       vec3 a=vec3(.993,.906,.144),b=vec3(.369,.788,.382),c=vec3(.129,.569,.549),d=vec3(.231,.322,.545),e=vec3(.267,.005,.329);
