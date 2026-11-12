@@ -14,8 +14,21 @@ const SCORING = (() => {
   const sumArea = (L, id) => (has(L,id)||[]).reduce((a,k)=>a+L[k].area, 0);
   const maxLen = (L, id) => Math.max(0, ...(has(L,id)||[]).map(k=>L[k].major));
   /* named shape checks used in views.json contentChecks.shapeChecks[].id; unknown ids are skipped (warned once) */
+  /* Merge label regions into one (area-weighted mean + covariance, rebuilt from major/minor/angle: major = 4√λ1, minor = 4√λ2).
+     Used where a reader judges one outline that the model labels as two regions (LV cavity + LVOT). */
+  function merged(L, ids){
+    const parts = ids.map(id => L[id]).filter(Boolean); if (!parts.length) return null; if (parts.length === 1) return parts[0];
+    const W = parts.reduce((a, o) => a + o.area, 0), cx = parts.reduce((a, o) => a + o.cx*o.area, 0)/W, cy = parts.reduce((a, o) => a + o.cy*o.area, 0)/W;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (const o of parts){ const l1 = (o.major/4)**2, l2 = (o.minor/4)**2, a = o.angleDeg*Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+      const vxx = l1*c*c + l2*s*s, vyy = l1*s*s + l2*c*c, vxy = (l1 - l2)*c*s, dx = o.cx - cx, dy = o.cy - cy;
+      sxx += o.area*(vxx + dx*dx); syy += o.area*(vyy + dy*dy); sxy += o.area*(vxy + dx*dy); }
+    sxx /= W; syy /= W; sxy /= W; const tr = sxx + syy, det = sxx*syy - sxy*sxy, l1 = tr/2 + Math.sqrt(Math.max(0, tr*tr/4 - det)), l2 = Math.max(0, tr - l1);
+    return { area: W, cx, cy, major: 4*Math.sqrt(l1), minor: 4*Math.sqrt(l2), angleDeg: 0.5*Math.atan2(2*sxy, sxx - syy)*180/Math.PI,
+             minDepth: Math.min(...parts.map(o => o.minDepth)), maxDepth: Math.max(...parts.map(o => o.maxDepth)) };
+  }
   const CHECKS = {
-    lv_round:          (L,c) => { const o = L.LV_cavity; return !!o && o.minor/o.major >= (c.min || 0.8); },
+    lv_round:          (L,c) => { const o = merged(L, ["LV_cavity", "LVOT"]); return !!o && o.minor/o.major >= (c.min || 0.8); },   // whole LV blood pool: at basal levels the outflow tract is part of the LV outline
     av_round:          (L)   => { const o = L.aortic_root; return !!o && o.minor/o.major >= 0.8; },
     not_foreshortened: (L,c,x) => { const o = L.LV_cavity; return !!o && o.major >= 0.9*x.trueLVLength; },
     apex_at_top:       (L)   => { const o = L.LV_cavity; return !!o && o.minDepth < 6; },
@@ -62,5 +75,5 @@ const SCORING = (() => {
     if (k === "rock") return (e > 0 ? T["rock-"] : T["rock+"]).replace("{deg}", deg(e*view.tolerance.rockDeg/1.5));
     return null;   // position: the caller turns the skin-distance vector into slideUp/slideDown/slideMedial/slideLateral
   }
-  return { poseScore, contentScore, makeLock, hint, CHECKS };
+  return { poseScore, contentScore, makeLock, hint, CHECKS, merged };
 })();

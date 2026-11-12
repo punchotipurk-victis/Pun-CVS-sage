@@ -27,6 +27,8 @@ const DERIVE = (() => {
   function resolve(ph, toP, name){
     const m=/^midpoint\(([^,]+),\s*([^)]+)\)$/.exec(name);
     if(m) return mul(add(resolve(ph,toP,m[1].trim()),resolve(ph,toP,m[2].trim())),.5);
+    const l=/^lerp\(([^,]+),\s*([^,]+),\s*([-\d.]+)\)$/.exec(name);       // lerp(A, B, t) = A + t·(B − A), e.g. a level between two landmarks
+    if(l){const a=resolve(ph,toP,l[1].trim()),b=resolve(ph,toP,l[2].trim());return add(a,mul(sub(b,a),+l[3]))}
     const L=ph.landmarks_heart; if(L[name]) return toP(L[name]);
     const ip=/^IVC\.points\[(\d)\]$/.exec(name); if(ip) return ph.extracardiac_patient.IVC.points[+ip[1]];
     throw new Error("unknown landmark "+name);
@@ -66,10 +68,11 @@ const DERIVE = (() => {
            otherwise a side landmark off the plane silently rotates the image plane (found in P1.5) */
         const sd=sub(side(),p); out[v.id]=finish(s.x,s.y,b,sub(sd,mul(n,dot(sd,n))));
       } else if(d.method==="fanFromWindow"){
-        const sd=W[d.probeAt]||seed, x=sd[0], y=icsCentre(sd[0],sd[1]), p=P.skinPoint(x,y);
-        const C=resolve(ph,toP,d.levelCenter), b=norm(sub(C,p));
-        const ax=norm(dir(ph.axes_heart[d.axisRef]));let u=norm(cross(ax,b));if(dot(sub(side(),p),u)<0)u=mul(u,-1);
-        out[v.id]=finish(x,y,b,u);
+        const sd=W[d.probeAt]||seed, C=resolve(ph,toP,d.levelCenter), ax=norm(dir(ph.axes_heart[d.axisRef]));
+        const x=sd[0], y=icsCentre(sd[0],sd[1]);
+        const p=P.skinPoint(x,y), b=norm(sub(C,p));
+        let u=norm(cross(ax,b));if(dot(sub(side(),p),u)<0)u=mul(u,-1);
+        out[v.id]={...finish(x,y,b,u),obliquityDeg:Math.abs(90-Math.acos(Math.max(-1,Math.min(1,dot(b,ax))))*180/Math.PI)};
       } else if(d.method==="tiltFrom"){
         const base=out[d.base]; if(!base||base.error){out[v.id]={error:"base missing"};continue}
         /* Rotate the base image plane about its lateral axis u (pivot at the probe) by the SMALLEST angle φ
@@ -84,7 +87,9 @@ const DERIVE = (() => {
         if(pts.length>=2) n=norm(cross(sub(pts[0],S),sub(pts[1],S)));
         else {/* 1 landmark + lateralHint: plane through skin seed and landmark that contains the lateral
                  direction closest to the hint — i.e. how it is scanned (e.g. notch to patient's left, probe flat). */
-              const dd=norm(sub(pts[0],S)),h=d.lateralHint;let lat=norm(sub(h,mul(dd,dot(h,dd))));n=norm(cross(lat,dd))}
+              /* lateralHintFollowsHeart (P2.5): the hint turns with the heart's LLD rotation, as a sonographer re-aims at the heart */
+              const rotA=d.lateralHintFollowsHeart?rad(ph.positions[position||"supine"].heartRotateYDeg||0):0;
+              const dd=norm(sub(pts[0],S)),h=rotA?rotY(d.lateralHint,rotA,[0,0,0]):d.lateralHint;let lat=norm(sub(h,mul(dd,dot(h,dd))));n=norm(cross(lat,dd))}
         let b=sub(aim,S);b=norm(sub(b,mul(n,dot(b,n))));let u=norm(cross(n,b));if(dot(sub(side(),S),u)<0)u=mul(u,-1);
         out[v.id]=finish(seed[0],seed[1],b,u);
       }

@@ -256,7 +256,8 @@
       },
       "image": {
         "depthCm": 16,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 7.5
       },
       "expectedScreen": {
         "near": "RV / RVOT",
@@ -473,7 +474,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 6.5
       },
       "expectedScreen": {
         "near": "RV",
@@ -619,7 +621,8 @@
       "derivation": {
         "method": "fanFromWindow",
         "probeAt": "seedICS3",
-        "levelCenter": "LV_level_MV",
+        "levelCenter": "lerp(MV_center, LV_level_MV, 0.75)",
+        "_levelNote": "P2.5: the mitral leaflet TIPS (0.9 cm below the annulus), where the open orifice is a fish-mouth. LV_level_MV (1.2 cm) passed below the shorter posterior leaflet in diastole once the LLD cut became perpendicular (teaching: PSAX-MV is taken at the leaflet tips).",
         "axisRef": "LV_long",
         "notchSideLandmark": "LAA_tip"
       },
@@ -669,7 +672,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 7.5
       },
       "contentChecks": {
         "mustSee": [
@@ -838,7 +842,8 @@
       },
       "image": {
         "depthCm": 14,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 6.0
       },
       "expectedScreen": {
         "center": "Aortic valve (3 cusps)",
@@ -1011,7 +1016,8 @@
       },
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 12.5
       },
       "expectedScreen": {
         "near": "LV/RV apex",
@@ -1230,7 +1236,8 @@
       "_tolerance_note": "Tilt tolerance is tight because A4C ↔ A5C differ by only ~5–10° (POCUS101).",
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 13.0
       },
       "contentChecks": {
         "mustSee": [
@@ -1346,6 +1353,7 @@
           0,
           0
         ],
+        "lateralHintFollowsHeart": true,
         "_note": "lateralHint = patient's LEFT (notch at 3 o'clock, probe flat, as scanned). Content checks decide whether all 4 chambers show; calibrate if not.",
         "aimAt": "crux",
         "notchSideLandmark": "LV_apex_epi"
@@ -1396,7 +1404,8 @@
       },
       "image": {
         "depthCm": 18,
-        "sectorDeg": 90
+        "sectorDeg": 90,
+        "focusCm": 13.0
       },
       "expectedScreen": {
         "near": "Liver (top-left), then RV free wall",
@@ -1585,7 +1594,8 @@
       },
       "image": {
         "depthCm": 16,
-        "sectorDeg": 80
+        "sectorDeg": 80,
+        "focusCm": 8.5
       },
       "expectedScreen": {
         "near": "Liver",

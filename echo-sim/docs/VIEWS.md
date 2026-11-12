@@ -28,11 +28,11 @@ Every view card has 4 layers, and you should keep all of them:
 |---|---|---|---|
 | `plax` | left parasternal | ~11 o'clock (R shoulder) | plane3: MV centre, LV apex, AV centre |
 | `psax_pap` | left parasternal, ICS4 | ~1:30 | fanFromWindow: LV papillary level ⟂ LV axis |
-| `psax_mv` | left parasternal, ICS3 | ~1:30 | fanFromWindow: LV mitral level |
+| `psax_mv` | left parasternal, ICS3 | ~1:30 | fanFromWindow: mitral leaflet tips, `lerp(MV_center, LV_level_MV, 0.75)` = 0.9 cm below the annulus (P2.5) |
 | `psax_av` | left parasternal, ICS3 | ~2:00 | fanFromWindow: AV centre ⟂ aortic root axis |
 | `a4c` | apical (LLD preferred) | 3 o'clock | plane3: LV apex, MV, TV |
 | `a5c` | apical | 3–3:30 | tiltFrom a4c until the AV is in plane (≈6° toward the head) |
-| `subxiphoid_4c` | subxiphoid, press 1.5 cm | 3 o'clock | planeThroughSkin: crux + lateralHint = patient's left |
+| `subxiphoid_4c` | subxiphoid, press 1.5 cm | 3 o'clock (≈3:30 in LLD) | planeThroughSkin: crux + lateralHint = patient's left, `lateralHintFollowsHeart` (P2.5) |
 | `ivc` | subxiphoid right of midline | 12 o'clock (POCUS marker-left: 6) | planeThroughSkin: IVC points |
 
 **v2 backlog (fellow layer):** A2C, A3C/APLAX, RV inflow, PSAX apex, suprasternal arch, subcostal SAX.
@@ -91,6 +91,13 @@ Rotating the probe 25° off target drops quality to 10–50. Tilting A4C toward 
 **Source:** `echo-sim/src/engine/derive.js` (snapshot: `claude/echo-sim/engine/derive.js`).
 **API:** `DERIVE.derive(viewsJson, phantom, position)` · `heartToPatient(ph, position) → (heartPoint) → bodyPoint` · `ribGap(x,y)` (>0 = in an ICS) · `ribPath(p, beam)` (fraction of first 3 cm in rib) · `icsCentre(x,y)`.
 Methods: `plane3`, `fanFromWindow` (u = axisRef × beam), `tiltFrom` (smallest φ), `planeThroughSkin` (2 landmarks, or 1 landmark + `lateralHint`).
+- Landmark expressions: `midpoint(A, B)` and (P2.5) `lerp(A, B, t)` = A + t·(B − A), e.g. a level between two landmarks.
+- (P2.5) `lateralHintFollowsHeart: true` turns the lateral hint with the heart's LLD rotation (`positions.LLD.heartRotateYDeg`), as a sonographer re-aims at the heart. Without it the LLD S4C kept "notch to the patient's left" in the body frame, the cut stopped following the 8° heart turn, and the RV dropped out (88).
+- `fanFromWindow` also reports `obliquityDeg` (cut vs axisRef). Supine PSAX-MV ≈ 24°, LLD ≈ 8°.
+- Lessons from P2.5 (do not undo):
+  - A perpendicular cut at `LV_level_MV` (1.2 cm) passes below the shorter posterior leaflet in diastole; PSAX-MV is taken at the leaflet tips (0.9 cm). Supine only passed because its cut was 22° oblique.
+  - `lv_round` judges the whole LV blood pool, `merged(L, ["LV_cavity", "LVOT"])`: at basal levels the model labels the outflow part of the LV ring `LVOT`, and the LV cavity alone becomes a crescent.
+  - Sliding the probe or least-squares fitting the 4C plane to the chamber centres did not help S4C (the four chambers are not coplanar with a subxiphoid probe point; RMS ≈ 1.1 cm). The plane has to turn with the heart.
 
 ## Scoring, locking and hints (tested)
 - **Quality** = 0.5 × poseScore + 0.5 × contentScore.

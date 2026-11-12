@@ -126,7 +126,7 @@ function makeInset(APP, S){
     if (!rtSmall){ rtSmall = new T.WebGLRenderTarget(rw, rh, { samples: 0 }); rtSmall.texture.colorSpace = T.NoColorSpace; lastSmallT = 0; }
     else if (rtSmall.width !== rw || rtSmall.height !== rh){ rtSmall.setSize(rw, rh); lastSmallT = 0; }
     if (now - lastSmallT > 55){                       // ≈18 fps
-      const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rtSmall); renderer.setClearColor(paneClear()[smK], 1); drawPane[smK](r); renderer.setRenderTarget(prev); lastSmallT = now; }
+      const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rtSmall); renderer.setClearColor(paneClear()[smK], 1); drawPane[smK](r); renderer.setRenderTarget(prev); lastSmallT = now; st.smallRenders = (st.smallRenders || 0) + 1; }
     S.drawTo(r, H, 0, 1); blitQ.material.uniforms.t.value = rtSmall.texture; renderer.render(blitS, blitC);
   }
   applyClasses();

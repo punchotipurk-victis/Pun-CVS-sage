@@ -19,12 +19,19 @@
     const small = Math.min(screen.width, innerWidth) < 760;
 
     say("Compiling the echo engine…"); await wait();
-    const eng = EchoEngine(renderer, ph, small ? { lines: 128, samples: 256 } : { lines: 160, samples: 320 });
+    /* echo quality tiers (P2.4). Desktop starts at High, phones at Low; ?quality=high|medium|low|lowest fixes a tier (no auto). */
+    const TIERS = [{ name: "high", lines: 256, samples: 512, refMs: 50 }, { name: "medium", lines: 192, samples: 384, refMs: 66 },
+                   { name: "low", lines: 160, samples: 320, refMs: 100 }, { name: "lowest", lines: 128, samples: 256, refMs: 125 }];
+    /* flags come from the lab's own URL, or from the Super App's URL when embedded (srcdoc iframes have no query string) */
+    const QS = location.search + (() => { try { return parent !== window ? "&" + parent.location.search.slice(1) : ""; } catch (e) { return ""; } })();
+    const qParam = (/[?&]quality=(\w+)/.exec(QS) || [])[1], DEV = /[?&]dev=1/.test(QS);
+    const startTier = Math.max(0, TIERS.findIndex(t => t.name === qParam)) || (small ? 2 : 0);
+    const eng = EchoEngine(renderer, ph, { lines: TIERS[startTier].lines, samples: TIERS[startTier].samples });
     const paramEval = PHANTOM.makeParamEval(ph);
 
     /* ---- state ---- */
     const APP = window.APP = { ph, VJ, eng, renderer, paramEval, position: "supine", conv: "ASE", mode: "probe", body: "skin", ghostOpacity: .25, fine: false, frozen: false, hr: ph.cycle.HR_default,
-      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB }, phase: 0, resp: 0, time: 0,
+      img: { depthCm: 16, sectorDeg: 90, gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB, persistence: ph.imaging_defaults.persistence ?? 0.3, focusCm: 8, tgcDb: [0, 0, 0, 0, 0, 0] }, phase: 0, resp: 0, time: 0,
       pose: { x: 3, y: -8.9, notchDeg: -30, tiltDeg: 0, rockDeg: 0, pressCm: 0 }, pressAuto: true, frame: null, edOuterXY: 1, colors: {}, targets: {}, paneDragged: false,
       landmarks: true, refView: null, refShown: false, refSplit: false, tween: null };
     try { const v = localStorage.getItem("echoLandmarks"); if (v != null) APP.landmarks = v === "1"; } catch (e) {}
@@ -46,7 +53,17 @@
       if (d.dNotch) p.notchDeg = wrap(p.notchDeg+d.dNotch); if (d.dTilt) p.tiltDeg = clamp(p.tiltDeg+d.dTilt, -75, 75); if (d.dRock) p.rockDeg = clamp(p.rockDeg+d.dRock, -50, 50);
       if (d.dPress){ APP.pressAuto = false; p.pressCm = clamp(p.pressCm+d.dPress, 0, 3); } applyPose(); };
     APP.setPress = v => { APP.pressAuto = false; APP.pose.pressCm = clamp(v, 0, 3); applyPose(); };
-    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, markerRight: APP.conv === "ASE", tint: false });
+    const cycleWarp = PHANTOM.makeCycleWarp(ph); APP.warp = () => cycleWarp(APP.hr);
+    const pushImaging = () => eng.setImaging({ depthCm: APP.img.depthCm, sectorDeg: APP.img.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, persistence: APP.img.persistence, focusCm: Math.min(APP.img.focusCm, APP.img.depthCm - .5), tgcDb: APP.img.tgcDb, markerRight: APP.conv === "ASE", tint: false });
+    /* image presets (P2.3): each view's depth, sector and focus (views.json image); gain, TGC and DR only when the view sets them,
+       otherwise the learner's own gain/TGC/DR are kept (as on a real machine, a preset change does not undo your knobology) */
+    const IMG_DEFAULT = { gainDb: ph.imaging_defaults.gain_dB, drDb: ph.imaging_defaults.dynamicRange_dB, tgcDb: [0, 0, 0, 0, 0, 0], persistence: ph.imaging_defaults.persistence ?? 0.3 };
+    const preset = (v, full) => { const im = v.image, o = { depthCm: im.depthCm, sectorDeg: im.sectorDeg, focusCm: im.focusCm ?? Math.round(im.depthCm*.55*2)/2 };
+      for (const k of ["gainDb", "drDb", "tgcDb"]) if (im[k] != null) o[k] = Array.isArray(im[k]) ? [...im[k]] : im[k]; else if (full) o[k] = Array.isArray(IMG_DEFAULT[k]) ? [...IMG_DEFAULT[k]] : IMG_DEFAULT[k];
+      if (full) o.persistence = IMG_DEFAULT.persistence; return o; };
+    APP.preset = preset;
+    APP.resetImage = () => { const id = APP.refView || (APP.scores && Object.entries(APP.scores).sort((a, c) => c[1].q - a[1].q)[0]?.[0]) || VJ.views[0].id;
+      APP.setImg(preset(VJ.views.find(x => x.id === id), true)); };
     APP.setImg = o => { Object.assign(APP.img, o); pushImaging(); clearBeat(); dirty = true; };
 
     /* ---- view targets: derived per position, expert overrides on top, POCUS = same beam with the notch reversed ---- */
@@ -56,7 +73,7 @@
       const f = PROBE.frame(t), a = PROBE.anglesFrom(t.x, t.y, f.beam, PROBE.v.mul(f.lateral, -1)); return { ...t, ...a }; };
     APP.target = target;
 
-    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
+    APP.setPosition = (pos, snap) => { if (pos === APP.position && !snap) return; APP.position = pos; eng.resetPersistence(); eng.setPatientPosition(pos); S.setPatientMatrix(pos); APP.targets = deriveTargets(pos);
       if (S.heartReady()) S.bakeOrgans(pos); inset && inset.layoutZones(pos); refLabelsDirty = true; if (snap) S.animateRoll(ph.positions[pos].bodyRollDeg, true); clearBeat(); applyPose(); syncAll();
       if (panels && !snap && pos === "LLD") panels.toast(ph.positions.LLD.teachingTooltip); };
     APP.setConvention = c => { if (c === APP.conv) return; APP.conv = c; pushImaging(); clearBeat(); refLabelsDirty = true; syncAll();
@@ -68,8 +85,8 @@
     APP.setLandmarks = on => { APP.landmarks = on; try { localStorage.setItem("echoLandmarks", on ? "1" : "0"); } catch (e) {} syncAll(); };
     /* go to a view: the probe glides to the computed target (so the learner sees the hand movement) and the ideal image opens */
     const ease = t => t < .5 ? 2*t*t : 1 - (-2*t + 2)**2/2;
-    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return;
-      APP.refView = id; APP.refShown = true; APP.pressAuto = true; APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg });
+    APP.goToView = (id, instant) => { const v = VJ.views.find(x => x.id === id), t = target(id); if (!v || t.error) return; if (instant) eng.resetPersistence();
+      APP.refView = id; APP.refShown = true; APP.pressAuto = true; APP.setImg(preset(v));
       if (instant) APP.snapTo(id); else APP.tween = { from: { ...APP.pose }, to: { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }, t0: performance.now(), dur: 900 };
       refLabelsDirty = true; syncAll(); };
     APP.showRef = on => { if (on && !APP.refView){ const b = APP.scores && Object.entries(APP.scores).sort((a, c) => c[1].q - a[1].q)[0]; APP.refView = b ? b[0] : VJ.views[0].id; refLabelsDirty = true; }
@@ -78,8 +95,8 @@
       for (const a of ["x", "y", "tiltDeg", "rockDeg"]) P[a] = w.from[a] + (w.to[a] - w.from[a])*e;
       P.notchDeg = wrap(w.from.notchDeg + wrap(w.to.notchDeg - w.from.notchDeg)*e);
       applyPose(); clearBeat(); if (k >= 1) APP.tween = null; }
-    APP.snapTo = id => { const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
-      APP.setImg({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg }); applyPose(); clearBeat(); syncAll(); };
+    APP.snapTo = id => { eng.resetPersistence(); const v = VJ.views.find(x => x.id === id), t = target(id); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); APP.pressAuto = true;
+      APP.setImg(preset(v)); applyPose(); clearBeat(); syncAll(); };
 
     /* ---- theme: panels follow the app's tokens, the echo and cutaway stay dark ---- */
     function readTheme(){ const cs = getComputedStyle(document.documentElement), g = k => cs.getPropertyValue(k).trim(), hex = s => new THREE.Color(s).getHex();
@@ -102,7 +119,8 @@
           const a = Math.atan2(V.dot(d, f.lateral), V.dot(d, f.beam)), r = Math.hypot(d[0], d[1], d[2]); return Math.abs(a) < sec/2-.03 && r < D; } }; }
     let best = null; APP.scores = {};
     function score(now){
-      const L = eng.readLabels(), c = ctx(), rr = 60000/APP.hr; let top = null;
+      const tl0 = performance.now(), L = eng.readLabelsAsync(); perf.readMs = performance.now() - tl0; if (!L) return;   // async: previous tick's map; null while in flight
+      const c = ctx(), rr = 60000/APP.hr; let top = null; perf.count.read++;
       for (const v of VJ.views){ const cs = SCORING.contentScore(v, L, c), b = beatBuf[v.id]; b.push({ t: now, s: cs.score, fails: cs.fails });
         while (b.length > 1 && (APP.frozen || now-b[0].t > rr)) b.shift();
         const hi = b.reduce((m, e) => e.s > m.s ? e : m, b[0]), t = target(v.id); if (t.error) continue;
@@ -120,7 +138,7 @@
     blitQ.frustumCulled = false; blitS.add(blitQ);
     function renderRef(rt, asp, phase){ const id = APP.refView, v = VJ.views.find(x => x.id === id), t = target(id), z = APP.windowAt(t.x, t.y);
       eng.setProbe(PROBE.frame(t), z ? (z.w.pressCm || 0) : 0);
-      eng.setImaging({ depthCm: v.image.depthCm, sectorDeg: v.image.sectorDeg, gainDb: APP.img.gainDb, drDb: APP.img.drDb, markerRight: APP.conv === "ASE", tint: false });
+      eng.setImaging({ ...preset(v, true), markerRight: APP.conv === "ASE", tint: false });   // the ideal image always uses the view's preset
       eng.render(phase, APP.resp, APP.time, rt, asp);
       eng.setProbe(APP.frame, APP.press()); pushImaging(); }
     /* which structures to name: the view's label list, filtered by the label rules (area, or length for thin parts) */
@@ -144,11 +162,11 @@
       if (showRef){ const pr = renderer.getPixelRatio(), w = Math.max(2, Math.round(rRef.w*pr)), h = Math.max(2, Math.round(rRef.h*pr));
         if (!refRT){ refRT = new THREE.WebGLRenderTarget(w, h); lastRef = 0; } else if (refRT.width !== w || refRT.height !== h){ refRT.setSize(w, h); lastRef = 0; }
         if (refLabelsDirty) computeRefLabels();
-        if (force || now - lastRef > 50){ renderRef(refRT, rRef.w/rRef.h, APP.phase); lastRef = now; }
+        if (force || now - lastRef > TIERS[perf.tier].refMs){ renderRef(refRT, rRef.w/rRef.h, APP.phase); lastRef = now; perf.count.ref++; }
         const key = [rRef.w, rRef.h, APP.conv, APP.refView].join(); if (key !== refLabelKey){ refLabelKey = key; panels.placeRefLabels(refLabelList, APP.conv, VJ.views.find(x => x.id === APP.refView).image); $("refTitle").textContent = "Ideal " + (panels.VIEW_NAMES[APP.refView] || APP.refView); } }
       /* echo: always computed (labels depend on it), Pass C drawn into the echo viewport */
       S.drawTo(vis(rEcho) ? rEcho : { x: 0, y: 0, w: 1, h: 1 }, H, 0);
-      eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h));
+      perf.gpuBegin(); eng.render(APP.phase, APP.resp, APP.time, null, rEcho.w/Math.max(1, rEcho.h), { persist: !force }); perf.gpuEnd();
       S.updateBeat();
       if (showRef){ S.drawTo(rRef, H, 0); blitQ.material.uniforms.t.value = refRT.texture; renderer.render(blitS, blitC); }
       if (vis(rMain)) S.renderMain(rMain, H);
@@ -156,23 +174,71 @@
       renderer.setScissorTest(false);
       panels.drawEcg(); panels.drawOverlay();
     }
+
+    /* ---- performance (P2.4): fps, adaptive quality, budgets, dev overlay ----
+       Downgrade ladder when fps stays < 48 for 2 s: echo tier → pixel ratio 1 → echo tiers. One step back up after 10 s at ≥ 57 fps
+       (at most twice, and never again if an upgrade drops fps within 4 s). Budgets: ideal image at TIERS[t].refMs, collapsed inset
+       pane ≈18 fps (inset.js), label read-back 5 Hz (score()). ?dev=1 shows the overlay; ECHO.perf() returns the numbers. */
+    const perf = APP.perf = (() => {
+      const P = { tier: startTier, auto: !qParam, count: { frames: 0, ref: 0, read: 0 }, rate: { fps: 0, ref: 0, read: 0, small: 0 }, readMs: 0, gpuMs: null,
+        lowSec: 0, highSec: 0, lastDown: 0, ups: 0, probation: 0, locked: false, prDropped: false, history: [], dts: [] };
+      const gl = renderer.getContext(), dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      P.gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      const tq = gl.getExtension("EXT_disjoint_timer_query_webgl2"); let q = null, qBusy = false;
+      P.gpuBegin = () => { if (!tq || qBusy) return; q = q || gl.createQuery(); gl.beginQuery(tq.TIME_ELAPSED_EXT, q); qBusy = "open"; };
+      P.gpuEnd = () => { if (qBusy !== "open") return; gl.endQuery(tq.TIME_ELAPSED_EXT); qBusy = "wait"; };
+      const pollGpu = () => { if (qBusy !== "wait") return; if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) return;
+        if (!gl.getParameter(tq.GPU_DISJOINT_EXT)) { const ms = gl.getQueryParameter(q, gl.QUERY_RESULT)/1e6; P.gpuMs = P.gpuMs == null ? ms : P.gpuMs*.8 + ms*.2; } qBusy = false; };
+      const setTier = (t, why) => { t = Math.max(0, Math.min(TIERS.length - 1, t)); if (t === P.tier) return false;
+        P.tier = t; eng.setResolution(TIERS[t].lines, TIERS[t].samples); clearBeat(); P.history.push({ t: +(APP.time).toFixed(1), tier: TIERS[t].name, why }); return true; };
+      P.setTier = setTier;
+      const down = () => { if (!P.prDropped && P.tier >= 1 && renderer.getPixelRatio() > 1){ renderer.setPixelRatio(1); W = 0; P.prDropped = true; P.history.push({ t: +(APP.time).toFixed(1), pixelRatio: 1, why: "fps" }); return true; }
+        return setTier(P.tier + 1, "fps"); };
+      let secStart = 0, secFrames = 0, last = 0;
+      P.pause = () => { last = 0; secStart = 0; secFrames = 0; };          // hidden lab / paused loop: the next frame starts a new window
+      P.frame = now => { pollGpu(); const dt = last ? now - last : 16; last = now;   // a slow frame is slow, not a pause (SwiftShader frames take >1 s)
+        P.dts.push(dt); if (P.dts.length > 240) P.dts.shift(); secFrames++;
+        if (!secStart) secStart = now;
+        if (now - secStart >= 1000){ const s = (now - secStart)/1000; P.rate.fps = secFrames/s; P.rate.ref = P.count.ref/s; P.rate.read = P.count.read/s;
+          P.rate.small = (inset.st.smallRenders || 0)/s; inset.st.smallRenders = 0; P.count.ref = P.count.read = 0; secStart = now; secFrames = 0;
+          if (P.auto){ const f = P.rate.fps;
+            P.lowSec = f < 48 ? P.lowSec + 1 : 0; P.highSec = f >= 57 ? P.highSec + 1 : 0;
+            if (P.probation && now - P.probation < 4000 && f < 48){ setTier(P.tier + 1, "upgrade failed"); P.locked = true; P.probation = 0; P.lowSec = 0; }
+            else if (P.lowSec >= 2){ if (down()) P.lastDown = now; P.lowSec = 0; }
+            else if (P.highSec >= 10 && !P.locked && P.ups < 2 && P.tier > 0 && now - P.lastDown > 15000){ if (setTier(P.tier - 1, "headroom")){ P.ups++; P.probation = now; } P.highSec = 0; } }
+          if (hud) hudDraw(); } };
+      P.stats = () => { const d = [...P.dts].sort((a, b) => a - b), pc = k => d.length ? +d[Math.min(d.length - 1, Math.floor(k*d.length))].toFixed(1) : null;
+        return { gpu: P.gpu, tier: TIERS[P.tier].name, lines: eng.NL, samples: eng.NS, auto: P.auto, pixelRatio: renderer.getPixelRatio(), fps: +P.rate.fps.toFixed(1),
+          frameMsP50: pc(.5), frameMsP95: pc(.95), echoGpuMs: P.gpuMs == null ? null : +P.gpuMs.toFixed(2), refFps: +P.rate.ref.toFixed(1), insetSmallFps: +P.rate.small.toFixed(1),
+          readHz: +P.rate.read.toFixed(1), readMs: +P.readMs.toFixed(1), history: P.history }; };
+      let hud = null;
+      if (DEV){ hud = document.createElement("div"); hud.id = "perfHud"; hud.setAttribute("aria-live", "off"); document.body.appendChild(hud); }
+      function hudDraw(){ const s = P.stats(), r = inset.rectOf($("echoLive"));
+        hud.style.cssText = `position:fixed;left:${r.x + 6}px;top:${r.y + r.h - 118}px;z-index:50;pointer-events:none;background:rgba(0,0,0,.72);color:#9ff5c8;font:11px/1.35 "JetBrains Mono",monospace;padding:5px 7px;border-radius:4px;white-space:pre`;
+        hud.textContent = `${s.fps} fps  p50 ${s.frameMsP50} ms  p95 ${s.frameMsP95} ms\necho ${s.tier} ${s.lines}×${s.samples}${s.auto ? " (auto)" : ""}  px ${s.pixelRatio}\n` +
+          `echo GPU ${s.echoGpuMs == null ? "n/a" : s.echoGpuMs + " ms"}  ideal ${s.refFps}/s\ninset thumb ${s.insetSmallFps}/s  labels ${s.readHz}/s (${s.readMs} ms)\n${String(s.gpu).slice(0, 48)}`; }
+      return P;
+    })();
     let lastPose = "";
     function frame(now){
       requestAnimationFrame(frame);
-      const host = $("app").getBoundingClientRect(); if (!host.width || !host.height || document.hidden) { last = now; return; }     // hidden lab iframe: nothing to draw
+      if (APP.loopPaused) { last = now; perf.pause(); return; }                                   // test hook: frames are stepped by ECHO.stepLive
+      const host = $("app").getBoundingClientRect(); if (!host.width || !host.height || document.hidden) { last = now; perf.pause(); return; }     // hidden lab iframe: nothing to draw
       const dt = Math.min(.1, (now-last)/1000); last = now; APP.time += dt; frameDt = dt;
-      if (!APP.frozen){ APP.phase = (APP.phase + dt*APP.hr/60)%1; APP.resp = (APP.resp + dt*14/60)%1; }
+      if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60);   // HR-scaled cycle: systole shortens less than diastole
+         APP.resp = (APP.resp + dt*14/60)%1; }
       stepTween(now);
       drawAll(now);
       if (now-lastScore > 200){ lastScore = now; score(now); $("readout").textContent = panels.readout(); }
       if (dirty){ dirty = false; panels.syncSliders(); }
       /* laptop GPU that cannot hold the budget: drop the pixel ratio rather than the frame rate */
-      slow = dt > .04 ? slow+1 : Math.max(0, slow-1); if (slow > 45 && renderer.getPixelRatio() > 1){ renderer.setPixelRatio(1); W = 0; slow = 0; }
+      perf.frame(now);
     }
 
     /* ---- first picture before the slow bake, so the page is never blank ---- */
     pushImaging(); eng.setPatientPosition("supine"); S.setPatientMatrix("supine"); APP.targets = deriveTargets("supine");
     inset.layoutZones("supine");
+    Object.assign(APP.img, preset(VJ.views.find(v => v.id === "plax") || VJ.views[0])); pushImaging();
     { const t = target("plax"); Object.assign(APP.pose, { x: t.x, y: t.y, notchDeg: t.notchDeg, tiltDeg: t.tiltDeg, rockDeg: t.rockDeg }); }
     applyPose(); syncAll(); panels.syncSliders();
     drawAll(performance.now(), true); if (shaderErr) throw new Error("Shader failed to compile: " + shaderErr.slice(0, 900));
@@ -191,8 +257,10 @@
       setPose(p){ Object.assign(APP.pose, p); applyPose(); clearBeat(); }, pose: () => ({ ...APP.pose }), press: APP.press, frameOf: () => APP.frame,
       setPosition: p => APP.setPosition(p, true), setConvention: c => APP.setConvention(c), snap: APP.snapTo, target,
       setPhase(t){ APP.phase = t; }, freeze: f => APP.setFrozen(f), setBody(b){ APP.body = b; syncAll(); }, body: () => APP.body,
-      renderOnce(){ drawAll(performance.now(), true); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
-      labels: () => eng.readLabels(), tissueLine: i => eng.tissueLine(i), NL: eng.NL, readout: () => panels.readout(), inset: inset.st, swap: inset.swap, orbit: S.orbit, chip: () => $("chip").textContent,
+      renderOnce(){ drawAll(performance.now(), true); },
+      pauseLoop(on){ APP.loopPaused = !!on; }, perf: () => perf.stats(), setQuality(name){ if (name === 'auto'){ perf.auto = true; perf.locked = false; return; } perf.auto = false; perf.setTier(TIERS.findIndex(t => t.name === name), 'manual'); },
+      stepLive(dt = 1/50){ APP.time += dt; if (!APP.frozen){ const w = APP.warp(); APP.phase = w.toT(w.fromT(APP.phase) + dt*APP.hr/60); APP.resp = (APP.resp + dt*14/60)%1; } drawAll(performance.now(), false); }, quality: id => qualityAt(id, [0, .06, .2, .38, .53, .62, .75, .92]), qualityED: id => qualityAt(id, [0]), live: () => APP.scores,
+      labels: () => eng.readLabels(), tissueLine: i => eng.tissueLine(i), get NL(){ return eng.NL; }, readout: () => panels.readout(), inset: inset.st, swap: inset.swap, orbit: S.orbit, chip: () => $("chip").textContent,
       probeScreen(){ const r = document.getElementById("stage").getBoundingClientRect(); S.aimMain({ w: r.width, h: r.height }); const q = new THREE.Vector3(0, 3, 0).applyMatrix4(S.probeGroup.matrixWorld).project(S.mainCam); return [r.left+(q.x*.5+.5)*r.width, r.top+(-q.y*.5+.5)*r.height]; },
       zoneCentre: id => inset.zoneCentre(id),
       goToView: (id, instant) => APP.goToView(id, instant), tweening: () => !!APP.tween, refShown: () => APP.refShown && !$("refPane").hidden, refView: () => APP.refView, refLabels: () => refLabelList.map(l => l.text),

@@ -1,0 +1,78 @@
+{
+ "views": {
+  "supine/plax": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/psax_pap": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/psax_mv": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/psax_av": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/a4c": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/a5c": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/subxiphoid_4c": {
+   "q": 100,
+   "fails": []
+  },
+  "supine/ivc": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/plax": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/psax_pap": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/psax_mv": {
+   "q": 86,
+   "fails": [
+    "missing:LV_cavity",
+    "shape:lv_round"
+   ]
+  },
+  "LLD/psax_av": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/a4c": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/a5c": {
+   "q": 100,
+   "fails": []
+  },
+  "LLD/subxiphoid_4c": {
+   "q": 88,
+   "fails": [
+    "missing:RV_cavity",
+    "missing:RA"
+   ]
+  },
+  "LLD/ivc": {
+   "q": 100,
+   "fails": []
+  }
+ },
+ "errors": [],
+ "renderOnceMs_swiftshader": 2.4,
+ "NL": 160,
+ "info": null
+}
