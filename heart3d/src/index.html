@@ -16,6 +16,7 @@
     <div class="seg segCol" role="group" aria-label="Colours"><button data-c="real" aria-pressed="true">Real colours</button><button data-c="labels" aria-pressed="false">Label colours</button></div>
     <button class="tog bCor" aria-pressed="true">Coronaries<span class="st">On</span></button>
     <button class="tog bBeat" aria-pressed="true">Beat<span class="st">On</span></button>
+    <button class="tog bConduction" aria-pressed="false">Conduction<span class="st">Off</span></button>
   </div>
   <div class="cutctl" hidden>
     <label class="cutpick">View <select class="selCut" aria-label="Cut view"></select></label>
@@ -30,6 +31,13 @@
   </div>
   <div class="views" role="group" aria-label="Viewpoints"><button data-v="Front">Front</button><button data-v="Back">Back</button><button data-v="Left">Left side</button><button data-v="Right">Right side</button><button data-v="Below">Below</button><button data-v="Above">Above</button><button class="bFace" disabled>Face the cut</button><button data-v="Reset">Reset</button></div>
   <aside class="card panel" aria-live="polite"></aside>
+  <section class="card ecgcard conduction-panel" aria-label="Conduction playback and live ECG">
+    <div class="ecghead"><span class="glabel">Live 12-lead</span><div class="reads"><span>HR <b class="rHR">–</b></span><span>PR <b class="rPR">–</b> ms</span><span>QRS <b class="rQRS">–</b> ms</span></div></div>
+    <div class="conPlayback"><button class="bConPlay" type="button">Pause</button><button data-step="-5" type="button" aria-label="Step back 5 milliseconds">−5 ms</button><button data-step="5" type="button" aria-label="Step forward 5 milliseconds">+5 ms</button><div class="seg" role="group" aria-label="Playback speed"><button data-speed="1">1×</button><button data-speed="0.25">0.25×</button><button data-speed="0.1">0.1×</button></div><output class="clockRead" aria-label="Playback time">0 ms</output></div>
+    <div class="phase"><span data-phase="P">P</span><span data-phase="PR">PR</span><span data-phase="QRS">QRS</span><span data-phase="ST">ST</span><span data-phase="T">T</span><span class="phaseTxt"></span></div>
+    <label class="conLead">Lead <select aria-label="ECG lead"></select></label>
+    <div class="conECG" role="img" aria-label="Live twelve-lead ECG with moving cursor"></div>
+  </section>
 </section>
 <!--@INC:src/parts/footer.html--></div>
 <!--@STANDALONE-->
