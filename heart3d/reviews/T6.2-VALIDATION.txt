@@ -1,5 +1,5 @@
 T6.2(c) final validation — draft for contract review
-The heart suite exits 1 because 10 strict CONTRACT assertions fail; 0 implementation failures.
+The heart suite exits 1 because 10 strict CONTRACT assertions fail; 0 non-contract assertion failures.
 All samples match the previous audit after scheduling changes. Root index and tested copy SHA-256: 161D9D7A11A58D98978388958732FF18BE5F121B22B02510046DA9E80C7D908F.
 
 Full heart suite (all 24 pathology scenarios)
