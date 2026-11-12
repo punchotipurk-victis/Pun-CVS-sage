@@ -2,7 +2,7 @@
 """Site shell checks (home page + section-scoped lab switcher). python tools/test_site.py <index.html> [--shots DIR]
    - Home offers three paths: 3D Heart (#heart3d), Deep dive (#topics), Echo Simulator (#echo); the echo hero image loads.
    - The lab switcher only shows the pages of the current section:
-       heart3d → [heart3d] · bradycardia/narrow/wide/mi → [bradycardia, narrow, wide, mi] · echo → [echo]
+       heart3d/pathology → [heart3d, pathology] · bradycardia/narrow/wide/mi → [bradycardia, narrow, wide, mi] · echo → [echo]
    - Back to Home works; no sideways scroll at 400 px; no page errors."""
 import asyncio, sys, os, argparse
 from playwright.async_api import async_playwright
@@ -14,7 +14,8 @@ def check(ok, msg, extra=""):
     print(("  ok   " if ok else "  FAIL ") + msg, extra)
     if not ok: fails.append(msg)
 TOPICS = ["bradycardia", "narrow", "wide", "mi"]
-EXPECT = {"heart3d": ["heart3d"], "echo": ["echo"], **{k: TOPICS for k in TOPICS}}
+HEART = ["heart3d", "pathology"]   # 3D Heart section: 3D Heart · Pathology simulator
+EXPECT = {**{k: HEART for k in HEART}, "echo": ["echo"], **{k: TOPICS for k in TOPICS}}
 
 async def main():
     url = "file://" + os.path.abspath(A.page)

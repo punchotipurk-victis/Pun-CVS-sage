@@ -32,19 +32,19 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
   vec3 b = (uBox*vec4(uO + (vec3(float(ix), float(iy), float(iz)) + 0.5)*uV, 1.0)).xyz; int t, l; scene(b, t, l);
   float e = floor(clamp((gHeartD + 4.0)/8.0, 0.0, 1.0)*65535.0);          // 16-bit signed distance in B,A (±4 cm)
   o = vec4(float(l)/255.0, float(t)/255.0, floor(e/256.0)/255.0, mod(e, 256.0)/255.0); }` });
-  function bake(boxToBody, o, n, v){
+  function bake(boxToBody, o, n, v, phase = 0){
     const tx = Math.ceil(Math.sqrt(n[2])), ty = Math.ceil(n[2]/tx), W = n[0]*tx, H = n[1]*ty;
     const rt = new T.WebGLRenderTarget(W, H, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: false });
     bakeU.uBox.value.copy(boxToBody); bakeU.uO.value.set(...o); bakeU.uV.value = v; bakeU.uN.value.set(...n); bakeU.uTX.value = tx;
-    eng.uniforms.uP.value.set(APP.paramEval(0, 0));      // end-diastole
+    eng.uniforms.uP.value.set(APP.paramEval(phase, 0));  // end-diastole unless a phase is asked for (valve keyframes)
     const s = new T.Scene(), q = new T.Mesh(new T.PlaneGeometry(2, 2), bakeMat), c = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1); q.frustumCulled = false; s.add(q);
     const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(s, c);
     const buf = new Uint8Array(W*H*4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf); renderer.setRenderTarget(prev); rt.dispose(); q.geometry.dispose();
-    const out = new Uint8Array(n[0]*n[1]*n[2]), dist = new Float32Array(out.length);
+    const out = new Uint8Array(n[0]*n[1]*n[2]), dist = new Float32Array(out.length), tis = new Uint8Array(out.length);
     for (let k = 0; k < n[2]; k++) for (let j = 0; j < n[1]; j++) for (let i = 0; i < n[0]; i++){
       const X = i + (k % tx)*n[0], Y = j + Math.floor(k/tx)*n[1], b = (Y*W + X)*4, c = i + n[0]*(j + n[1]*k);
-      out[c] = buf[b]; dist[c] = (buf[b+2]*256 + buf[b+3])/65535*8 - 4; }
-    out.dist = dist; return out;
+      out[c] = buf[b]; tis[c] = buf[b+1]; dist[c] = (buf[b+2]*256 + buf[b+3])/65535*8 - 4; }
+    out.dist = dist; out.tissue = tis; return out;   // label, outer signed distance, tissue class (PHANTOM.TISSUES index)
   }
   /* occupancy of a label set → twice box-blurred (smooth signed-ish field) → surface nets → Taubin smoothing */
   function meshLabels(vol, o, n, v, set, iters = 6){
@@ -175,6 +175,14 @@ out vec4 o; void main(){ ivec2 f = ivec2(gl_FragCoord.xy), n = ivec2(uN.xy);
     heart.geometry.dispose(); heart.geometry = g; heart.visible = true; coronary.visible = true; setColourMode(colourMode);
     return { verts: g.attributes.position.count, tris: g.index.count/3, voxelCm: v, disagree: +g.userData.disagree.toFixed(4) };
   }
+  /* label volume of the heart at a voxel size and cycle phase, without meshing (export / design tools) */
+  function bakeVolume(voxelCm, phase = 0, box){
+    const v = voxelCm, lo = box ? box.lo : (ph._mesh?.boxLo ?? [-8.5, -10.5, -9.5]), hi = box ? box.hi : (ph._mesh?.boxHi ?? [8, 8, 11]), n = lo.map((a, i) => Math.ceil((hi[i]-a)/v));
+    const h2b = PHANTOM.worldToHeart(ph, "supine", T).clone().invert(), prev = eng.uniforms.uW2H.value.clone(), uP0 = eng.uniforms.uP.value.slice();
+    eng.uniforms.uW2H.value.copy(PHANTOM.worldToHeart(ph, "supine", T));
+    bakeU.uSkipBody.value = 1; const vol = bake(h2b, lo, n, v, phase); bakeU.uSkipBody.value = 0; eng.uniforms.uW2H.value.copy(prev); eng.uniforms.uP.value.set(uP0);
+    return { vol, lo, n, v };
+  }
   /* lungs and liver: body-fixed organs in a body-frame volume; lungs are re-baked per position (the cardiac notch changes) */
   const lungMat = new T.MeshPhysicalMaterial({ vertexColors: true, transparent: true, opacity: .3, roughness: .75, sheen: .5, sheenColor: new T.Color(0xffd0d0), depthWrite: false, side: T.DoubleSide, clippingPlanes: clips });
   const liverMat = new T.MeshPhysicalMaterial({ vertexColors: true, roughness: .38, clearcoat: .6, clearcoatRoughness: .25, clippingPlanes: clips });
@@ -303,5 +311,5 @@ void main(){ int t, l; scene((uWorldToBody*vec4(vW, 1.0)).xyz, t, l);
   }
   return { T, scene, patient, body, skin: body.skinGroup, skeleton: body.skeleton, torsoGeo: body.torsoGeo, heart, heartGroup, lungs, liver, vessels, probeGroup, probeVis, probeParts, gizmo, cap, ring, setGizmoHover,
     fanFill, fanEdge, fanMark, cutFace, clip, elevWorld, originWorld, beamWorld, latWorld, onSkin, onLayer, costalY: body.costalY, ribY: body.ribY, heartReady, drawTo,
-    mainCam, orbit, aimMain, renderMain, syncProbe, setPatientMatrix, animateRoll, updateBeat, bakeHeart, coronary, heartDist, heartGrad, heartVol: () => S_heartVol, bakeOrgans, setColourMode, colourMode: () => colourMode };
+    mainCam, orbit, aimMain, renderMain, syncProbe, setPatientMatrix, animateRoll, updateBeat, bakeHeart, bakeVolume, coronary, heartDist, heartGrad, heartVol: () => S_heartVol, bakeOrgans, setColourMode, colourMode: () => colourMode };
 }

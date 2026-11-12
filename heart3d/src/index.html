@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>3D Heart</title>
+<!--@INC:src/parts/head.html--></head><body class="pg-explore">
+<div class="wrap">
+<header>
+  <span class="eyebrow">Interactive 3D heart · explore by tapping</span>
+  <h1>3D Heart</h1>
+  <p class="lede">Rotate the heart, look through it in X-ray, or open it with a dissection view (valves from above, right atrium opened, four-chamber section…). Tap any structure; its card appears below the model.</p>
+  <nav class="jump" aria-label="3D Heart pages"><a href="#pathology" data-go="pathology">Pathology simulator →</a></nav>
+</header>
+<section id="explore" class="x3" aria-label="Explore the 3D heart">
+  <div class="toolbar" role="toolbar" aria-label="Model controls">
+    <div class="seg segMode" role="group" aria-label="View"><button data-m="ext" aria-pressed="true">External</button><button data-m="xray" aria-pressed="false">X-ray</button><button data-m="cut" aria-pressed="false">Cut</button></div>
+    <details class="layers"><summary>Labels <span class="layerCount">4/5</span></summary><div class="layerList" role="group" aria-label="Label groups"></div></details>
+    <div class="seg segCol" role="group" aria-label="Colours"><button data-c="real" aria-pressed="true">Real colours</button><button data-c="labels" aria-pressed="false">Label colours</button></div>
+    <button class="tog bCor" aria-pressed="true">Coronaries<span class="st">On</span></button>
+    <button class="tog bBeat" aria-pressed="true">Beat<span class="st">On</span></button>
+  </div>
+  <div class="cutctl" hidden>
+    <label class="cutpick">View <select class="selCut" aria-label="Cut view"></select></label>
+    <label class="cutdepth"><span class="depthLbl">Fine-tune</span><input class="rngOff" type="range" min="-1.5" max="1.5" step="0.05" value="0" aria-label="Move the cut"></label>
+    <button class="bFlip" hidden>Flip side</button>
+  </div>
+  <div class="viewer" aria-label="Rotatable 3D heart. Drag to rotate, right-drag or two fingers to move, scroll or pinch to zoom, tap a structure for details.">
+    <div class="labels"></div><div class="busy">Building the heart…</div>
+    <div class="hint">Drag to rotate · right-drag or two fingers to move · scroll or pinch to zoom · tap to explore</div>
+    <div class="legend" hidden aria-label="Label colour key"></div>
+    <div class="zoomctl" role="group" aria-label="Zoom"><button class="bZin" aria-label="Zoom in">+</button><button class="bZout" aria-label="Zoom out">−</button><button class="bZreset" aria-label="Reset view" title="Reset view">⟲</button></div>
+  </div>
+  <div class="views" role="group" aria-label="Viewpoints"><button data-v="Front">Front</button><button data-v="Back">Back</button><button data-v="Left">Left side</button><button data-v="Right">Right side</button><button data-v="Below">Below</button><button data-v="Above">Above</button><button class="bFace" disabled>Face the cut</button><button data-v="Reset">Reset</button></div>
+  <aside class="card panel" aria-live="polite"></aside>
+</section>
+<!--@INC:src/parts/footer.html--></div>
+<!--@STANDALONE-->
+<!--@INC:src/parts/scripts-explore.html-->
+</body></html>

@@ -47,12 +47,31 @@ python tools/test_embed.py <copy of the output>
 - `frames.heartToH3` (v1.1): body axes tilted by the smallest rotation (≈27°) that lays the LV long axis on H3's. v1 took the
   roll from H3's cut plane and swung the arch ≈22° to the right. Mesh data did not change.
 
+## Interior export (phantom 0.5, 3D Heart rework step 3)
+`python tools/export_heart_interior.py [--voxel 0.1] [--valve-voxel 0.05] [--tris 52000] [--valve-verts 360] [--cache bakes.npz]`
+→ `export/heart-interior.json` (format `pun-cvs heart interior v1`, ≈1.2 MB) + `export/heart-landmarks.json`. Loader:
+`export/heart-interior-loader.js` (`HeartInterior.load(json, THREE, {clippingPlanes, frame})` → `tissue`, `valves`, `setPhase(t)`,
+`colourBy`, `pick`, `landmarkObject`). Check by eye: `python tools/build_interior_preview.py`, open `export/interior-preview.html`
+(body + cardiac cut planes, stencil-capped cut, valve flip-book, conduction landmarks, tap to identify).
+Needs `pip install scikit-image fast-simplification` (dev only; the site reads the JSON).
+
+| Part | What |
+|---|---|
+| `tissue` | one closed surface of all heart tissue (myocardium, fibrous skeleton, vessel walls, groove fat) at end-diastole, from a 0.1 cm bake: smoothed signed distance → marching cubes → quadric decimation. Per vertex `label` (tissue under it), `cavity` (blood it faces; 0 = epicardium), `wall` (1 LV · 2 RV · 3 atria · 4 great vessels · 5 fat · 6 fibrous skeleton), `motion`. A clip plane shows the endocardium, septa, papillary muscles, crista, pectinate muscles…; the closed surface lets a stencil cap fill only tissue, so cavities stay open. |
+| `capVolume` | End-diastolic heart-frame label grid. `lo` is the lower voxel corner in cm, `n` gives the voxel counts in x/y/z order, and `v` is 0.2 cm. Each 2×2×2 block of the 0.1 cm bake votes among its tissue labels. Ties go to the lower label index, and empty blocks are zero. `rle` is base64 of unsigned byte pairs [run length minus one, label index] in x-fastest order. `tissueByLabel` is indexed by `labelNames` and gives the most frequent tissue class for each cap label. |
+| `valves` | MV (+ chordae), TV, AV, PV meshed from 0.05 cm bakes at 8 phases `[0, .09, .30, .36, .53, .62, .75, .93]` of the RR interval (ED, AV/PV wide open, late ejection, closing, E peak, E fall, diastasis, A peak). Flip-book on the ECG clock. |
+| `landmarks` | points / paths / polygons in the heart frame, placed from the phantom and snapped onto the bake: SA-node site, compact AV node, CFB, membranous septum, His (AV node → CFB → crest of the muscular septum), LAF / LPF / septal fascicle, RBB, moderator band, three internodal routes, Bachmann's bundle, Koch's triangle, tendon of Todaro, TV septal hinge, CTI, crista, fossa, CS ostium, IVC orifice, SVC junction, PV ostia, papillary muscles. Every conduction point is checked to lie in heart tissue. |
+
+New phantom parts it shows (0.5): SVC, pectinate muscles, Eustachian and Thebesian valves, tendon of Todaro, membranous septum,
+central fibrous body (`tools/landmark_design.py`, from the existing anatomy). Blender: `mesh_to_gltf.py` / `gltf_to_mesh.py` accept the
+interior file (node `interior_tissue`; valves and landmarks copied unchanged).
+
 ## Still to do
 - Angiogram lab: use `vessels.arteries` centrelines with the true radii. `tools/coronary_map.py` already draws RAO caudal,
   LAO cranial and right-system projections.
 - MI lab: paint from the model's own tree with `infarctDownstream(vesselId, t)` (today it still paints the lab's 8 regions).
 - Rebuild the Heart Conduction network on the refined atria, then drop the warp.
-- A cut / lesion export (or clip plane + cap) so the complication views use the refined heart too.
+- Lesion variants (VSD, papillary rupture, aneurysm, free-wall rupture, RV dilation) as phantom variants baked by the interior exporter (3D Heart step 8).
 
 ## Known limits
 - Only the outer surface is exported, so septal segments show only where the septum reaches the surface. The basal anteroseptal segment (AHA 2) sits under the RVOT and has no surface vertices. A 4-chamber cut needs a clip plane plus a cap, or a second export.

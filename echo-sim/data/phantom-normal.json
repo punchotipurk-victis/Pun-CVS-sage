@@ -1,7 +1,7 @@
 {
   "_meta": {
     "file": "phantom-normal.json",
-    "version": "0.4.0-draft",
+    "version": "0.5.0-draft",
     "status": "DRAFT — geometry is schematic; validate with an echo-lab fellow/cardiologist (planned after P2/P3). Tune visually with the dev calibration mode described in views.json._calibration.",
     "units": "cm, degrees, time as fraction of RR interval (t=0 at R-wave peak = end-diastole)",
     "references": [
@@ -25,7 +25,8 @@
       "0.4.0 (P1.5, valves): mitral orifice opened (the LV wall had formed a 0.3 cm muscle plate across the orifice above the annulus); leaflet SDF fixed (the commissural arc was not removed before projecting, so every leaflet had ~half its width); MV leaflets rebuilt from the annulus (hinges on a saddle-shaped annulus 0.6 cm high, closed direction at a coaptation point in the posterior third 0.55 cm into the LV, +0.3 cm coaptation overlap: closed MV now seals); PML scallops P1–P3, shallow A1–A3; third tricuspid leaflet (posterior) and all three TV leaflets aimed at a central coaptation point, TV annulus ring; aortic and pulmonary cusps rebuilt as bellies with vertical coaptation walls along the Y (closed) that tilt into the sinuses (open), commissural posts; PSAX-AV plane now at AV_coaptation (0.8 cm above the annulus). New label ids TV_posterior, TV_annulus.",
       "0.4.0 (P1.5, surface): coronary arteries (19 vessels, right-dominant, SCCT segment numbers and territories: LM, LAD with D1/D2, septal perforators S1–S3 and apical wrap; LCx with OM1/OM2; RCA with conus, SA nodal, RV branches, acute marginal, AV nodal, PDA, posterolateral), cardiac veins (great, middle, small → coronary sinus) and epicardial fat in the AV and interventricular grooves, designed on the baked heart's grooves by tools/coronary_design.py and snapped to the surface. Detail levels: echo/cut face = proximal coronaries + AV-groove fat; 3D bake = + all groove fat; the full tree is swept as smooth tubes from the same centrelines in the 3D view and the mesh export. Pericardium follows the heart + fat. New label ids LCA, RCA, cardiac_veins, epicardial_fat.",
       "0.4.0 (P1.5, export): vessels drawn thicker in the 3D heart (×2.2, ≥0.32 cm wide, lifted onto the surface) so they can be tapped; true radii unchanged for echo/angiography. tools/export_heart_mesh.py writes export/heart-mesh.json (positions, normals, index; per vertex: structure label, wall class, AHA 17 segment, standard and model coronary territory, nearest artery + position along it, motion weight; artery/vein centrelines with true and display radii; heart→body and heart→heart-3d-model matrices). export/heart-mesh-loader.js decodes it for the other labs (mesh, tappable tubes, colourBy, pick, infarctDownstream).",
-      "0.4.0 (P1.5, PLAX fix 8 Nov): aortomitral curtain is a 2.6 cm sheet from the posterior aortic annulus; AML hinge moved onto the line of the posterior aortic wall (0.6 cm below the annulus; closed leaflet re-aimed at the same coaptation point); anterior ±60° of the mitral ring removed (D-shaped annulus); LVOT clipped to the ventricular side of the curtain; LA kept off the LVOT by a fibrous band. Fixes the PLAX hole between LA and LVOT and the narrow LVOT. Sources: Netter 226/227 (aortomitral continuity), lecture; curtain length teaching (verify)."
+      "0.4.0 (P1.5, PLAX fix 8 Nov): aortomitral curtain is a 2.6 cm sheet from the posterior aortic annulus; AML hinge moved onto the line of the posterior aortic wall (0.6 cm below the annulus; closed leaflet re-aimed at the same coaptation point); anterior ±60° of the mitral ring removed (D-shaped annulus); LVOT clipped to the ventricular side of the curtain; LA kept off the LVOT by a fibrous band. Fixes the PLAX hole between LA and LVOT and the narrow LVOT. Sources: Netter 226/227 (aortomitral continuity), lecture; curtain length teaching (verify).",
+      "0.5.0 (3D Heart rework step 3, 9 Nov): fine right-heart landmarks as new labels (appended; 63/64 palette): SVC (svc capsule outside the RA body, label only), pectinate muscles (6 ridges crista → appendage on the anterior RA wall), Eustachian valve (fold on the anterior-medial rim of the IVC orifice), Thebesian valve (fold over the CS ostium), tendon of Todaro (subendocardial cord, Eustachian–Thebesian commissure → CFB), membranous septum (under the RCC–NCC commissure) and central fibrous body (right trigone where the MV, TV and aortic annuli meet). All placed by tools/landmark_design.py from the existing anatomy and snapped onto the baked endocardium / into tissue; Koch's triangle sides 2.0 and 1.85 cm. Echo views unchanged (test_lab: every view 100 at target). New: tools/heart_volume.py, tools/export_heart_interior.py → export/heart-interior.json (tissue surface, valves at 8 phases incl. chordae, conduction + teaching landmarks) and export/heart-landmarks.json. Sources: Netter 218/224/226, Anderson (Koch's triangle), lecture; teaching (verify)."
     ]
   },
   "frames": {
@@ -540,7 +541,14 @@
           1.5
         ],
         "edSemiX": 4.2,
-        "_note": "Outer surface (incl. 0.4 cm free wall). Semi-axes taper as t^1.8 from the TV level to the apex → triangular RV in A4C, crescent in SAX after the LV carve. Targets (Lang 2015, verify): basal diameter 2.5–4.1, mid 1.9–3.5, length 5.9–8.3 cm; RV apex short of the LV apex."
+        "_note": "Outer surface (incl. 0.4 cm free wall). Semi-axes taper as t^1.8 from the TV level to the apex → triangular RV in A4C, crescent in SAX after the LV carve. Targets (Lang 2015, verify): basal diameter 2.5–4.1, mid 1.9–3.5, length 5.9–8.3 cm; RV apex short of the LV apex.",
+        "baseRound": 1.2,
+        "basalNarrow": {
+          "dx": 1.4,
+          "from": -0.4,
+          "to": 2.6,
+          "_note": "lateral RV wall narrows to the TV annulus at the base → rounded right AV groove meeting the RA"
+        }
       }
     },
     "RV_free_wall": {
@@ -725,6 +733,236 @@
           ],
           "r": 0.36,
           "_note": "Crista terminalis: smooth ridge inside the lateral RA wall between the smooth sinus venarum (behind) and the pectinate muscles (front); on the outside it matches the sulcus terminalis (Netter 218/224; lecture)."
+        },
+        "svc_label": {
+          "insideEllipsoidMargin": 0.25,
+          "_note": "SVC = the svc capsule where it lies outside the RA ellipsoid by > 0.25 cm (label only; geometry unchanged)."
+        },
+        "pectinate": {
+          "ridges": [
+            [
+              [
+                3.675,
+                0.395,
+                -3.695
+              ],
+              [
+                4.065,
+                0.655,
+                -3.435
+              ],
+              [
+                4.975,
+                -0.125,
+                -2.005
+              ],
+              [
+                5.105,
+                0.135,
+                -1.095
+              ]
+            ],
+            [
+              [
+                3.935,
+                0.655,
+                -3.565
+              ],
+              [
+                4.195,
+                0.915,
+                -3.305
+              ],
+              [
+                5.105,
+                0.135,
+                -1.745
+              ],
+              [
+                5.105,
+                0.265,
+                -0.835
+              ]
+            ],
+            [
+              [
+                4.325,
+                1.045,
+                -3.305
+              ],
+              [
+                4.325,
+                1.435,
+                -2.915
+              ],
+              [
+                5.235,
+                0.525,
+                -1.485
+              ],
+              [
+                4.975,
+                0.395,
+                -0.315
+              ]
+            ],
+            [
+              [
+                4.585,
+                1.305,
+                -3.045
+              ],
+              [
+                4.845,
+                1.695,
+                -2.265
+              ],
+              [
+                5.105,
+                1.305,
+                -1.225
+              ],
+              [
+                4.975,
+                0.915,
+                -0.315
+              ]
+            ],
+            [
+              [
+                4.195,
+                1.695,
+                -2.655
+              ],
+              [
+                4.065,
+                1.825,
+                -2.395
+              ],
+              [
+                4.975,
+                1.435,
+                -0.835
+              ],
+              [
+                4.845,
+                1.045,
+                0.075
+              ]
+            ],
+            [
+              [
+                3.935,
+                2.085,
+                -2.265
+              ],
+              [
+                4.455,
+                2.215,
+                -1.615
+              ],
+              [
+                4.585,
+                1.825,
+                -0.705
+              ],
+              [
+                4.715,
+                1.305,
+                0.075
+              ]
+            ]
+          ],
+          "r": 0.16,
+          "wallBand": 0.45,
+          "_note": "Pectinate muscles: parallel ridges from the crista terminalis across the anterior RA wall into the appendage (Netter 224). Snapped onto the RA endocardium by tools/landmark_design.py; kept within 0.45 cm of the wall. teaching (verify)."
+        },
+        "eustachian": {
+          "center": [
+            2.245,
+            2.475,
+            -1.095
+          ],
+          "u": [
+            -0.364,
+            -0.915,
+            -0.177
+          ],
+          "t": [
+            -0.422,
+            0.331,
+            -0.844
+          ],
+          "axis": [
+            0.83,
+            -0.232,
+            -0.507
+          ],
+          "semi": [
+            1.1,
+            0.7,
+            0.07
+          ],
+          "_note": "Eustachian valve: crescentic fold on the anterior-medial rim of the IVC orifice (where the IVC axis enters the RA body), shelving across the orifice toward the CS ostium and the fossa limbus (Netter 224). Centre on the rim (RA endocardium); half-ellipsoid spanned by t (along the rim) and axis (rim → across the orifice, tilted into the RA); RA side only. Designed by tools/landmark_design.py. teaching (verify)."
+        },
+        "thebesian": {
+          "center": [
+            2.474,
+            2.065,
+            -0.819
+          ],
+          "normal": [
+            0.512,
+            -0.624,
+            -0.59
+          ],
+          "down": [
+            0.409,
+            0.782,
+            -0.471
+          ],
+          "semi": [
+            0.5,
+            0.45,
+            0.06
+          ],
+          "_note": "Thebesian valve: thin semilunar fold over the inferior-posterior half of the CS ostium (Netter 224). Designed by tools/landmark_design.py. teaching (verify)."
+        },
+        "todaro": {
+          "points": [
+            [
+              2.044,
+              1.612,
+              -0.751
+            ],
+            [
+              2.047,
+              1.335,
+              -0.481
+            ],
+            [
+              2.052,
+              1.06,
+              -0.214
+            ],
+            [
+              2.054,
+              0.787,
+              -0.081
+            ],
+            [
+              2.195,
+              0.515,
+              0.183
+            ],
+            [
+              2.199,
+              0.245,
+              0.444
+            ]
+          ],
+          "r": 0.09,
+          "_note": "Tendon of Todaro: subendocardial fibrous cord from the Eustachian–Thebesian commissure to the central fibrous body; with the CS ostium and the TV septal hinge it bounds Koch's triangle, whose apex holds the compact AV node (Anderson; Netter 224). Snapped 0.12 cm under the RA septal endocardium. teaching (verify)."
         }
       },
       "_sizeNote": "ED semi 2.0/1.8/2.5 cm → A4C minor ≈4.0, major ≈5.0 cm, ≈38 mL. Lang 2015 RA minor 2.9–4.5 cm, major ≈4.4–5.3 cm (verify)."
@@ -1530,6 +1768,30 @@
         0.8
       ]
     },
+    "central_fibrous_body": {
+      "type": "derived_sphere",
+      "center": [
+        1.985,
+        0.135,
+        0.465
+      ],
+      "r": 0.38,
+      "tissue": "fibrous",
+      "label": "central_fibrous_body",
+      "_note": "Right fibrous trigone: where the MV, TV and aortic annuli meet; pierced by the His bundle (Netter 226; Anderson). Designed by tools/landmark_design.py: centroid of the RCC–NCC commissure (0.4 cm below the annulus), the MV-ring point nearest the TV and the TV-ring point nearest the MV, moved 0.3 cm into tissue. Relabels wall tissue only. teaching (verify)."
+    },
+    "membranous_septum": {
+      "type": "derived_sphere",
+      "center": [
+        2.375,
+        -0.385,
+        -0.055
+      ],
+      "r": 0.42,
+      "tissue": "fibrous",
+      "label": "membranous_septum",
+      "_note": "Thin fibrous septum under the RCC–NCC commissure; the TV septal leaflet hinge divides it into AV and interventricular parts; the His bundle runs along its lower edge (Netter 226). Designed by tools/landmark_design.py: wall tissue nearest the RCC–NCC commissure 0.4 cm below the annulus. Relabels wall tissue only. teaching (verify)."
+    },
     "coronary_arteries": {
       "type": "tubes",
       "tissue": "vessel_wall",
@@ -1589,114 +1851,114 @@
               0.16
             ],
             [
-              0.1,
-              -2.57,
-              0.55
+              0.11,
+              -2.59,
+              0.6
             ],
             [
-              0.16,
-              -2.91,
-              1.05
+              0.17,
+              -2.93,
+              1.09
             ],
             [
-              0.22,
-              -3.24,
-              1.54
+              0.23,
+              -3.27,
+              1.58
             ],
             [
-              0.27,
-              -3.58,
-              2.04
+              0.28,
+              -3.6,
+              2.08
             ],
             [
-              0.71,
-              -3.48,
-              2.39
+              0.74,
+              -3.47,
+              2.42
             ],
             [
-              1.15,
-              -3.35,
-              2.77
+              1.19,
+              -3.33,
+              2.79
             ],
             [
-              1.62,
-              -3.12,
-              3.06
+              1.66,
+              -3.1,
+              3.08
             ],
             [
-              2.01,
+              2.03,
               -2.88,
-              3.44
+              3.48
             ],
             [
-              2.16,
-              -2.76,
-              4.01
+              2.17,
+              -2.75,
+              4.04
             ],
             [
               2.21,
               -2.62,
-              4.59
+              4.63
             ],
             [
               2.24,
-              -2.43,
-              5.16
+              -2.42,
+              5.19
             ],
             [
               2.27,
-              -2.22,
-              5.72
+              -2.21,
+              5.75
             ],
             [
               2.29,
-              -1.98,
-              6.28
+              -1.97,
+              6.3
             ],
             [
               2.3,
-              -1.69,
-              6.81
+              -1.68,
+              6.82
             ],
             [
               2.33,
-              -1.34,
-              7.29
+              -1.33,
+              7.31
             ],
             [
-              2.3,
-              -0.84,
-              7.6
+              2.29,
+              -0.83,
+              7.61
             ],
             [
               2.07,
-              -0.45,
-              7.99
+              -0.44,
+              8.0
             ],
             [
-              1.82,
+              1.81,
               -0.15,
-              8.45
+              8.46
             ],
             [
-              1.49,
+              1.48,
               0.16,
               8.85
             ],
             [
-              1.07,
+              1.06,
               0.45,
               9.16
             ],
             [
-              0.58,
+              0.57,
               0.75,
               9.3
             ],
             [
               0.34,
               1.21,
-              9.09
+              9.08
             ],
             [
               0.36,
@@ -1717,7 +1979,7 @@
           "r1": 0.05,
           "points": [
             [
-              2.0,
+              2.01,
               -2.85,
               3.25
             ],
@@ -1817,29 +2079,29 @@
           "deep": true,
           "points": [
             [
-              0.9,
-              -2.7,
+              0.91,
+              -2.67,
               1.37
             ],
             [
-              1.23,
-              -2.19,
-              1.42
+              1.24,
+              -2.17,
+              1.43
             ],
             [
-              1.55,
-              -1.69,
-              1.48
+              1.56,
+              -1.67,
+              1.49
             ],
             [
-              1.88,
-              -1.19,
-              1.54
+              1.89,
+              -1.17,
+              1.55
             ],
             [
-              2.2,
-              -0.69,
-              1.6
+              2.21,
+              -0.66,
+              1.61
             ]
           ]
         },
@@ -1867,7 +2129,7 @@
             [
               2.58,
               -1.73,
-              3.21
+              3.22
             ],
             [
               2.94,
@@ -1894,18 +2156,18 @@
             ],
             [
               2.4,
-              -1.99,
+              -1.98,
               5.09
             ],
             [
               2.62,
               -1.65,
-              5.12
+              5.13
             ],
             [
               2.84,
               -1.32,
-              5.16
+              5.17
             ],
             [
               3.05,
@@ -2142,94 +2404,94 @@
               -0.13
             ],
             [
-              4.4,
-              -2.05,
-              -0.01
+              4.39,
+              -2.03,
+              -0.02
             ],
             [
-              4.89,
-              -2.23,
+              4.92,
+              -2.09,
               0.22
             ],
             [
-              5.35,
-              -1.9,
-              0.12
+              5.38,
+              -1.78,
+              0.41
             ],
             [
-              5.59,
-              -1.41,
-              0.07
+              5.6,
+              -1.23,
+              0.42
             ],
             [
-              5.59,
-              -0.83,
-              0.12
+              5.6,
+              -0.63,
+              0.37
             ],
             [
-              5.55,
-              -0.25,
-              0.13
+              5.66,
+              -0.03,
+              0.36
             ],
             [
-              5.58,
-              0.33,
-              0.12
+              5.71,
+              0.57,
+              0.36
             ],
             [
-              5.57,
-              0.9,
-              0.14
+              5.63,
+              1.16,
+              0.35
             ],
             [
-              5.22,
-              1.37,
-              0.13
+              5.38,
+              1.7,
+              0.29
             ],
             [
-              4.87,
-              1.84,
-              0.12
+              4.98,
+              2.14,
+              0.22
             ],
             [
-              4.51,
-              2.31,
-              0.11
+              4.49,
+              2.49,
+              0.2
             ],
             [
-              4.18,
-              2.78,
-              0.11
-            ],
-            [
-              3.85,
+              4.2,
               2.99,
               0.18
             ],
             [
-              3.34,
-              3.26,
-              0.27
+              4.08,
+              3.57,
+              0.22
             ],
             [
-              2.83,
-              3.53,
-              0.36
+              3.68,
+              4.02,
+              0.28
             ],
             [
-              2.32,
-              3.8,
-              0.46
+              3.11,
+              4.12,
+              0.32
             ],
             [
-              2.15,
-              3.52,
-              0.29
+              2.56,
+              3.97,
+              0.31
             ],
             [
-              1.85,
-              3.07,
-              0.06
+              2.14,
+              3.57,
+              0.25
+            ],
+            [
+              1.84,
+              3.08,
+              0.08
             ]
           ],
           "echoPts": 5
@@ -2246,28 +2508,28 @@
           "points": [
             [
               3.77,
-              -2.0,
-              -0.05
+              -1.95,
+              -0.06
             ],
             [
-              3.76,
-              -2.52,
-              0.01
+              3.83,
+              -2.47,
+              0.03
             ],
             [
-              3.89,
-              -3.02,
-              0.13
+              3.97,
+              -2.96,
+              0.15
             ],
             [
-              4.02,
-              -3.49,
-              0.33
+              4.11,
+              -3.42,
+              0.36
             ],
             [
-              4.09,
-              -3.92,
-              0.63
+              4.17,
+              -3.85,
+              0.66
             ]
           ]
         },
@@ -2282,44 +2544,44 @@
           "r1": 0.04,
           "points": [
             [
-              3.75,
-              -2.05,
-              -0.07
+              3.77,
+              -2.0,
+              -0.09
             ],
             [
-              3.82,
-              -1.62,
-              -0.45
+              3.83,
+              -1.6,
+              -0.49
             ],
             [
-              3.87,
+              3.88,
               -1.46,
-              -1.0
+              -1.04
             ],
             [
               3.93,
-              -1.47,
-              -1.58
+              -1.48,
+              -1.61
             ],
             [
               3.94,
               -1.51,
-              -2.16
+              -2.18
             ],
             [
-              3.79,
-              -1.52,
-              -2.71
+              3.78,
+              -1.51,
+              -2.73
             ],
             [
-              3.74,
+              3.76,
               -1.43,
-              -3.27
+              -3.29
             ],
             [
-              3.89,
-              -1.25,
-              -3.8
+              3.9,
+              -1.24,
+              -3.81
             ],
             [
               3.95,
@@ -2344,39 +2606,29 @@
           "r1": 0.04,
           "points": [
             [
-              4.85,
-              -2.04,
-              0.22
+              5.14,
+              -1.84,
+              0.46
             ],
             [
-              5.17,
-              -2.4,
-              0.47
+              5.37,
+              -2.08,
+              1.03
             ],
             [
-              5.43,
-              -2.77,
-              0.75
+              5.49,
+              -2.28,
+              1.65
             ],
             [
-              5.56,
-              -2.93,
-              1.26
+              5.49,
+              -2.39,
+              2.3
             ],
             [
-              5.54,
-              -2.86,
-              1.8
-            ],
-            [
-              5.46,
-              -2.72,
-              2.33
-            ],
-            [
-              5.33,
-              -2.59,
-              2.85
+              5.42,
+              -2.41,
+              2.95
             ]
           ]
         },
@@ -2391,44 +2643,34 @@
           "r1": 0.04,
           "points": [
             [
-              5.48,
-              -0.8,
-              0.27
+              5.5,
+              -0.36,
+              0.44
             ],
             [
-              5.66,
-              -1.37,
-              0.34
+              5.84,
+              -0.62,
+              0.87
             ],
             [
-              5.85,
-              -1.94,
-              0.51
+              6.05,
+              -0.85,
+              1.38
             ],
             [
-              5.99,
-              -2.33,
-              0.88
+              6.17,
+              -1.05,
+              1.94
             ],
             [
-              6.0,
-              -2.43,
-              1.49
+              6.21,
+              -1.22,
+              2.51
             ],
             [
-              5.93,
-              -2.39,
-              2.1
-            ],
-            [
-              5.78,
-              -2.24,
-              2.69
-            ],
-            [
-              5.61,
-              -2.07,
-              3.27
+              6.11,
+              -1.35,
+              3.09
             ]
           ]
         },
@@ -2443,74 +2685,49 @@
           "r1": 0.05,
           "points": [
             [
-              3.89,
-              0.91,
-              0.46
+              5.55,
+              1.23,
+              0.44
             ],
             [
-              3.99,
-              1.5,
-              0.35
+              5.89,
+              1.53,
+              0.84
             ],
             [
-              4.08,
-              2.09,
-              0.24
+              6.09,
+              1.78,
+              1.33
             ],
             [
-              4.3,
+              6.19,
+              2.01,
+              1.87
+            ],
+            [
+              6.21,
+              2.22,
+              2.43
+            ],
+            [
+              6.09,
+              2.37,
+              2.99
+            ],
+            [
+              5.81,
+              2.44,
+              3.51
+            ],
+            [
+              5.46,
               2.5,
-              0.28
+              3.98
             ],
             [
-              4.65,
-              2.97,
-              0.37
-            ],
-            [
-              4.86,
-              3.29,
-              0.75
-            ],
-            [
-              5.02,
-              3.53,
-              1.29
-            ],
-            [
-              5.17,
-              3.77,
-              1.82
-            ],
-            [
-              5.25,
-              3.86,
-              2.36
-            ],
-            [
-              5.14,
-              3.64,
-              2.92
-            ],
-            [
-              5.02,
-              3.4,
-              3.46
-            ],
-            [
-              4.88,
-              3.15,
-              3.99
-            ],
-            [
-              4.7,
-              2.91,
-              4.52
-            ],
-            [
-              4.42,
-              2.74,
-              5.03
+              5.08,
+              2.56,
+              4.44
             ]
           ]
         },
@@ -2525,49 +2742,49 @@
           "r1": 0.06,
           "points": [
             [
-              1.9,
-              2.89,
-              0.11
+              1.87,
+              2.92,
+              0.16
             ],
             [
-              1.44,
-              3.15,
-              0.45
+              1.37,
+              3.2,
+              0.44
             ],
             [
-              1.1,
-              3.3,
-              0.93
+              1.03,
+              3.35,
+              0.92
             ],
             [
-              1.05,
-              3.33,
-              1.55
+              0.96,
+              3.37,
+              1.54
             ],
             [
-              1.13,
-              3.32,
-              2.17
+              1.06,
+              3.35,
+              2.16
             ],
             [
-              1.24,
-              3.27,
-              2.78
+              1.22,
+              3.28,
+              2.76
             ],
             [
               1.38,
-              3.15,
-              3.38
+              3.16,
+              3.36
             ],
             [
               1.53,
               3.03,
-              3.97
+              3.96
             ],
             [
               1.69,
               2.89,
-              4.56
+              4.55
             ],
             [
               1.82,
@@ -2594,22 +2811,22 @@
           "points": [
             [
               1.86,
-              2.74,
+              2.87,
               0.21
             ],
             [
               2.06,
-              2.8,
+              2.93,
               -0.13
             ],
             [
               2.26,
-              2.87,
+              3.0,
               -0.46
             ],
             [
               2.46,
-              2.94,
+              3.07,
               -0.79
             ]
           ]
@@ -2625,59 +2842,29 @@
           "r1": 0.05,
           "points": [
             [
-              1.9,
-              2.85,
-              0.13
-            ],
-            [
-              1.7,
-              2.77,
-              -0.42
-            ],
-            [
-              1.56,
-              2.3,
-              -0.55
-            ],
-            [
-              1.45,
-              1.71,
-              -0.57
-            ],
-            [
-              1.32,
-              1.35,
-              -0.67
-            ],
-            [
-              1.41,
-              0.81,
-              -0.6
-            ],
-            [
-              1.54,
-              0.25,
-              -0.44
+              1.86,
+              2.89,
+              0.19
             ],
             [
               1.73,
-              -0.25,
-              -0.58
+              2.78,
+              -0.42
             ],
             [
-              1.6,
-              0.25,
-              -0.6
+              1.58,
+              2.2,
+              -0.51
             ],
             [
-              1.45,
-              0.83,
-              -0.6
+              1.43,
+              1.58,
+              -0.57
             ],
             [
-              1.29,
-              1.4,
-              -0.59
+              1.35,
+              1.36,
+              -0.71
             ],
             [
               1.38,
@@ -2713,133 +2900,138 @@
             ],
             [
               1.96,
-              -2.62,
-              4.83
+              -2.61,
+              4.85
             ],
             [
-              1.9,
-              -2.76,
-              4.24
+              1.91,
+              -2.75,
+              4.29
             ],
             [
-              1.81,
-              -2.88,
-              3.65
+              1.83,
+              -2.86,
+              3.71
             ],
             [
-              1.55,
-              -3.06,
-              3.14
+              1.6,
+              -3.03,
+              3.2
             ],
             [
-              1.14,
-              -3.3,
-              2.76
+              1.22,
+              -3.26,
+              2.82
             ],
             [
-              0.71,
-              -3.45,
-              2.36
+              0.79,
+              -3.44,
+              2.46
             ],
             [
-              0.22,
-              -3.59,
-              2.04
+              0.35,
+              -3.55,
+              2.1
             ],
             [
-              0.18,
-              -3.24,
-              1.53
+              0.2,
+              -3.33,
+              1.67
             ],
             [
-              0.14,
-              -2.9,
-              1.03
+              0.16,
+              -3.0,
+              1.18
             ],
             [
-              0.1,
-              -2.56,
-              0.53
+              0.12,
+              -2.67,
+              0.7
             ],
             [
-              -0.1,
-              -2.33,
+              0.08,
+              -2.34,
+              0.21
+            ],
+            [
+              -0.37,
+              -2.35,
+              -0.01
+            ],
+            [
+              -0.78,
+              -2.51,
               0.17
             ],
             [
-              -0.56,
-              -2.41,
-              -0.04
+              -1.18,
+              -2.71,
+              0.55
             ],
             [
-              -0.98,
-              -2.61,
-              0.36
+              -1.59,
+              -2.91,
+              0.93
             ],
             [
-              -1.4,
-              -2.82,
-              0.75
+              -1.97,
+              -2.85,
+              1.1
             ],
             [
-              -1.82,
-              -3.02,
-              1.15
+              -2.36,
+              -2.5,
+              0.83
             ],
             [
-              -2.22,
-              -2.65,
-              0.95
+              -2.69,
+              -2.11,
+              0.54
             ],
             [
-              -2.58,
-              -2.26,
-              0.64
+              -2.96,
+              -1.67,
+              0.25
             ],
             [
-              -2.88,
-              -1.82,
-              0.34
-            ],
-            [
-              -3.09,
-              -1.33,
-              0.04
-            ],
-            [
-              -3.21,
-              -0.85,
+              -3.14,
+              -1.19,
               -0.03
             ],
             [
-              -3.24,
-              -0.25,
-              0.06
+              -3.22,
+              -0.7,
+              -0.01
             ],
             [
-              -3.27,
-              0.36,
-              0.15
+              -3.25,
+              -0.12,
+              0.08
             ],
             [
-              -3.21,
-              0.84,
-              0.01
+              -3.28,
+              0.46,
+              0.17
             ],
             [
-              -2.97,
-              1.15,
-              -0.45
+              -3.18,
+              0.88,
+              -0.06
             ],
             [
-              -2.7,
-              1.57,
-              -0.8
+              -2.94,
+              1.19,
+              -0.49
             ],
             [
-              -2.62,
+              -2.68,
+              1.59,
+              -0.82
+            ],
+            [
+              -2.63,
               1.78,
-              -0.59
+              -0.57
             ],
             [
               -2.97,
@@ -2862,57 +3054,67 @@
             [
               2.27,
               2.75,
-              5.15
+              5.14
             ],
             [
               2.18,
               2.96,
-              4.62
+              4.61
             ],
             [
               2.04,
               3.12,
-              4.08
-            ],
-            [
-              1.89,
-              3.24,
-              3.54
-            ],
-            [
-              1.73,
-              3.34,
-              2.99
-            ],
-            [
-              1.61,
-              3.42,
-              2.43
-            ],
-            [
-              1.5,
-              3.46,
-              1.87
-            ],
-            [
-              1.45,
-              3.46,
-              1.29
-            ],
-            [
-              1.61,
-              3.38,
-              0.76
-            ],
-            [
-              1.96,
-              3.12,
-              0.39
+              4.06
             ],
             [
               1.88,
-              2.86,
-              -0.07
+              3.24,
+              3.52
+            ],
+            [
+              1.72,
+              3.35,
+              2.97
+            ],
+            [
+              1.55,
+              3.45,
+              2.41
+            ],
+            [
+              1.42,
+              3.51,
+              1.85
+            ],
+            [
+              1.35,
+              3.55,
+              1.28
+            ],
+            [
+              1.51,
+              3.44,
+              0.74
+            ],
+            [
+              1.9,
+              3.18,
+              0.41
+            ],
+            [
+              1.93,
+              2.88,
+              0.0
+            ],
+            [
+              1.77,
+              2.8,
+              -0.55
+            ],
+            [
+              1.65,
+              2.74,
+              -1.05
             ],
             [
               1.68,
@@ -2928,89 +3130,84 @@
           "r1": 0.1,
           "points": [
             [
-              4.86,
-              -2.06,
-              0.26
-            ],
-            [
-              5.34,
-              -1.74,
-              0.24
-            ],
-            [
-              5.52,
-              -1.2,
-              0.23
+              5.21,
+              -1.77,
+              0.48
             ],
             [
               5.43,
-              -0.6,
-              0.23
+              -1.21,
+              0.46
             ],
             [
-              5.43,
+              5.46,
+              -0.61,
+              0.44
+            ],
+            [
+              5.55,
               -0.0,
-              0.19
+              0.43
             ],
             [
-              5.51,
+              5.6,
               0.6,
-              0.23
+              0.44
             ],
             [
-              5.18,
-              1.09,
-              0.23
+              5.54,
+              1.2,
+              0.45
             ],
             [
-              4.82,
-              1.58,
-              0.21
+              5.31,
+              1.76,
+              0.43
             ],
             [
-              4.45,
-              2.07,
-              0.2
+              4.91,
+              2.21,
+              0.38
             ],
             [
-              4.02,
-              2.47,
-              0.19
+              4.43,
+              2.59,
+              0.37
             ],
             [
-              3.9,
-              2.98,
-              0.29
+              4.04,
+              3.05,
+              0.33
             ],
             [
-              3.56,
-              3.47,
-              0.4
+              3.78,
+              3.58,
+              0.3
             ],
             [
-              3.22,
-              3.96,
-              0.52
+              3.29,
+              3.89,
+              0.35
             ],
             [
-              2.76,
-              3.83,
-              0.39
+              2.72,
+              3.81,
+              0.36
             ],
             [
-              2.36,
-              3.39,
-              0.32
+              2.32,
+              3.38,
+              0.3
             ],
             [
-              2.12,
-              2.87,
-              0.14
+              2.1,
+              2.85,
+              0.12
             ],
             [
-              1.91,
-              2.79,
-              0.04
+              1.93,
+              3.06,
+              -0.24
             ],
             [
               1.72,
@@ -3031,253 +3228,193 @@
           "r": 0.32,
           "points": [
             [
-              2.93,
-              2.85,
+              2.95,
+              2.86,
               0.08
             ],
             [
-              3.15,
-              2.99,
-              0.32
+              3.36,
+              3.07,
+              0.45
             ],
             [
-              3.44,
-              2.25,
-              0.41
+              4.03,
+              2.65,
+              0.58
             ],
             [
-              4.07,
-              1.86,
-              0.53
+              4.63,
+              2.13,
+              0.58
             ],
             [
-              4.6,
-              1.67,
-              1.09
+              5.14,
+              1.52,
+              0.61
             ],
             [
-              5.08,
-              1.5,
-              1.71
+              5.36,
+              0.75,
+              0.63
             ],
             [
-              5.52,
-              1.34,
-              2.36
+              5.31,
+              -0.04,
+              0.62
             ],
             [
-              5.92,
-              1.19,
-              3.04
+              5.12,
+              -0.82,
+              0.56
             ],
             [
-              6.32,
-              1.04,
-              3.72
+              4.79,
+              -1.52,
+              0.39
             ],
             [
-              6.72,
-              0.89,
-              4.4
+              4.25,
+              -2.06,
+              0.27
             ],
             [
-              7.09,
-              0.66,
-              5.07
+              4.25,
+              -2.79,
+              0.54
             ],
             [
-              7.45,
-              0.37,
-              5.73
-            ],
-            [
-              7.64,
-              0.09,
-              6.07
-            ],
-            [
-              7.32,
-              -0.2,
-              5.39
-            ],
-            [
-              7.01,
-              -0.47,
-              4.71
-            ],
-            [
-              6.67,
-              -0.59,
-              3.99
-            ],
-            [
-              6.33,
-              -0.72,
-              3.27
-            ],
-            [
-              5.99,
-              -0.84,
-              2.55
-            ],
-            [
-              5.65,
-              -0.99,
-              1.84
-            ],
-            [
-              5.29,
-              -1.15,
-              1.13
-            ],
-            [
-              4.91,
-              -1.4,
-              0.49
-            ],
-            [
-              4.37,
-              -1.92,
-              0.29
+              4.34,
+              -3.37,
+              1.07
             ],
             [
               4.21,
-              -2.65,
-              0.44
+              -3.83,
+              1.71
             ],
             [
-              4.32,
-              -3.27,
-              0.93
+              3.83,
+              -4.1,
+              2.34
             ],
             [
-              4.26,
-              -3.76,
-              1.56
+              3.28,
+              -3.93,
+              2.87
             ],
             [
-              3.92,
-              -4.08,
-              2.2
+              2.74,
+              -3.42,
+              3.15
             ],
             [
-              3.39,
-              -4.01,
-              2.77
+              2.13,
+              -2.92,
+              3.23
             ],
             [
-              2.86,
-              -3.53,
-              3.11
-            ],
-            [
-              2.28,
-              -2.99,
-              3.2
-            ],
-            [
-              1.54,
-              -2.85,
-              3.05
-            ],
-            [
-              0.97,
-              -3.06,
-              2.52
-            ],
-            [
-              0.34,
-              -3.19,
-              2.04
-            ],
-            [
-              -0.17,
-              -3.24,
-              1.43
-            ],
-            [
-              -0.39,
+              1.43,
               -2.88,
-              0.76
+              2.97
             ],
             [
-              -0.9,
-              -2.69,
-              0.5
+              0.87,
+              -3.09,
+              2.44
             ],
             [
-              -1.64,
-              -2.63,
-              0.78
+              0.25,
+              -3.21,
+              1.95
             ],
             [
-              -2.24,
-              -2.18,
-              0.57
+              -0.16,
+              -3.17,
+              1.29
             ],
             [
-              -2.62,
-              -1.61,
-              0.15
+              -0.38,
+              -2.79,
+              0.63
             ],
             [
-              -2.87,
-              -0.92,
-              -0.14
+              -1.01,
+              -2.7,
+              0.52
             ],
             [
-              -2.98,
-              -0.13,
-              -0.22
+              -1.73,
+              -2.61,
+              0.8
+            ],
+            [
+              -2.28,
+              -2.13,
+              0.53
+            ],
+            [
+              -2.65,
+              -1.55,
+              0.12
             ],
             [
               -2.91,
-              0.64,
-              -0.44
+              -0.85,
+              -0.16
             ],
             [
-              -2.57,
-              1.23,
-              -0.84
+              -2.99,
+              -0.06,
+              -0.22
             ],
             [
-              -2.02,
-              1.68,
-              -1.22
+              -2.9,
+              0.69,
+              -0.45
             ],
             [
-              -1.31,
-              1.95,
+              -2.54,
+              1.26,
+              -0.86
+            ],
+            [
+              -1.98,
+              1.7,
+              -1.23
+            ],
+            [
+              -1.27,
+              1.97,
               -1.4
             ],
             [
-              -0.53,
+              -0.5,
               1.94,
-              -1.21
+              -1.2
             ],
             [
-              0.23,
+              0.26,
               1.86,
-              -0.96
+              -0.95
             ],
             [
-              0.95,
-              1.74,
-              -0.64
+              0.97,
+              1.76,
+              -0.63
             ],
             [
-              1.59,
-              2.12,
-              -0.4
+              1.6,
+              2.15,
+              -0.39
             ],
             [
-              2.23,
-              2.53,
+              2.25,
+              2.55,
               -0.17
             ],
             [
-              2.93,
-              2.85,
+              2.95,
+              2.86,
               0.08
             ]
           ],
@@ -3294,43 +3431,43 @@
             ],
             [
               0.8,
-              -2.81,
-              1.32
+              -2.76,
+              1.29
             ],
             [
-              1.02,
-              -3.05,
-              2.03
+              1.01,
+              -3.04,
+              2.0
             ],
             [
-              1.51,
-              -2.86,
-              2.63
+              1.49,
+              -2.87,
+              2.61
             ],
             [
-              1.94,
-              -2.6,
-              3.24
+              1.93,
+              -2.61,
+              3.22
             ],
             [
               2.11,
-              -2.4,
-              3.99
+              -2.41,
+              3.97
             ],
             [
               2.12,
-              -2.21,
-              4.76
+              -2.22,
+              4.75
             ],
             [
               2.15,
               -1.93,
-              5.5
+              5.49
             ],
             [
               2.16,
               -1.58,
-              6.22
+              6.21
             ],
             [
               2.2,
@@ -3349,48 +3486,48 @@
           "r": 0.32,
           "points": [
             [
-              1.79,
-              2.59,
-              0.3
+              1.81,
+              2.64,
+              0.38
             ],
             [
-              1.24,
-              2.94,
+              1.19,
+              2.97,
               0.8
             ],
             [
-              1.07,
-              3.05,
+              1.0,
+              3.08,
               1.58
             ],
             [
-              1.18,
-              3.04,
+              1.13,
+              3.05,
               2.4
             ],
             [
-              1.34,
+              1.33,
               2.92,
-              3.2
+              3.19
             ],
             [
               1.53,
-              2.74,
-              3.99
+              2.75,
+              3.98
             ],
             [
               1.72,
-              2.51,
-              4.76
+              2.52,
+              4.75
             ],
             [
               1.83,
-              2.2,
-              5.52
+              2.21,
+              5.51
             ],
             [
               1.96,
-              1.79,
+              1.8,
               6.22
             ],
             [
@@ -4649,5 +4786,35 @@
       11
     ],
     "_boxNote": "Heart-frame bake box (cm); must contain the arch branches and PA branches (validator checks)."
+  },
+  "_design": {
+    "right_heart_landmarks": {
+      "koch_apex": [
+        2.245,
+        0.265,
+        0.335
+      ],
+      "cs_ostium_endo": [
+        2.375,
+        1.955,
+        -0.705
+      ],
+      "et_commissure": [
+        2.115,
+        1.565,
+        -0.835
+      ],
+      "ivc_orifice": [
+        3.193,
+        2.432,
+        -1.438
+      ],
+      "rcc_ncc_commissure": [
+        2.314,
+        -0.357,
+        0.008
+      ],
+      "_note": "Reference points from tools/landmark_design.py (exported landmarks are recomputed by export_heart_mesh.py --interior)."
+    }
   }
 }

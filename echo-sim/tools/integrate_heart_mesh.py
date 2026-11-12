@@ -77,8 +77,8 @@ def main():
         s = s[:m.start(2)] + base64.b64encode(html.encode("utf-8")).decode() + s[m.end(2):]
         print(f"  LABS.{key}: {len(html)/1024:.0f} KB")
 
-    for key in ("heart3d", "mi"):
-        swap(key, lambda h, k=key: patch_lab(h, adapter, k))
+    for key in ("heart3d", "mi"):   # only labs still built on the legacy H3 heart get the adapter (the reworked 3D Heart reads the mesh directly)
+        swap(key, lambda h, k=key: patch_lab(h, adapter, k) if "const H3=(()=>{" in h else (print(f"  LABS.{k}: no legacy H3, left as is") or h))
     if a.echo:
         echo = Path(a.echo).read_text(encoding="utf-8")
         swap("echo", lambda h: echo)

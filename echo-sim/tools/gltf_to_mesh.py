@@ -2,6 +2,8 @@
 """Blender round trip: an edited heart surface (.glb) → pun-cvs heart mesh v1 JSON for the 3D-heart / MI / angiogram labs.
 
   python tools/gltf_to_mesh.py edited.glb export/heart-mesh.json OUT.json [--frame body|heart] [--node heart] [--max-shift 0.8]
+  python tools/gltf_to_mesh.py edited.glb export/heart-interior.json OUT.json      (interior: node "interior_tissue"; valves and
+         landmarks are copied unchanged)
 
 - Reads the node/mesh named "heart" (or --node) from the .glb: positions (metres) and triangles. Normals are recomputed.
 - Every per-vertex attribute (label, wall, AHA, territory, territoryModel, vessel, vesselT, motion) is transferred from the
@@ -62,9 +64,11 @@ def nearest(src, q):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("glb"); ap.add_argument("orig"); ap.add_argument("out")
-    ap.add_argument("--frame", default="body", choices=["body", "heart"]); ap.add_argument("--node", default="heart")
+    ap.add_argument("--frame", default="body", choices=["body", "heart"]); ap.add_argument("--node")
     ap.add_argument("--max-shift", type=float, default=0.8)
-    a = ap.parse_args(); J = json.loads(Path(a.orig).read_text(encoding="utf-8")); js, acc = read_glb(a.glb)
+    a = ap.parse_args(); J0 = json.loads(Path(a.orig).read_text(encoding="utf-8")); js, acc = read_glb(a.glb)
+    interior = "interior" in J0["meta"]["format"]; a.node = a.node or ("interior_tissue" if interior else "heart")
+    J = dict(J0, mesh=J0["tissue"]["mesh"], vertex=J0["tissue"]["vertex"]) if interior else J0
     mi, W = node_world(js, a.node); P = []; I = []; base = 0
     for prim in js["meshes"][mi]["primitives"]:
         p = acc(prim["attributes"]["POSITION"]).astype(float); p = (np.c_[p, np.ones(len(p))] @ W.T)[:, :3]*100.0   # m → cm
@@ -82,12 +86,17 @@ def main():
     N /= np.linalg.norm(N, axis=1, keepdims=True) + 1e-12
     cen = (P.max(0) + P.min(0))/2; rng = (P.max(0) - P.min(0))/2 + 1e-6
     enc = lambda arr: base64.b64encode(np.ascontiguousarray(arr).tobytes()).decode()
-    out = dict(J); out["mesh"] = {"positions": enc(np.round((P - cen)/rng*32767).astype(np.int16)), "positionCentre": cen.round(5).tolist(),
+    out = dict(J); out["mesh"] = mesh_new = {"positions": enc(np.round((P - cen)/rng*32767).astype(np.int16)), "positionCentre": cen.round(5).tolist(),
         "positionRange": rng.round(5).tolist(), "normals": enc(np.round(N*127).astype(np.int8)),
         "index": enc(I.astype(np.uint16 if len(P) < 65536 else np.uint32)), "indexType": "uint16" if len(P) < 65536 else "uint32"}
-    out["vertex"] = {k: enc(np.frombuffer(base64.b64decode(v), np.uint8)[idx]) for k, v in J["vertex"].items()}
-    out["meta"] = dict(J["meta"], vertices=int(len(P)), triangles=int(len(F)),
-                       notes=J["meta"].get("notes", []) + [f"Surface edited in a 3D tool ({Path(a.glb).name}); attributes transferred by nearest original vertex."])
+    out["vertex"] = vert_new = {k: enc(np.frombuffer(base64.b64decode(v), np.uint8)[idx]) for k, v in J["vertex"].items()}
+    note = [f"Surface edited in a 3D tool ({Path(a.glb).name}); attributes transferred by nearest original vertex."]
+    if interior:
+        out = dict(J0)
+        out["tissue"] = {"mesh": dict(mesh_new, vertices=int(len(P)), triangles=int(len(F))), "vertex": vert_new}
+        out["meta"] = dict(J0["meta"], notes=J0["meta"].get("notes", []) + note)
+    else:
+        out["meta"] = dict(J["meta"], vertices=int(len(P)), triangles=int(len(F)), notes=J["meta"].get("notes", []) + note)
     Path(a.out).write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
     print(f"Wrote {a.out}: {len(P)} vertices, {len(F)} triangles; {far} vertices further than {a.max_shift} cm from the original (check them)")
 
