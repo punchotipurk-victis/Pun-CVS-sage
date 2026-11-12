@@ -24,7 +24,8 @@ from playwright.async_api import async_playwright
 
 ARGS = ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"]
 ap = argparse.ArgumentParser(); ap.add_argument("index"); ap.add_argument("--shots"); ap.add_argument("--baseline", action="store_true")
-ap.add_argument("--quick", action="store_true", help="only 6 scenarios"); A = ap.parse_args()
+ap.add_argument("--quick", action="store_true", help="only 6 scenarios")
+ap.add_argument("--activation-audit", help="write tissue map audit JSON independently of screenshots"); A = ap.parse_args()
 fails = []
 def check(ok, msg, extra=""):
     print(("  ok   " if ok else "  FAIL ") + msg, extra)
@@ -471,6 +472,106 @@ async def conduction_view_checks(pg, fr):
     check(on<=off*1.3,"SwiftShader Conduction frame interval is at most 1.3× off after warmup",f"off={off:.1f} ms on={on:.1f} ms ratio={on/off:.2f}")
     await fr.evaluate("EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
 
+async def activation_checks(pg,fr):
+    """T6.2(c): technical checks plus strict, uncalibrated medical-contract audit.
+    Contract mismatches stay failures until the spec owner resolves them.
+    """
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.conduction(true);EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false)")
+    await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+    state=await fr.evaluate('EXPLORE_APP.activationState()')
+    check(state['ready'] and state['worker'] and state['diagnostics']['solver']=='geodesic-26','activation uses the capVolume geodesic worker; precompute ms',str(state))
+    synthetic=await fr.evaluate('''async()=>{
+      const names=['','PW','LV_cavity'],positions=new Float32Array([.1,.1,.1,.5,.1,.1]);
+      const m={positions,names,walls:{1:'LV'},labels:new Uint8Array([1,1]),wall:new Uint8Array([1,1]),cavity:new Uint8Array([2,2])};
+      const job={meshes:[m,m],spec:CGRAPH.spec,landmarks:{},mode:{},seeds:{a:[{p:[.1,.1,.1],t:0}],v:[{p:[.1,.1,.1],t:0,chamber:3}]},
+        cap:{n:[3,3,1],lo:[0,0,0],v:.2,labels:new Uint8Array([1,0,1,1,0,1,1,1,1])}};
+      const geo=await ACTIVATION.solve(job);delete job.cap;const euclid=await ACTIVATION.solve(job);
+      return {around:geo.meshes[0].tV[1],wrongSide:geo.meshes[0].tA[1],fallback:euclid.meshes[0].tV[1]};
+    }''')
+    check(synthetic['around']>10 and synthetic['wrongSide']==1e9 and abs(synthetic['fallback']-32)<.01,
+          'solver routes around a blood gap, rejects wrong-side seeds, and keeps the legacy fallback penalty',str(synthetic))
+    maps={}
+    for mode in ('normal','rbbb','lbbb','lafb','lpfb','wpw'):
+        await fr.evaluate("m=>EXPLORE_APP.setMode({atrial:'sinus',ventricular:m})",mode)
+        await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+        result=await fr.evaluate('''()=>{const app=EXPLORE_APP,all=[],near={},errors={insulation:0,excluded:0,sleeves:0};
+          const pv=Object.values(parent.PUN_HEART_INTERIOR.landmarks.pv_ostia.points),svc=['svc_junction','sa_node'].map(k=>parent.PUN_HEART_INTERIOR.landmarks[k].p);
+          for(const mesh of ['outer','interior'])for(let i=0;i<app.activationCount(mesh);i++){
+            const v=app.activationAt(i,mesh);v.mesh=mesh;v.i=i;all.push(v);
+            if(v.class===1&&v.tV<1e9||v.class>1&&v.tA<1e9)errors.insulation++;
+            if(v.class===0&&Math.abs(v.strength-.4)>.00001&&(v.tA<1e9||v.tV<1e9))errors.excluded++;
+            if(v.class===1&&['SVC','pulmonary_veins'].includes(v.label)&&!(v.label==='SVC'?svc:pv).some(q=>Math.hypot(...v.p.map((x,k)=>x-q[k]))<=1.00001))errors.sleeves++;
+            if(mesh==='interior')for(const id of ['SA','IAS','BB2','AVN','LAA','LAP','AP_A','LAI']){
+              if(v.class!==1)continue;const d=Math.hypot(...v.p.map((x,k)=>x-CGRAPH.nodes[id].p[k]));if(!near[id]||d<near[id].distance)near[id]={distance:d,time:v.tA,label:v.label};
+            }
+          }
+          const summary=items=>{const a=items.filter(v=>v.tV<1e9).map(v=>v.tV).sort((a,b)=>a-b);return {n:a.length,min:a[0],median:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],max:a.at(-1)}};
+          const atria=all.filter(v=>v.class===1&&v.tA<1e9).map(v=>v.tA),vent=all.filter(v=>v.class>1&&v.tV<1e9).sort((a,b)=>a.tV-b.tV);
+          return {state:app.activationState(),errors,near,atrialMin:Math.min(...atria),atrialMax:Math.max(...atria),first:vent[0],
+            allV:summary(vent),RV:summary(vent.filter(v=>v.wall==='RV')),LV:summary(vent.filter(v=>v.wall==='LV')),
+            septum:summary(vent.filter(v=>v.label==='IVS')),rvBreakthrough:summary(vent.filter(v=>v.mesh==='outer'&&v.wall==='RV')),
+            rvSeptal:summary(vent.filter(v=>v.mesh==='interior'&&v.label==='IVS'&&['RV_cavity','RVOT'].includes(v.cavity))),
+            lvSeptal:summary(vent.filter(v=>v.mesh==='interior'&&v.label==='IVS'&&['LV_cavity','LVOT'].includes(v.cavity))),
+            lvEndocardium:summary(vent.filter(v=>v.mesh==='interior'&&v.label==='PW'&&['LV_cavity','LVOT'].includes(v.cavity))),
+            lvMidApex:summary(vent.filter(v=>v.mesh==='outer'&&v.wall==='LV'&&v.aha>=7)),
+            anterolateral:summary(vent.filter(v=>v.mesh==='outer'&&[6,12].includes(v.aha))),inferior:summary(vent.filter(v=>v.mesh==='outer'&&[4,10,15].includes(v.aha)))};
+        }''')
+        maps[mode]=result
+        check(not any(result['errors'].values()),f'{mode}: both meshes preserve insulation, never-activate tissue and 1 cm sleeves',str(result['errors']))
+        check(result['state']['ready'],f'{mode}: cached map is ready',str(result['state']['diagnostics']))
+        if mode in ('normal','lbbb'):
+            await fr.evaluate("EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('a4c');EXPLORE_APP.isochrones(true);EXPLORE_APP.render()")
+            if A.shots:await fr.locator('.viewer').screenshot(path=shot(f'activation_iso_{mode}.png'))
+    normal=maps['normal']
+    def contract(ok,msg,value):check(ok,'CONTRACT: '+msg,str(value))
+    def window(value,bounds):
+        if not isinstance(bounds,list):bounds=[bounds,bounds]
+        tolerance=max(8,max(bounds)*.15)
+        return value is not None and bounds[0]-tolerance<=value<=bounds[1]+tolerance
+    targets=[('SA',[0,10]),('IAS',48.7),('BB2',67.6),('AVN',65.6),('LAA',85.5),('LAP',100),('AP_A',103.2),('LAI',[110,125])]
+    for node,bounds in targets:contract(window(normal['near'][node]['time'],bounds),f'normal nearest atrial tissue at {node} meets regionTiming',normal['near'][node])
+    contract(window(normal['atrialMax']-normal['atrialMin'],[90,120]),'normal total atrial activation 90–120 ms',normal['atrialMax']-normal['atrialMin'])
+    contract(window(normal['allV']['min'],[26,34]) and normal['first']['label']=='IVS','first ventricular muscle is LV septum at 26–34 ms',normal['first'])
+    contract(window(normal['rvSeptal'].get('median'),[30,50]),'RV septal endocardium 30–50 ms',normal['rvSeptal'])
+    contract(window(normal['lvEndocardium'].get('median'),[30,50]),'LV free-wall endocardium 30–50 ms representative window',normal['lvEndocardium'])
+    contract(window(normal['rvBreakthrough']['min'],[45,60]),'RV epicardial breakthrough 45–60 ms',normal['rvBreakthrough'])
+    contract(window(normal['lvMidApex']['median'],[50,75]),'LV mid/apical epicardial tissue 50–75 ms',normal['lvMidApex'])
+    contract(window(normal['allV']['p95'],[95,125]),'normal last 5% enters 95–125 ms window',normal['allV'])
+    contract(window(normal['allV']['max']-normal['allV']['min'],[80,100]),'normal ventricular activation duration 80–100 ms',normal['allV'])
+    for mode,minimum,wall in [('rbbb',120,'RV'),('lbbb',130,'LV')]:
+        m=maps[mode];duration=m['allV']['max']-m['allV']['min']
+        contract(duration>=minimum and m[wall]['p95']>=m['allV']['p95'],f'{mode}: duration >= {minimum} ms and delayed {wall} tail',{'duration':duration,'tail':m[wall],'all':m['allV']})
+    blocked=maps['lbbb'];right,left=blocked['rvSeptal'].get('min'),blocked['lvSeptal'].get('min')
+    contract(right is not None and left is not None and right<left and blocked['septum']['min']>normal['septum']['min'],'LBBB activates septum right-to-left instead of retaining normal left-side entry',{'normal':normal['septum'],'lbbb':blocked['septum'],'right':blocked['rvSeptal'],'left':blocked['lvSeptal']})
+    for mode,region in [('lafb','anterolateral'),('lpfb','inferior')]:contract(maps[mode][region]['median']>normal[region]['median']+.01,f'{mode}: target LV region later than normal',{'normal':normal[region],'blocked':maps[mode][region]})
+    wpw=maps['wpw']['first'];ap=await fr.evaluate('CGRAPH.nodes.AP_V.p')
+    contract(sum((a-b)**2 for a,b in zip(wpw['p'],ap))**.5<=1,'WPW starts within 1 cm of AP_V',wpw)
+    if A.shots or A.activation_audit:
+        with open(A.activation_audit or shot('activation_audit.json'),'w',encoding='utf8') as f:json.dump(maps,f,indent=2)
+    # Static isochrones ignore seek; wave uses the same clock and changes at fixed times.
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.setMode('ext');EXPLORE_APP.setView('Front');EXPLORE_APP.seek(40);EXPLORE_APP.isochrones(true);EXPLORE_APP.render()")
+    await fr.evaluate('CONDUCTION_VIEW.group.visible=false')
+    hashes=[]
+    for ms in (40,220):
+        await fr.evaluate('ms=>{EXPLORE_APP.seek(ms);EXPLORE_APP.render()}',ms)
+        hashes.append(hashlib.md5(await fr.locator('.viewer').screenshot()).hexdigest())
+    check(hashes[0]==hashes[1],'isochrone map stays static across the playback clock')
+    await fr.evaluate('CONDUCTION_VIEW.group.visible=true')
+    check(await fr.evaluate("(()=>{const a=EXPLORE_APP.activationState().clocks,w=CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave;return a.a===w.uNowA.value&&a.v===w.uNowV.value})()"),'tissue and network shaders read identical atrial and ventricular clocks')
+    await fr.evaluate('EXPLORE_APP.isochrones(false)')
+    for ms,name in ((40,'mid_P'),(100,'AV_pause'),(220,'mid_QRS')):
+        await fr.evaluate('ms=>{EXPLORE_APP.seek(ms);EXPLORE_APP.render()}',ms)
+        if A.shots:await fr.locator('.viewer').screenshot(path=shot(f'activation_{name}.png'))
+    # All reuse keys must solve, including silent/no-muscle and ectopic maps.
+    for mode in ('hocm','bifasc','hisOnly','vesc','pvc','rvot'):
+        await fr.evaluate('m=>EXPLORE_APP.setMode({ventricular:m})',mode);await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+        check(await fr.evaluate('EXPLORE_APP.activationState().ready'),f'{mode}: lazy activation mode computes')
+    await fr.evaluate("document.querySelector('.conduction-panel').scrollIntoView();EXPLORE_APP.setMode({atrial:'sinus',ventricular:'lbbb',avDelay:83})")
+    offscreen=await fr.evaluate("Promise.race([EXPLORE_APP.activationReady().then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15000))])")
+    check(offscreen,'an explicit map readiness request completes after scrolling to the ECG')
+    await fr.evaluate("EXPLORE_APP.setMode({avDelay:82})")
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false);EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+
 async def main():
     url = "file://" + os.path.abspath(A.index)
     if A.shots: os.makedirs(A.shots, exist_ok=True)
@@ -502,6 +603,7 @@ async def main():
             await conduction_core_checks(await lab_frame(pg, "heart3d"), await lab_frame(pg, "pathology"))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await conduction_view_checks(pg,await lab_frame(pg,"heart3d"))
+            await activation_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
             await pg.evaluate("location.hash = '#pathology/flutter'"); await pg.wait_for_timeout(2000)

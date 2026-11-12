@@ -17,6 +17,7 @@
     <button class="tog bCor" aria-pressed="true">Coronaries<span class="st">On</span></button>
     <button class="tog bBeat" aria-pressed="true">Beat<span class="st">On</span></button>
     <button class="tog bConduction" aria-pressed="false">Conduction<span class="st">Off</span></button>
+    <button class="tog bIsochrones" aria-pressed="false" disabled>Isochrones<span class="st">Off</span></button>
   </div>
   <div class="cutctl" hidden>
     <label class="cutpick">View <select class="selCut" aria-label="Cut view"></select></label>
@@ -24,6 +25,7 @@
     <button class="bFlip" hidden>Flip side</button>
   </div>
   <div class="viewer" aria-label="Rotatable 3D heart. Drag to rotate, right-drag or two fingers to move, scroll or pinch to zoom, tap a structure for details.">
+    <div class="activationLegend" hidden><span class="actStatus"></span><span class="isoLegend">A / V <i></i><output></output></span></div>
     <div class="labels"></div><div class="busy">Building the heart…</div>
     <div class="hint">Drag to rotate · right-drag or two fingers to move · scroll or pinch to zoom · tap to explore</div>
     <div class="legend" hidden aria-label="Label colour key"></div>
