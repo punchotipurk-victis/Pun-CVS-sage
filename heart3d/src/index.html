@@ -6,33 +6,43 @@
 <header>
   <span class="eyebrow">Interactive 3D heart · explore by tapping</span>
   <h1>3D Heart</h1>
-  <p class="lede">Rotate the heart, look through it in X-ray, or open it with a dissection view (valves from above, right atrium opened, four-chamber section…). Tap any structure; its card appears below the model.</p>
+  <p class="lede">Rotate the heart, use See-through in External mode, or open a cut view. Tap any structure to show its label and card beside or below the model.</p>
   <nav class="jump" aria-label="3D Heart pages"><a href="#pathology" data-go="pathology">Pathology simulator →</a></nav>
 </header>
 <section id="explore" class="x3" aria-label="Explore the 3D heart">
   <div class="toolbar" role="toolbar" aria-label="Model controls">
-    <div class="seg segMode" role="group" aria-label="View"><button data-m="ext" aria-pressed="true">External</button><button data-m="xray" aria-pressed="false">X-ray</button><button data-m="cut" aria-pressed="false">Cut</button></div>
-    <details class="layers"><summary>Labels <span class="layerCount">4/5</span></summary><div class="layerList" role="group" aria-label="Label groups"></div></details>
-    <div class="seg segCol" role="group" aria-label="Colours"><button data-c="real" aria-pressed="true">Real colours</button><button data-c="labels" aria-pressed="false">Label colours</button></div>
-    <button class="tog bCor" aria-pressed="true">Coronaries<span class="st">On</span></button>
+    <div class="seg segMode" role="group" aria-label="View"><button data-m="ext" aria-pressed="true">External</button><button data-m="cut" aria-pressed="false">Cut</button></div>
+    <button class="tog bSeeThrough" aria-pressed="false">See-through<span class="st">Off</span></button>
+    <div class="seg segLabelMode" role="group" aria-label="Label mode"><button data-label-mode="explore" aria-pressed="true">Explore</button><button data-label-mode="relevant" aria-pressed="false">Relevant</button><button data-label-mode="all" aria-pressed="false">All</button></div>
+    <button class="tog bCor" aria-pressed="false">Coronaries<span class="st">Off</span></button>
     <button class="tog bBeat" aria-pressed="true">Beat<span class="st">On</span></button>
     <button class="tog bConduction" aria-pressed="false">Conduction<span class="st">Off</span></button>
-    <button class="tog bIsochrones" aria-pressed="false" disabled>Isochrones<span class="st">Off</span></button>
+    <details class="advanced"><summary>Advanced</summary><div class="advancedControls">
+      <details class="layers"><summary>Label groups <span class="layerCount">4/5</span></summary><div class="layerList" role="group" aria-label="Label groups"></div></details>
+      <div class="seg segCol" role="group" aria-label="Colours"><button data-c="real" aria-pressed="true">Real colours</button><button data-c="labels" aria-pressed="false">Label colours</button></div>
+      <button class="tog bIsochrones" aria-pressed="false" disabled hidden>Activation timing map<span class="st">Off</span></button>
+    </div></details>
   </div>
+  <p class="labelStatus" role="status">Tap a structure to show its label and card.</p>
   <div class="cutctl" hidden>
     <label class="cutpick">View <select class="selCut" aria-label="Cut view"></select></label>
     <label class="cutdepth"><span class="depthLbl">Fine-tune</span><input class="rngOff" type="range" min="-1.5" max="1.5" step="0.05" value="0" aria-label="Move the cut"></label>
     <button class="bFlip" hidden>Flip side</button>
   </div>
+  <div class="model-workspace"><div class="model-column"><div class="model-stage">
   <div class="viewer" aria-label="Rotatable 3D heart. Drag to rotate, right-drag or two fingers to move, scroll or pinch to zoom, tap a structure for details.">
-    <div class="activationLegend" hidden><span class="actStatus"></span><span class="isoLegend">A / V <i></i><output></output></span></div>
-    <div class="labels"></div><div class="busy">Building the heart…</div>
+    <div class="busy">Building the heart…</div>
     <div class="hint">Drag to rotate · right-drag or two fingers to move · scroll or pinch to zoom · tap to explore</div>
-    <div class="legend" hidden aria-label="Label colour key"></div>
     <div class="zoomctl" role="group" aria-label="Zoom"><button class="bZin" aria-label="Zoom in">+</button><button class="bZout" aria-label="Zoom out">−</button><button class="bZreset" aria-label="Reset view" title="Reset view">⟲</button></div>
   </div>
+  <div class="labels"></div></div>
   <div class="views" role="group" aria-label="Viewpoints"><button data-v="Front">Front</button><button data-v="Back">Back</button><button data-v="Left">Left side</button><button data-v="Right">Right side</button><button data-v="Below">Below</button><button data-v="Above">Above</button><button class="bFace" disabled>Face the cut</button><button data-v="Reset">Reset</button></div>
-  <aside class="card panel" aria-live="polite"></aside>
+  </div><aside class="card panel" aria-live="polite"></aside></div>
+  <div class="outside-legends">
+    <div class="signalLegend" aria-label="Conduction and muscle wave colour key"><span><i class="signal-network"></i>Network</span><span><i class="signal-impulse"></i>Impulse</span><span><i class="signal-muscle"></i>Muscle wave</span><span><i class="signal-block">×</i>Block</span></div>
+    <div class="activation-slot"><div class="activationLegend" hidden><span class="actStatus"></span><span class="isoLegend">A / V <i></i><output></output></span></div></div>
+    <div class="legend" hidden aria-label="Label colour key"></div>
+  </div>
   <section class="card ecgcard conduction-panel" aria-label="Conduction playback and live ECG">
     <div class="ecghead"><span class="glabel">Live 12-lead</span><div class="reads"><span>HR <b class="rHR">–</b></span><span>PR <b class="rPR">–</b> ms</span><span>QRS <b class="rQRS">–</b> ms</span></div></div>
     <div class="conPlayback"><button class="bConPlay" type="button">Pause</button><button data-step="-5" type="button" aria-label="Step back 5 milliseconds">−5 ms</button><button data-step="5" type="button" aria-label="Step forward 5 milliseconds">+5 ms</button><div class="seg" role="group" aria-label="Playback speed"><button data-speed="1">1×</button><button data-speed="0.25">0.25×</button><button data-speed="0.1">0.1×</button></div><output class="clockRead" aria-label="Playback time">0 ms</output></div>

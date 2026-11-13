@@ -237,6 +237,34 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .activationLegend .isoLegend{display:none}.x3 .activationLegend.is-map .isoLegend{display:flex;align-items:center;gap:6px}.x3 .activationLegend:not(.pending):not(.is-map){visibility:hidden}
 .x3 .isoLegend i{display:inline-block;width:85px;height:9px;background:linear-gradient(90deg,#fde725,#5ec962,#21918c,#3b528b,#440154)}
 .x3 .bIsochrones .st{display:inline-block;min-width:3ch}
+/* T6.2 UI phase A: labels occupy their own space, never the canvas. */
+.x3 [hidden]{display:none!important}
+.x3>.toolbar{order:0}.x3>.labelStatus{order:1}.x3>.cutctl{order:2}.x3>.model-workspace{order:3}.x3>.outside-legends{order:4}
+.pg-explore .wrap{max-width:1800px}
+.x3 .model-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.x3 .model-column{min-width:0}.x3 .model-stage{position:relative;display:grid;grid-template-columns:160px minmax(0,1fr) 160px;min-width:0}
+.x3 .model-stage .viewer{grid-column:2;height:min(68vh,740px);min-height:440px}
+.x3 .model-column .views{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+.x3 .model-stage .labels{z-index:4;overflow:hidden;pointer-events:none}
+.x3 .callout-rail{position:absolute;top:0;bottom:0;width:152px;padding:34px 4px 12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;overflow-x:hidden;pointer-events:auto;scrollbar-width:thin}
+.x3 .callout-rail.left{left:0}.x3 .callout-rail.right{right:0}
+.x3 .labels .callout-rail .lab{position:relative;left:auto;top:auto;flex:none;display:block;width:100%;max-width:100%;white-space:normal;font-size:.9rem;line-height:1.3;padding:7px 8px;border-radius:8px;transform:none!important;text-align:left}
+.x3 .labels [hidden]{display:none!important}
+.x3 .callout-leaders{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:hidden}
+.x3 .callout-leaders path{fill:none;stroke:#90aaa4;stroke-width:1;opacity:.7}.x3 .callout-leaders path.selected{stroke:#f5fffc;stroke-width:1.5;opacity:1}
+.x3 .labelStatus{font:12px var(--f-mono);color:var(--muted);margin:0;min-height:1.4em}
+.x3 .outside-legends{display:flex;flex-direction:column;gap:8px;min-width:0}
+.x3 .signalLegend,.x3 .outside-legends .legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:8px 12px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;font:12px var(--f-mono);color:var(--ink)}
+.x3 .signalLegend span,.x3 .outside-legends .legend span{display:flex;align-items:center;gap:6px}
+.x3 .signalLegend i,.x3 .outside-legends .legend i{display:inline-block;width:15px;height:9px;border-radius:3px}
+.x3 .signal-network{background:#22c3ab}.x3 .signal-impulse{background:#fff;border:1px solid #65756e}.x3 .signal-muscle{background:#ffc83d}
+.x3 .signalLegend .signal-block{color:#ff3b3b;font:700 19px/9px var(--f-mono);font-style:normal}
+.x3 .outside-legends .activationLegend{position:static;max-width:none;background:var(--surface);color:var(--ink);align-self:flex-start}
+.x3 .activation-slot{min-height:26px}
+.x3 .advanced{position:relative}.x3 .advanced>summary{cursor:pointer;font:600 .95rem var(--f-display);padding:6px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+.x3 .advancedControls{position:absolute;right:0;top:calc(100% + 5px);z-index:8;display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:12px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;max-width:min(360px,90vw)}
+@media(min-width:1700px){.x3 .model-workspace{grid-template-columns:minmax(0,1fr) 320px}.x3 .model-workspace>.panel{position:sticky;top:12px;max-height:78vh;overflow:auto}}
+@media(max-width:900px){.x3 .model-stage{grid-template-columns:minmax(0,1fr);padding-bottom:76px}.x3 .model-stage .viewer{grid-column:1;height:62vh;min-height:340px}.x3 .callout-rail.left{top:auto;bottom:0;left:0;width:100%;height:66px;align-items:center;justify-content:center;padding:4px 12px;overflow:hidden}.x3 .callout-rail.right{display:none}.x3 .labels .callout-rail .lab{width:auto;max-width:90%;text-align:center}.x3 .advancedControls{left:0;right:auto}.x3 .segLabelMode button{padding:6px 9px}}
 </style></head><body class="pg-sim">
 <div class="wrap">
 <header>

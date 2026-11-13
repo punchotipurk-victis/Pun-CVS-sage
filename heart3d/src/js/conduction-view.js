@@ -6,7 +6,7 @@ function create(o){
   const {T,world,cam,host,labelLayer,beatify,clips,deform,removed,onSelect,onChange}=o;
   const cycleMs=o.cycleMs||(()=>60000/CONTENT.SC.normal.rh.rate);
   const g=CGRAPH,s=g.spec,d=s.display,group=new T.Group(),parts=[],labels=[],rings=[];
-  const colour=key=>d.colours[key].match(/#[0-9a-f]{6}/i)[0];
+  const colour=key=>o.palette?.[key]||d.colours[key].match(/#[0-9a-f]{6}/i)[0];
   world.add(group);group.visible=false;
   const state={enabled:false,ms:0,playing:!o.reduced,speed:o.reduced?.25:1,selected:null,
     mode:{atrial:'sinus',ventricular:'normal',avDelay:g.constants.D0,blocks:[]}};
@@ -149,6 +149,7 @@ function create(o){
       .replace('#include <color_fragment>','#include <color_fragment>\nif(vShow<.5)discard;');
   };leaderMat.customProgramCacheKey=()=> 'beat-conduction-leaders-v1';
   const leaders=new T.LineSegments(leaderGeometry,leaderMat);leaders.frustumCulled=false;leaders.renderOrder=12;group.add(leaders);
+  if(o.externalLabels)leaders.visible=false;
   const blockMap={SA:['*'],AVN:['AVN-HIS'],HIS:['his'],RBB:['rbb'],LBB:['lbb','laf','lpf'],LAF:['laf'],LPF:['lpf'],BACH:['bach']};
   function setMode(options={}){
     const next={...state.mode,...options,blocks:[...(options.blocks??state.mode.blocks)]};
@@ -203,6 +204,7 @@ function create(o){
   let labelKey='',labelLayout=new Map();
   document.fonts?.addEventListener('loadingdone',()=>{labelKey='';onChange?.()});
   function placeLabels(){
+    if(o.externalLabels)return;
     const r=host.getBoundingClientRect(),small=host.clientWidth<=400;
     const points=new Map(labels.map(l=>[l.id,project(l.part.anchor)]));
     const valid=labels.filter(l=>{const p=points.get(l.id);return state.enabled&&isVisible(l.part)&&!removed(p.w)&&p.z<1&&p.z>-1&&
