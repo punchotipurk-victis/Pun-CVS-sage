@@ -200,6 +200,8 @@ async def explore_checks(pg, fr, tag):
         await pg.evaluate("location.hash = '#heart3d'"); await pg.wait_for_timeout(600)
     # camera: the surface follows the cursor (turntable); zoom works over labels, with the wheel and with the buttons
     await fr.evaluate("EXPLORE_APP.select(null, null); EXPLORE_APP.setMode('ext'); EXPLORE_APP.resetView(); EXPLORE_APP.render()")
+    await fr.locator('.viewer').scroll_into_view_if_needed()
+    await fr.evaluate("scrollTo(0,Math.max(0,document.querySelector('.viewer').offsetTop-40))")
     fe = await pg.evaluate_handle("LABS.heart3d.frame"); fb = await fe.as_element().bounding_box()
     vb = await fr.evaluate("(() => { const r = document.querySelector('.viewer').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
     cx, cy = fb["x"] + vb[0] + vb[2]*.5, fb["y"] + vb[1] + vb[3]*.5
@@ -371,6 +373,104 @@ async def conduction_core_checks(heart, pathology):
     }""")
     check(independent,"ECG engines isolate timing and reject stale precision calibration")
 
+
+async def conduction_view_checks(pg, fr):
+    """T6.2(b): visible graph, real pointer taps, playback and live strip. No muscle-map claims."""
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('ext');EXPLORE_APP.setView('Front');EXPLORE_APP.conduction(false);EXPLORE_APP.seek(0);EXPLORE_APP.render()")
+    before=await fr.evaluate("[document.querySelector('.viewer').getBoundingClientRect().height,document.querySelector('.conduction-panel').getBoundingClientRect().top+scrollY,document.querySelector('.conduction-panel').getBoundingClientRect().height]")
+    if A.shots: await fr.locator('.viewer').screenshot(path=shot('conduction_off_ext.png'))
+    await fr.evaluate("EXPLORE_APP.conduction(true);EXPLORE_APP.render()")
+    after=await fr.evaluate("[document.querySelector('.viewer').getBoundingClientRect().height,document.querySelector('.conduction-panel').getBoundingClientRect().top+scrollY,document.querySelector('.conduction-panel').getBoundingClientRect().height]")
+    check(before==after,"Conduction toggle reserves the ECG strip without layout shift",str([before,after]))
+    check(await fr.evaluate("EXPLORE_APP.conductionState().opacity===.3 && document.querySelector('[data-layer=conduction]').checked"),
+          "Conduction toggle and layer checkbox agree; External shell is 30% opaque")
+    check(not await fr.evaluate("EXPLORE_APP.conductionMidpoint('ap').visible || EXPLORE_APP.conductionMidpoint('cti').visible"),
+          "normal mode hides the accessory pathway and circuit-only CTI")
+    bridge=await fr.evaluate("(()=>{const p=CONDUCTION_VIEW.parts.find(p=>p.edge?.id==='AVN-HIS'),times=p.pair[0].geometry.attributes.aTime.array.slice(p.offset,p.offset+p.count);return [Math.min(...times),Math.max(...times)]})()")
+    check(abs(bridge[0]-65.6)<.01 and abs(bridge[1]-147.6)<.01,
+          "AV bridge starts at AVN arrival and reaches His only after the full AV delay",str(bridge))
+    errors=[];counts={};clipped=[]
+    for mode in ('ext','xray','cut'):
+        await fr.evaluate(f"EXPLORE_APP.setMode('{mode}');"+('EXPLORE_APP.setCut("a4c");' if mode=='cut' else 'EXPLORE_APP.setView("Front");')+"EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+        if A.shots: await fr.locator('.viewer').screenshot(path=shot(f'conduction_on_{mode}.png'))
+        targets=await fr.evaluate("Object.keys(CGRAPH.spec.display.shortNames)")
+        counts[mode]=0
+        for tap in targets:
+            point=await fr.evaluate("id=>EXPLORE_APP.conductionMidpoint(id)",tap)
+            if not point or not point['visible']:
+                if mode=='cut':clipped.append(tap)
+                continue
+            # Use a real pointer event on the viewer; locator scrolling preserves local coordinates.
+            # Obtain viewport coordinates within the iframe; click stays relative to the viewer.
+            origin=await fr.evaluate("(()=>{const e=document.querySelector('.viewer'),r=e.getBoundingClientRect(),s=getComputedStyle(e);return {x:r.left+parseFloat(s.borderLeftWidth),y:r.top+parseFloat(s.borderTopWidth)}})()")
+            await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
+            selected=await fr.evaluate("({selected:CONDUCTION_VIEW.state.selected,title:EXPLORE_APP.card()})")
+            expected=await fr.evaluate("id=>CGRAPH.spec.display.shortNames[id]",tap)
+            if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
+            counts[mode]+=1
+        # Every visible label remains a keyboard/pointer card target, including crowded fascicles.
+        for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
+            await fr.locator(f'.conduction-label[data-tap="{tap}"]').click()
+            if await fr.evaluate("CONDUCTION_VIEW.state.selected")!=tap:errors.append([mode,tap,'label'])
+    check(not errors,"projected midpoint and label taps open the contract cards in External, X-ray and 4C",str(errors[:6]) if errors else str(counts))
+    check('sa' in clipped and 'his' in clipped,"4C hides anchors on the removed side instead of picking through the cut",str(clipped))
+    await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.setView('Front');EXPLORE_APP.setMode({atrial:'sinus',ventricular:'wpw',blocks:[]});EXPLORE_APP.render()")
+    ap=await fr.evaluate("EXPLORE_APP.conductionMidpoint('ap')")
+    hit=await fr.evaluate("p=>EXPLORE_APP.tapAt(p.x,p.y)",ap)
+    check(ap['visible'] and hit=='conduction:ap',"WPW mode exposes a tappable accessory pathway",str(hit))
+    modes=await fr.evaluate("Object.keys(CGRAPH.spec.modes.ventricular)")
+    for mode in modes:
+        await fr.evaluate("m=>EXPLORE_APP.setMode({atrial:'sinus',ventricular:m,blocks:[]})",mode)
+    check(await fr.evaluate("EXPLORE_APP.conductionState().cacheSize")>=len(modes),"every ventricular mode runs and caches lazily")
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal',avDelay:120,blocks:['RBB','BACH']});EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+    blocked=await fr.evaluate("({rings:EXPLORE_APP.conductionState().rings,rb:CONDUCTION_VIEW.timing().v.RB1,bb:CONDUCTION_VIEW.timing().a.BB1})")
+    check(set(blocked['rings'])=={'RBB','BACH'} and blocked['rb']==float('inf') and blocked['bb']==float('inf'),
+          "explicit blocks change graph timing and draw red shape markers",str(blocked))
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal',avDelay:82,blocks:[]});EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+    check(await fr.evaluate("document.querySelector('[data-phase=PR]').classList.contains('on') && CONDUCTION_VIEW.parts.find(p=>p.nodeId==='AVN').pair[0].material.userData.wave.uPulse.value>0"),
+          "AV delay pulses the node and highlights the PR chip on the shared clock")
+    await fr.evaluate("EXPLORE_APP.seek(40);EXPLORE_APP.render()")
+    hashes=[]
+    for ms,name in ((40,'mid_P'),(100,'AV_pause'),(220,'mid_QRS')):
+        await fr.evaluate("ms=>{EXPLORE_APP.seek(ms);EXPLORE_APP.render()}",ms)
+        image=await fr.locator('.viewer').screenshot(path=shot(f'conduction_{name}.png') if A.shots else None)
+        hashes.append(hashlib.md5(image).hexdigest())
+    check(len(set(hashes))==3,"network shaders show distinct mid-P, AV pause and QRS times")
+    await fr.evaluate("EXPLORE_APP.seek(2000);EXPLORE_APP.render()")
+    check(await fr.evaluate("document.querySelectorAll('.conduction-panel select option').length===12 && document.querySelector('.rHR').textContent==='72'"),
+          "live strip contains all 12 leads and heart-rate readout")
+    if A.shots:await fr.locator('.conduction-panel').screenshot(path=shot('conduction_ecg_12.png'))
+    await fr.locator('.conduction-panel [data-step="5"]').click()
+    check(await fr.evaluate("EXPLORE_APP.now()===2005 && !CONDUCTION_VIEW.state.playing"),"+5 ms step advances the single paused clock exactly")
+    await fr.locator('.conduction-panel [data-step="-5"]').click()
+    check(await fr.evaluate("EXPLORE_APP.now()===2000"),"−5 ms step reverses the clock exactly")
+    check(await fr.evaluate("Math.abs(document.querySelector('.conTrace').getAnimations()[0].currentTime-EXPLORE_APP.now())<.01"),
+          "ECG compositor cursor and 3D use the same paused millisecond clock")
+    speeds=[]
+    for speed in ('0.1','0.25','1'):
+        await fr.locator(f'.conduction-panel [data-speed="{speed}"]').click()
+        speeds.append(await fr.evaluate('CONDUCTION_VIEW.state.speed'))
+    check(speeds==[.1,.25,1],"playback offers 0.1×, 0.25× and 1×")
+    # Reuse hook remains explicit about the next task instead of inventing circuit behavior.
+    check(await fr.evaluate("(()=>{try{CONDUCTION_VIEW.playCircuit('flutterCCW')}catch(e){return e.message==='T8.2'}return false})()"),"circuit playback remains a T8.2 stub")
+    await fr.evaluate("EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    # Warm both the network and its compositor layers before comparing steady work.
+    await fr.evaluate("EXPLORE_APP.conduction(true)")
+    await fr.evaluate("async()=>new Promise(resolve=>{let n=0;function frame(){if(++n<32)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)})")
+    frame_times={False:[],True:[]}
+    for on in (False,True,False,True):
+        await fr.evaluate("on=>EXPLORE_APP.conduction(on)",on)
+        times=await fr.evaluate("""async()=>new Promise(resolve=>{
+            const times=[];let last=0;function frame(t){if(last)times.push(t-last);last=t;
+                if(times.length<32)requestAnimationFrame(frame);else resolve(times.slice(12));}
+            requestAnimationFrame(frame);
+        })""")
+        frame_times[on].extend(times)
+    off=sorted(frame_times[False])[len(frame_times[False])//2]
+    on=sorted(frame_times[True])[len(frame_times[True])//2]
+    check(on<=off*1.3,"SwiftShader Conduction frame interval is at most 1.3× off after warmup",f"off={off:.1f} ms on={on:.1f} ms ratio={on/off:.2f}")
+    await fr.evaluate("EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+
 async def main():
     url = "file://" + os.path.abspath(A.index)
     if A.shots: os.makedirs(A.shots, exist_ok=True)
@@ -401,6 +501,7 @@ async def main():
                 else: check(labs == ["sim"], f"#{key} holds only its own lab", str(labs))
             await conduction_core_checks(await lab_frame(pg, "heart3d"), await lab_frame(pg, "pathology"))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
+            await conduction_view_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
             await pg.evaluate("location.hash = '#pathology/flutter'"); await pg.wait_for_timeout(2000)
@@ -436,6 +537,24 @@ async def main():
                 bw = await pg.evaluate("[document.querySelector('.bar').scrollWidth, document.querySelector('.bar').clientWidth]")
                 check(bw[0] <= bw[1] + 1, f"400 px #{key}: switcher fits", str(bw))
                 if A.shots: await pg.screenshot(path=shot(f"phone_{key}.png"))
+                if key=='heart3d':
+                    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(false);EXPLORE_APP.render()")
+                    before_phone=await fr.evaluate("(()=>{const r=document.querySelector('.conduction-panel').getBoundingClientRect();return [r.top+scrollY,r.height]})()")
+                    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(true);EXPLORE_APP.seek(2000);EXPLORE_APP.render()")
+                    after_phone=await fr.evaluate("(()=>{const r=document.querySelector('.conduction-panel').getBoundingClientRect();return [r.top+scrollY,r.height]})()")
+                    check(before_phone==after_phone,"phone Conduction toggle keeps the reserved ECG panel height and position",str([before_phone,after_phone]))
+                    phone=await fr.evaluate("({leads:document.querySelector('.conduction-panel').dataset.leadCount,selected:document.querySelector('.conLead select').value,labels:CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id),width:[document.documentElement.scrollWidth,innerWidth]})")
+                    check(phone['leads']=='1' and phone['selected']=='II' and phone['width'][0]<=phone['width'][1],
+                          "phone Conduction strip collapses to lead II without horizontal scroll",str(phone))
+                    check(set(phone['labels'])<= {'sa','avn','his','lbb','rbb'} and len(phone['labels'])>=3,
+                          "phone Conduction labels use the five compact contract names",str(phone['labels']))
+                    if A.shots:await fr.locator('.conduction-panel').screenshot(path=shot('phone_conduction_ecg.png'))
+            await ctx.close()
+            ctx=await b.new_context(viewport={"width":400,"height":860},reduced_motion='reduce');pg=await ctx.new_page()
+            await pg.goto(url);await pg.evaluate("location.hash='#heart3d'");await pg.wait_for_function('LABS.heart3d.frame');fr=await lab_frame(pg,'heart3d')
+            await fr.wait_for_function("window.EXPLORE_APP && EXPLORE_APP.ready",timeout=180000)
+            reduced_state=await fr.evaluate("EXPLORE_APP.conductionState()")
+            check(not reduced_state['playing'] and reduced_state['speed']==.25,"reduced motion starts paused at 0.25×",str(reduced_state))
             await ctx.close()
         await b.close()
     print(f"\n{len(fails)} failure(s)"); [print("  -", f) for f in fails]; sys.exit(1 if fails else 0)

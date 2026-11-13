@@ -212,6 +212,27 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .viewer .hint{right:60px}
 @media (max-width:600px){.x3 .viewer .hint{display:none}}
 .x3 .cutpick select{max-width:min(78vw,340px)}
+.x3 .conduction-panel{min-height:426px;visibility:hidden}
+.x3 .conduction-panel.enabled{visibility:visible}
+.x3 .conPlayback{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0}
+.x3 .conPlayback button{min-height:36px}
+.x3 .conPlayback .bConPlay{min-width:68px}
+.x3 .conduction-panel .reads b{display:inline-block;min-width:3ch;text-align:right}
+.x3 .clockRead{font:400 .8rem var(--f-mono);min-width:85px}
+.x3 .conECG{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));width:100%;height:294px;border:1px solid var(--rule);border-radius:5px;max-width:100%;overflow:hidden;background-color:var(--ecgbg);
+  background-image:linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px),linear-gradient(var(--grid1) 1px,transparent 1px),linear-gradient(90deg,var(--grid1) 1px,transparent 1px);background-size:20px 20px,20px 20px,4px 4px,4px 4px}
+.x3 .conPlotCell{position:relative;overflow:hidden;min-width:0;min-height:0}
+.x3 .conTrace{position:absolute;inset:0;width:100%;height:100%;clip-path:inset(0 calc(100% - var(--conSweep,0%)) 0 0);will-change:clip-path}
+.x3 .conLeadName{position:absolute;left:6px;top:3px;font:11px var(--f-mono);color:var(--ink)}
+.x3 .conCursor{position:absolute;inset:0;transform:translateX(var(--conSweep,0%));will-change:transform;pointer-events:none}
+.x3 .conCursor::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--cursor)}
+.x3 .bConduction .st{display:inline-block;min-width:3ch}
+.x3 .conLead{display:none;font:500 .85rem var(--f-display);margin:6px 0}
+.x3 .phase [data-phase]{padding:2px 8px;border:1px solid var(--rule);border-radius:4px}
+.x3 .phaseTxt{min-height:2.8em;flex-basis:100%;margin-left:0}
+.x3 .conduction-label{z-index:2;will-change:transform}
+.x3 .labels [hidden]{display:none!important}
+@media(max-width:520px){.x3 .conLead{display:flex;gap:8px;align-items:center}.x3 .conduction-panel{min-height:355px}.x3 .conPlayback{gap:5px}.x3 .conECG{height:145px;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}.x3 .phaseTxt{min-height:5.6em}}
 </style></head><body class="pg-sim">
 <div class="wrap">
 <header>
