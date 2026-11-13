@@ -602,9 +602,9 @@ async def ui_phase_a_checks(pg,fr):
         check([x['id'] for x in labels]==['conduction:sa'] and await fr.evaluate("EXPLORE_APP.card()==='SA node'"),
               f'UI {name}: a real Explore tap opens one SA callout and card',str(labels))
         tap=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),b:EXPLORE_APP.uiState().callouts}})()")
-        check(len(tap['b'])==1 and all(c['overHeart']==0 and c['box']['left']>=tap['v']['left'] and c['box']['right']<=tap['v']['right'] and
+        check(len(tap['b'])==1 and all(c['overHeart']==0 and c['nearHeart']==0 and c['box']['left']>=tap['v']['left'] and c['box']['right']<=tap['v']['right'] and
               c['box']['top']>=tap['v']['top'] and c['box']['bottom']<=tap['v']['bottom'] for c in tap['b']),
-              f'UI {name}: the tapped callout sits inside the viewer and off the heart',str(tap['b']))
+              f'UI {name}: the tapped callout sits inside the viewer, clear of the heart',str(tap['b']))
         fill=await fr.evaluate('EXPLORE_APP.heartFill()')
         check(fill['inside'] and 0.6<=fill['short']<=1.0,f'UI {name}: reset view frames the heart to fill the viewer',str(fill))
         async def capture(suffix):
@@ -647,6 +647,9 @@ async def ui_phase_a_checks(pg,fr):
                   f'UI {name}: tapping a name in the list shows its callout and card')
             await fr.evaluate("EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
         else:
+            edge=min(min(b['left']-boxes['v']['left'],boxes['v']['right']-b['right'],boxes['v']['bottom']-b['bottom']) for b in boxes['b'])
+            crowding=sum(c['nearHeart']>0 for c in boxes['c'])
+            check(edge>=24 and crowding==0,f'UI {name}: All callouts keep a clear gap from the heart and from the box edge',f'edge {edge:.0f}px, {crowding} too close to the heart')
             check(len(boxes['b'])>4 and inside and not overlap and offHeart>=len(boxes['b'])-1 and crossings<=1,
                   f'UI {name}: All callouts sit inside the viewer, off the heart, without overlaps or crossing lines',
                   f"{len(boxes['b'])} callouts, {len(boxes['b'])-offHeart} over the heart, {crossings} crossings")
