@@ -1,0 +1,208 @@
+T6.2(c) final validation — draft for contract review
+The heart suite exits 1 because 10 strict CONTRACT assertions fail; 0 non-contract assertion failures.
+All samples match the previous audit after scheduling changes. Root index and tested copy SHA-256: 161D9D7A11A58D98978388958732FF18BE5F121B22B02510046DA9E80C7D908F.
+
+Full heart suite (all 24 pathology scenarios)
+  ok   LABS has heart3d and pathology ['heart3d', 'pathology', 'bradycardia', 'narrow', 'wide', 'mi', 'echo']
+  ok   #heart3d: switcher shows 3D Heart · Pathology simulator ['heart3d', 'pathology'] current=heart3d
+  ok   #heart3d holds the refined 3D Heart page (no legacy lab) []
+  ok   #pathology: switcher shows 3D Heart · Pathology simulator ['heart3d', 'pathology'] current=pathology
+  ok   #pathology holds only its own lab ['sim']
+  ok   conduction graph: sinus, IAB and every ventricular mode match legacy node times ±5% []
+  ok   normal chain: AVN 65.6 → His 147.6 → QRS 177.3 ms [65.6, 147.6, 177.29999999999998]
+  ok   conduction graph: mode results cached lazily
+  ok   conduction graph: silent and node-only atrial modes stay isolated
+  ok   conduction graph: polyline arc length and bidirectional edge timing
+  ok   conduction graph: undirected multi-source paths, side/block filters, no circuit-only shortcuts
+  ok   conduction graph: blocked atrial structures stop propagation
+  ok   conduction graph: contract geometry preserved without mutation
+  ok   conduction graph: load resets mode caches
+  ok   conduction graph: every block site resolves
+  ok   conduction graph: numeric circuit step sums equal cycle lengths
+  ok   conduction constants use the timing contract
+  ok   3D Heart ECG: 12 leads every 2 ms over 3 beats identical to pre-change fixture max abs diff 2.22e-16
+  ok   3D Heart ECG: all 25 rhythm/event fixtures unchanged []
+  ok   Pathology ECG: 12 leads every 2 ms over 3 beats identical to pre-change fixture max abs diff 2.22e-16
+  ok   Pathology ECG: all 25 rhythm/event fixtures unchanged []
+  ok   3D Heart and Pathology ECG samples identical max abs diff 0
+  ok   ECG engines isolate timing and reject stale precision calibration
+  ok   [3D Heart] refined heart loaded (no legacy heart), 66 label anchors {'r': True, 'e': None, 'legacy': False, 'n': 66}
+  ok   [3D Heart] structure card sits below the 3D view {'viewerH': 665, 'viewerW': 1280, 'panelTop': 1004, 'viewerBottom': 952, 'pageW': 1440, 'pageH': 852}
+  ok   [3D Heart] large 3D view {'viewerH': 665, 'viewerW': 1280, 'panelTop': 1004, 'viewerBottom': 952, 'pageW': 1440, 'pageH': 852}
+  ok   [3D Heart] External, X-ray and Cut look different
+  ok   [3D Heart] every cut plane renders its own view (10/10)
+  ok   [3D Heart] label colours repaint the heart and show the colour key
+  ok   [3D Heart] interior export is at most 1.5 MB 1,323,517 bytes
+  ok   [3D Heart] 0.2 cm cap volume decodes to its declared dimensions
+  ok   [3D Heart] cap tissue classes identify the SVC wall and both mitral leaflets {'SVC': 'vessel_wall', 'MV_AML': 'valve', 'MV_PML': 'valve'}
+  ok   [3D Heart] four-chamber cap shows red IVS, pale fibrous tissue and yellow groove fat {'IVS': 139, 'central_fibrous_body': 9, 'membranous_septum': 0, 'epicardial_fat': 1}
+  ok   [3D Heart] label colours tint the IVS cap 117
+  ok   [3D Heart] tap the IVS cut face → its card 'Interventricular septum'
+  ok   [3D Heart] each label layer shows its labels; 'None' hides all none=0 {'chambers': 2, 'vessels': 5, 'conduction': 15, 'valves': 6, 'landmarks': 3}
+  ok   [3D Heart] tap the RA label → its card 'Right atrium'
+  ok   [3D Heart] tap the model → a card for what was tapped 'Left anterior fascicle'
+  ok   [3D Heart] card chip opens the simulator on that condition #pathology/avb1
+  ok   [3D Heart] drag right turns the heart right, drag down tilts it down (surface follows the cursor) theta 0.00->-0.96, phi 1.57->0.93
+  ok   [3D Heart] zoom out / in with the wheel (also over a label) and with − / + buttons dist 34.9 → out 51.1 → in 22.0 → − 27.5 → + 17.6 (label 'SA node')
+  ok   [3D Heart] smooth drag in Below (no roll, up and down both move) phi [1.57, 0.61, 2.53], up-axes 1
+  ok   [3D Heart] smooth drag in raOpen (no roll, up and down both move) phi [1.57, 0.61, 2.53], up-axes 1
+  ok   [3D Heart] with the beat off, ticking layers refreshes labels; RCA (front) and PDA (below) show front=['RA', 'RV_cavity', 'PA_main', 'artery:RCA', 'artery:D1', 'vein:GCV'] below=['RA', 'RV_cavity', 'artery:PDA', 'vein:GCV']
+  ok   [3D Heart] dissection view card lists what to find ['Valves from above (atria removed)', 13]
+  ok   [3D Heart] a 'find' chip opens that structure's card
+  ok   [3D Heart] turned a4c view still shows labels theta 0.00 labels ['conduction:la', 'conduction:avn', 'conduction:avn_fast', 'conduction:avn_slow', 'conduction:lpf', 'RA', 'RV_cavity', 'LA', 'LV_cavity', 'papillary_muscles.PMPM', 'fossa_ovalis', 'IAS', 'IVS']
+  ok   [3D Heart] turned valves view still shows labels theta 0.00 labels ['conduction:la', 'conduction:avn', 'conduction:avn_fast', 'conduction:avn_slow', 'conduction:his', 'conduction:lbb', 'conduction:lsf', 'conduction:laf', 'conduction:lpf', 'conduction:rbb', 'conduction:moderator', 'conduction:purk', 'MV_PML', 'TV_anterior', 'TV_posterior', 'AV_cusps.RCC', 'coronary_sinus', 'artery:RCA', 'vein:GCV']
+  ok   Conduction toggle reserves the ECG strip without layout shift [[664.546875, 1288.421875, 486.890625], [664.546875, 1288.421875, 486.890625]]
+  ok   Conduction toggle and layer checkbox agree; External shell is 30% opaque
+  ok   normal mode hides the accessory pathway and circuit-only CTI
+  ok   AV bridge starts at AVN arrival and reaches His only after the full AV delay [65.5999984741211, 147.60000610351562]
+  ok   projected midpoint and label taps open the contract cards in External, X-ray and 4C {'ext': 15, 'xray': 15, 'cut': 5}
+  ok   4C hides anchors on the removed side instead of picking through the cut ['sa', 'tracts', 'bach', 'his', 'lbb', 'lsf', 'laf', 'rbb', 'moderator', 'purk', 'ap', 'cti']
+  ok   WPW mode exposes a tappable accessory pathway conduction:ap
+  ok   every ventricular mode runs and caches lazily
+  ok   explicit blocks change graph timing and draw red shape markers {'rings': ['RBB', 'BACH'], 'rb': inf, 'bb': inf}
+  ok   AV delay pulses the node and highlights the PR chip on the shared clock
+  ok   network shaders show distinct mid-P, AV pause and QRS times
+  ok   live strip contains all 12 leads and heart-rate readout
+  ok   +5 ms step advances the single paused clock exactly
+  ok   −5 ms step reverses the clock exactly
+  ok   ECG compositor cursor and 3D use the same paused millisecond clock
+  ok   playback offers 0.1×, 0.25× and 1×
+  ok   circuit playback remains a T8.2 stub
+  ok   SwiftShader Conduction frame interval is at most 1.3× off after warmup off=66.7 ms on=66.6 ms ratio=1.00
+  ok   activation uses the capVolume geodesic worker; precompute ms {'ready': True, 'error': None, 'worker': True, 'cacheSize': 13, 'isochrones': False, 'diagnostics': {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2619, 'unmapped': 196, 'unreachable': 655, 'computeMs': 1418.1999999955297, 'seedMs': 197.5, 'elapsedMs': 1636.3000000044703}, 'clocks': {'a': 214.9666666711364, 'v': 67.365158256418}, 'enabled': True}
+  ok   solver routes around a blood gap, rejects wrong-side seeds, and keeps the legacy fallback penalty {'around': 16.094757080078125, 'wrongSide': 1000000000, 'fallback': 32}
+  ok   normal: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   normal: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2619, 'unmapped': 196, 'unreachable': 655, 'computeMs': 1418.1999999955297, 'seedMs': 197.5, 'elapsedMs': 1636.3000000044703}
+  ok   rbbb: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   rbbb: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2340, 'unmapped': 196, 'unreachable': 655, 'computeMs': 455.70000000298023, 'seedMs': 630.3999999985099, 'elapsedMs': 1105.7000000029802}
+  ok   lbbb: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   lbbb: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 1755, 'unmapped': 196, 'unreachable': 655, 'computeMs': 372, 'seedMs': 118.70000000298023, 'elapsedMs': 506.30000000447035}
+  ok   lafb: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   lafb: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2492, 'unmapped': 196, 'unreachable': 655, 'computeMs': 441.19999999552965, 'seedMs': 297.69999999552965, 'elapsedMs': 754.1000000014901}
+  ok   lpfb: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   lpfb: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2614, 'unmapped': 196, 'unreachable': 655, 'computeMs': 267.09999999403954, 'seedMs': 382.19999999552965, 'elapsedMs': 664.7999999970198}
+  ok   wpw: both meshes preserve insulation, never-activate tissue and 1 cm sleeves {'insulation': 0, 'excluded': 0, 'sleeves': 0}
+  ok   wpw: cached map is ready {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2620, 'unmapped': 196, 'unreachable': 655, 'computeMs': 347, 'seedMs': 335.59999999403954, 'elapsedMs': 698.0999999940395}
+  ok   CONTRACT: normal nearest atrial tissue at SA meets regionTiming {'distance': 0.19813144396743035, 'time': 8, 'label': 'SVC'}
+  ok   CONTRACT: normal nearest atrial tissue at IAS meets regionTiming {'distance': 0.1750669842697378, 'time': 48.703426361083984, 'label': 'RA_wall'}
+  ok   CONTRACT: normal nearest atrial tissue at BB2 meets regionTiming {'distance': 0.08508685701911568, 'time': 66.5835952758789, 'label': 'LA_wall'}
+  ok   CONTRACT: normal nearest atrial tissue at AVN meets regionTiming {'distance': 0.5549844768511896, 'time': 62.44486618041992, 'label': 'RA_wall'}
+  FAIL CONTRACT: normal nearest atrial tissue at LAA meets regionTiming {'distance': 0.5164836932442131, 'time': 1000000000, 'label': 'LA_wall'}
+  ok   CONTRACT: normal nearest atrial tissue at LAP meets regionTiming {'distance': 0.0004693462298275863, 'time': 99.9000015258789, 'label': 'LA_wall'}
+  ok   CONTRACT: normal nearest atrial tissue at AP_A meets regionTiming {'distance': 0.0004978915316128609, 'time': 101.23910522460938, 'label': 'LA_wall'}
+  FAIL CONTRACT: normal nearest atrial tissue at LAI meets regionTiming {'distance': 0.000645098074837705, 'time': 82.6412353515625, 'label': 'LA_wall'}
+  FAIL CONTRACT: normal total atrial activation 90–120 ms 140.44390869140625
+  FAIL CONTRACT: first ventricular muscle is LV septum at 26–34 ms {'tA': 1000000000, 'tV': 14.532567024230957, 'class': 2, 'strength': 1, 'p': [2.1319007873535156, -0.39030975103378296, 0.35630184412002563], 'label': 'IVS', 'wall': 'LV', 'cavity': 'LVOT', 'aha': None, 'mesh': 'interior', 'i': 17683}
+  ok   CONTRACT: RV septal endocardium 30–50 ms {'n': 420, 'min': 20.12067985534668, 'median': 30.648921966552734, 'p95': 40.200618743896484, 'max': 43.40745162963867}
+  ok   CONTRACT: LV free-wall endocardium 30–50 ms representative window {'n': 1342, 'min': 15.415560722351074, 'median': 48.52138137817383, 'p95': 74.44351196289062, 'max': 94.04322814941406}
+  FAIL CONTRACT: RV epicardial breakthrough 45–60 ms {'n': 3324, 'min': 30.031370162963867, 'median': 45.955936431884766, 'p95': 68.17587280273438, 'max': 79.76531219482422}
+  ok   CONTRACT: LV mid/apical epicardial tissue 50–75 ms {'n': 3076, 'min': 39.92357635498047, 'median': 62.74175262451172, 'p95': 72.82713317871094, 'max': 76.5041275024414}
+  FAIL CONTRACT: normal last 5% enters 95–125 ms window {'n': 14650, 'min': 14.532567024230957, 'median': 52.52172088623047, 'p95': 72.90878295898438, 'max': 103.03498077392578}
+  ok   CONTRACT: normal ventricular activation duration 80–100 ms {'n': 14650, 'min': 14.532567024230957, 'median': 52.52172088623047, 'p95': 72.90878295898438, 'max': 103.03498077392578}
+  FAIL CONTRACT: rbbb: duration >= 120 ms and delayed RV tail {'duration': 88.50241374969482, 'tail': {'n': 5594, 'min': 24.69961166381836, 'median': 60.742698669433594, 'p95': 82.6125717163086, 'max': 91.26585388183594}, 'all': {'n': 14650, 'min': 14.532567024230957, 'median': 59.408573150634766, 'p95': 79.12252807617188, 'max': 103.03498077392578}}
+  FAIL CONTRACT: lbbb: duration >= 130 ms and delayed LV tail {'duration': 106.51082134246826, 'tail': {'n': 8911, 'min': 14.532567024230957, 'median': 69.5096664428711, 'p95': 105.25850677490234, 'max': 121.04338836669922}, 'all': {'n': 14650, 'min': 14.532567024230957, 'median': 57.21339797973633, 'p95': 101.72483825683594, 'max': 121.04338836669922}}
+  FAIL CONTRACT: LBBB activates septum right-to-left instead of retaining normal left-side entry {'normal': {'n': 903, 'min': 14.532567024230957, 'median': 27.03755760192871, 'p95': 39.89800262451172, 'max': 43.44009017944336}, 'lbbb': {'n': 903, 'min': 14.532567024230957, 'median': 27.03755760192871, 'p95': 39.89800262451172, 'max': 43.44009017944336}, 'right': {'n': 420, 'min': 20.12067985534668, 'median': 30.648921966552734, 'p95': 40.200618743896484, 'max': 43.40745162963867}, 'left': {'n': 384, 'min': 14.532567024230957, 'median': 23.40670394897461, 'p95': 39.15032958984375, 'max': 43.44009017944336}}
+  ok   CONTRACT: lafb: target LV region later than normal {'normal': {'n': 666, 'min': 50.870826721191406, 'median': 59.76118469238281, 'p95': 68.24807739257812, 'max': 78.13500213623047}, 'blocked': {'n': 666, 'min': 59.4874382019043, 'median': 68.23799896240234, 'p95': 82.82079315185547, 'max': 89.50997161865234}}
+  FAIL CONTRACT: lpfb: target LV region later than normal {'normal': {'n': 974, 'min': 38.64459991455078, 'median': 57.774696350097656, 'p95': 67.4326171875, 'max': 72.86275482177734}, 'blocked': {'n': 974, 'min': 38.64459991455078, 'median': 57.774696350097656, 'p95': 67.4326171875, 'max': 72.86275482177734}}
+  ok   CONTRACT: WPW starts within 1 cm of AP_V {'tA': 1000000000, 'tV': -23, 'class': 2, 'strength': 1, 'p': [-2.8841419219970703, -0.36467182636260986, -0.6779507398605347], 'label': 'PW', 'wall': 'LV', 'cavity': 'pulmonary_veins', 'aha': None, 'mesh': 'interior', 'i': 14294}
+  ok   isochrone map stays static across the playback clock
+  ok   tissue and network shaders read identical atrial and ventricular clocks
+  ok   hocm: lazy activation mode computes
+  ok   bifasc: lazy activation mode computes
+  ok   hisOnly: lazy activation mode computes
+  ok   vesc: lazy activation mode computes
+  ok   pvc: lazy activation mode computes
+  ok   rvot: lazy activation mode computes
+  ok   an explicit map readiness request completes after scrolling to the ECG
+  ok   [Pathology] simulator lists scenarios (24)
+  ok   [Pathology] every scenario changes the 12-lead (23 scenarios)
+  ok   deep link #pathology/flutter opens atrial flutter 'Typical atrial flutter (2:1)'
+  ok   deep link keeps the Pathology tab current
+  ok   hidden Pathology page stops rendering while 3D Heart runs (pathology +0, heart +26 frames)
+  ok   hidden 3D Heart page stops; Pathology resumes (heart +0, pathology +22 frames)
+  ok   ← Home still works
+  ok   no page or console errors
+  ok   400 px #heart3d: no sideways scroll in the page [400, 400]
+  ok   400 px #heart3d: switcher fits [400, 400]
+  ok   phone Conduction toggle keeps the reserved ECG panel height and position [[1466.140625, 445.109375], [1466.140625, 445.109375]]
+  ok   phone Conduction strip collapses to lead II without horizontal scroll {'leads': '1', 'selected': 'II', 'labels': ['sa', 'avn', 'his', 'lbb', 'rbb'], 'width': [400, 400]}
+  ok   phone Conduction labels use the five compact contract names ['sa', 'avn', 'his', 'lbb', 'rbb']
+  ok   400 px #pathology: no sideways scroll in the page [400, 400]
+  ok   400 px #pathology: switcher fits [400, 400]
+  ok   reduced motion starts paused at 0.25× {'enabled': False, 'ms': 0, 'playing': False, 'speed': 0.25, 'selected': None, 'mode': {'atrial': 'sinus', 'ventricular': 'normal', 'avDelay': 82, 'blocks': []}, 'cacheSize': 1, 'rings': [], 'opacity': 1}
+
+10 failure(s)
+  - CONTRACT: normal nearest atrial tissue at LAA meets regionTiming
+  - CONTRACT: normal nearest atrial tissue at LAI meets regionTiming
+  - CONTRACT: normal total atrial activation 90–120 ms
+  - CONTRACT: first ventricular muscle is LV septum at 26–34 ms
+  - CONTRACT: RV epicardial breakthrough 45–60 ms
+  - CONTRACT: normal last 5% enters 95–125 ms window
+  - CONTRACT: rbbb: duration >= 120 ms and delayed RV tail
+  - CONTRACT: lbbb: duration >= 130 ms and delayed LV tail
+  - CONTRACT: LBBB activates septum right-to-left instead of retaining normal left-side entry
+  - CONTRACT: lpfb: target LV region later than normal
+
+
+Site suite
+  ok   [dark] home offers 3D Heart, Deep dive, Echo [['#heart3d', 'Interactive 3D Heart'], ['#topics', 'Deep dive by topic'], ['#echo', 'Echo Simulator']]
+  ok   [dark] echo hero image (PLAX supine) loads [720, 609]
+  ok   [dark] three cards side by side at 1440 px (3 columns)
+  ok   #heart3d: switcher shows only its section ['heart3d', 'pathology'] current=heart3d
+  ok   #pathology: switcher shows only its section ['heart3d', 'pathology'] current=pathology
+  ok   #echo: switcher shows only its section ['echo'] current=echo
+  ok   #bradycardia: switcher shows only its section ['bradycardia', 'narrow', 'wide', 'mi'] current=bradycardia
+  ok   #narrow: switcher shows only its section ['bradycardia', 'narrow', 'wide', 'mi'] current=narrow
+  ok   #wide: switcher shows only its section ['bradycardia', 'narrow', 'wide', 'mi'] current=wide
+  ok   #mi: switcher shows only its section ['bradycardia', 'narrow', 'wide', 'mi'] current=mi
+  ok   ← Home returns to the home page
+  ok   clicking the Echo card opens #echo
+  ok   #topics page still opens
+  ok   [dark] no page errors
+  ok   [light] home offers 3D Heart, Deep dive, Echo [['#heart3d', 'Interactive 3D Heart'], ['#topics', 'Deep dive by topic'], ['#echo', 'Echo Simulator']]
+  ok   [light] echo hero image (PLAX supine) loads [720, 609]
+  ok   [light] three cards side by side at 1440 px (3 columns)
+  ok   [light] no page errors
+  ok   400 px home: no sideways scroll [400, 400]
+  ok   400 px: cards stack in one column (1)
+  ok   400 px #mi: switcher fits without overflow [400, 400]
+
+0 failure(s)
+
+
+Embed suite
+labs: ['heart3d', 'pathology', 'bradycardia', 'narrow', 'wide', 'mi', 'echo']
+  ok   LABS.echo exists
+  ok   exactly one Echo tab
+  ok   home page shows with no route
+  ok   #heart3d opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': '3D Heart', 'len': 1523, 'others': []}
+  ok   #pathology opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Pathology simulator', 'len': 2439, 'others': []}
+  ok   #bradycardia opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Bradycardia Ladder Lab', 'len': 10401, 'others': []}
+  ok   #narrow opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Narrow-Complex Tachycardia Lab', 'len': 10299, 'others': []}
+  ok   #wide opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Wide-Complex Tachycardia Lab', 'len': 11742, 'others': []}
+  ok   #mi opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Myocardial Infarction Lab', 'len': 9417, 'others': []}
+  ok   #echo opens: {'w': 1440, 'h': 812, 'hidden': False, 'title': 'Echo Simulator Lab', 'len': 1184, 'others': []}
+  ok   echo engine ready inside the srcdoc iframe
+  ok   echo shaders compile inside the iframe
+  ok   view chip live inside the iframe: PLAX 94%
+  ok   parent theme reaches the lab
+     hidden: clock 0.93 -> 0.93
+  ok   hidden lab stops its render loop
+  ok   lab resumes when shown again
+  ok   back to home
+  ok   no page errors:
+
+0 failure(s)
+
+
+Standalone and desktop/phone screenshot proof
+VIEW ext
+VIEW xray
+VIEW cut
+ISO normal
+ISO lbbb
+ISO wpw
+PHONE_LAYOUT [[1395.734375, 445.109375], [1395.734375, 445.109375]]
+STANDALONE {'nodes': 39, 'ready': True, 'map': {'ready': True, 'error': None, 'worker': True, 'cacheSize': 3, 'isochrones': True, 'diagnostics': {'solver': 'geodesic-26', 'seedsA': 173, 'seedsV': 2619, 'unmapped': 196, 'unreachable': 655, 'computeMs': 211.39999999850988, 'seedMs': 1853.6000000014901, 'elapsedMs': 2083.39999999851}, 'clocks': {'a': 333.33333333333303, 'v': 185.73182491861417}, 'enabled': True}, 'sample': 0.2921123068447568}
+BARE {'ready': False, 'error': 'no data'}
+ERRORS []

@@ -228,3 +228,7 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .conduction-label{z-index:2;will-change:transform}
 .x3 .labels [hidden]{display:none!important}
 @media(max-width:520px){.x3 .conLead{display:flex;gap:8px;align-items:center}.x3 .conduction-panel{min-height:355px}.x3 .conPlayback{gap:5px}.x3 .conECG{height:145px;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}.x3 .phaseTxt{min-height:5.6em}}
+.x3 .activationLegend{position:absolute;left:12px;top:42px;z-index:3;pointer-events:none;font:11px var(--mono,monospace);background:var(--panel,#152025);border-radius:5px;padding:5px 8px;max-width:calc(100% - 24px)}
+.x3 .activationLegend .isoLegend{display:none}.x3 .activationLegend.is-map .isoLegend{display:flex;align-items:center;gap:6px}.x3 .activationLegend:not(.pending):not(.is-map){visibility:hidden}
+.x3 .isoLegend i{display:inline-block;width:85px;height:9px;background:linear-gradient(90deg,#fde725,#5ec962,#21918c,#3b528b,#440154)}
+.x3 .bIsochrones .st{display:inline-block;min-width:3ch}
