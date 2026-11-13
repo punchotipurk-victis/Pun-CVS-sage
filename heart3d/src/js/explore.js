@@ -116,14 +116,17 @@ HI.valves.children.forEach(m => { m.material = valMat; m.renderOrder = 2; });
    Two planes (a view may remove only the region behind plane 1 AND beyond plane 2): one stencil group + cap per plane. */
 const hex = h => { const c = new T.Color(h); return [c.r, c.g, c.b]; };
 const PALRGB = {}; for (const k in D.PAL) PALRGB[k] = hex(D.PAL[k]);
+const FAT_CREAM = [.9, .87, .8]; let fatCream = false, paintKey = "";   // display only: fat turns pale cream while Conduction is on
 const CAP_REAL = { myocardium: 0x8e2a24, fibrous: 0xe5d6bb, valve: 0xefe6d4, fat: 0xe2bb55, vessel_wall: 0xca8c7b };
 const capData = JI.capVolume;
 const capInk = { real: 0x8e2a24, labels: 0x9a4a46 };
-const capPalettes = capData && Object.fromEntries(Object.keys(capInk).map(mode => [mode,
+const capPalettes = capData && Object.fromEntries(["real", "labels", "real|cream", "labels|cream"].map(key => { const [mode, cream] = key.split("|"); return [key,
   new Float32Array(intNames.flatMap((name, i) => {
+    const fat = capData.tissueByLabel[i] === "fat" || name === "epicardial_fat";
+    if (cream && fat) return FAT_CREAM;
     const real = hex(CAP_REAL[capData.tissueByLabel[i]] ?? capInk.real);
     return mode === "labels" ? PALRGB[name] || real : real;
-  }))]));
+  }))]; }));
 const capUniforms = capData && renderer.capabilities.isWebGL2 ? (() => {
   const [nx, ny, nz] = capData.n;
   const runs = atob(capData.rle), labels = new Uint8Array(nx * ny * nz);
@@ -204,7 +207,7 @@ lmGroup.add(koch, cti); world.add(condGroup, lmGroup);
 const noise = (x, y, z) => { const s = Math.sin(x*12.9898 + y*78.233 + z*37.719)*43758.5453; return s - Math.floor(s); };
 const REAL_EXT = { 0: [.6, .38, .36], 1: [.6, .17, .15], 2: [.62, .2, .18], 3: [.55, .22, .3], 4: [.86, .66, .6], 5: [.88, .73, .44] };
 const REAL_INT = name => /^(MV_|TV_|AV_|PV_|chordae)/.test(name) ? [.95, .9, .8] : /^(central_fibrous_body|membranous_septum|TV_annulus|todaro_tendon|eustachian_valve|thebesian_valve)$/.test(name) ? [.92, .86, .74]
-  : /^(aortic|arch|PA_main|RPA|LPA)/.test(name) ? [.88, .7, .62] : name === "epicardial_fat" ? [.9, .76, .45] : /^(LA_wall|RA_wall|IAS|SVC|crista|pectinate|LAA)/.test(name) ? [.68, .3, .3] : [.66, .18, .16];
+  : /^(aortic|arch|PA_main|RPA|LPA)/.test(name) ? [.88, .7, .62] : name === "epicardial_fat" ? (fatCream ? FAT_CREAM : [.9, .76, .45]) : /^(LA_wall|RA_wall|IAS|SVC|crista|pectinate|LAA)/.test(name) ? [.68, .3, .3] : [.66, .18, .16];
 /* in label colours, groove fat and surface-vessel vertices take the colour of the nearest chamber wall (clean blocks); real colours keep the fat */
 const extUnder = (() => { const P = HM.mesh.geometry.attributes.position, n = P.count, skip = new Set(["epicardial_fat", "LCA", "RCA", "cardiac_veins", ""].map(x => extNames.indexOf(x)));
   const out = Uint8Array.from(extLab), cell = .6, grid = new Map(), keyOf = (x, y, z) => `${Math.floor(x/cell)},${Math.floor(y/cell)},${Math.floor(z/cell)}`;
@@ -229,21 +232,21 @@ function smoothColours(g, iters){ if (!iters) return; const A = g.userData.adj |
 function paintExt(mode){ const P = HM.mesh.geometry.attributes.position, c = HM.mesh.geometry.attributes.color.array;
   for (let i = 0; i < P.count; i++){ const nm = extNames[mode === "labels" ? extUnder[i] : extLab[i]] || ""; let col;
     if (mode === "labels"){ col = PALRGB[nm] || (extWall[i] === 1 ? PALRGB.PW : extWall[i] === 2 ? PALRGB.RV_free_wall : extWall[i] === 3 ? PALRGB.RA_wall : [.6, .6, .6]);
-      if (extWall[i] === 5) col = col.map((v, k) => .45*v + .55*PALRGB.epicardial_fat[k]); }
-    else { let b = REAL_EXT[extWall[i]] || REAL_EXT[0]; if (extWall[i] === 5){ const u = extNames[extUnder[i]], w = /RV|RVOT/.test(u) ? 2 : /LA|RA|SVC|IAS/.test(u) ? 3 : 1; b = b.map((v, k) => .5*v + .5*REAL_EXT[w][k]); }
+      if (extWall[i] === 5) col = col.map((v, k) => .45*v + .55*(fatCream ? FAT_CREAM : PALRGB.epicardial_fat)[k]); }
+    else { let b = extWall[i] === 5 && fatCream ? FAT_CREAM : REAL_EXT[extWall[i]] || REAL_EXT[0]; if (extWall[i] === 5){ const u = extNames[extUnder[i]], w = /RV|RVOT/.test(u) ? 2 : /LA|RA|SVC|IAS/.test(u) ? 3 : 1; b = b.map((v, k) => .5*v + .5*REAL_EXT[w][k]); }
       const n = .9 + .2*noise(P.getX(i)*.6, P.getY(i)*.6, P.getZ(i)*.6); col = b.map(v => v*n); }
     if (mode === "labels"){ const n = .93 + .14*noise(P.getX(i)*.6, P.getY(i)*.6, P.getZ(i)*.6); col = col.map(v => v*n); }
     c[i*3] = col[0]; c[i*3+1] = col[1]; c[i*3+2] = col[2]; }
   smoothColours(HM.mesh.geometry, mode === "labels" ? 7 : 2); HM.mesh.geometry.attributes.color.needsUpdate = true; }
 function paintGeom(g, labels, mode, smooth = 0){ const c = g.attributes.color.array, P = g.attributes.position;
   for (let i = 0; i < labels.length; i++){ const nm = intNames[labels[i]] || "";
-    let col = mode === "labels" ? (PALRGB[nm] || [.6, .6, .6]) : REAL_INT(nm);
+    let col = mode === "labels" ? (nm === "epicardial_fat" && fatCream ? FAT_CREAM : PALRGB[nm] || [.6, .6, .6]) : REAL_INT(nm);
     const n = .92 + .16*noise(P.getX(i)*.7, P.getY(i)*.7, P.getZ(i)*.7); col = col.map(v => v*n);
     c[i*3] = col[0]; c[i*3+1] = col[1]; c[i*3+2] = col[2]; }
   smoothColours(g, smooth); g.attributes.color.needsUpdate = true; }
-function paint(mode){ paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
+function paint(mode){ fatCream = !!st.layers.conduction; paintKey = mode + "|" + fatCream; paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
   HI.valves.children.forEach(m => paintGeom(m.geometry, m.userData.labels, mode));
-  if (capUniforms) capUniforms.uCapPalette.value = capPalettes[mode];
+  if (capUniforms) capUniforms.uCapPalette.value = capPalettes[mode + (fatCream ? "|cream" : "")];
   capGroups.forEach(g => g.cap.material.color.set(capInk[mode])); $(".legend").hidden = mode !== "labels"; }
 
 /* ---------- cut views (heart frame; n points into the kept half; the camera looks from the removed side) ----------
@@ -320,7 +323,7 @@ function pan(dx, dy){ const h = 2*Math.tan(cam.fov*Math.PI/360)*dist/Math.max(1,
   const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
   tgt.add(right.multiplyScalar(-dx*h)).add(up.multiplyScalar(dy*h)); placeCam(); }
 function zoom(f){ dist = Math.max(ZMIN, Math.min(ZMAX, dist*f)); placeCam(); dirty(); }
-const fitDist = () => radius*3.3*Math.max(1, 1.25/Math.max(.3, cam.aspect || 1));   // narrow (phone) views back off so the whole heart fits
+const fitDist = () => radius/(.8*Math.tan(cam.fov*Math.PI/360)*Math.min(1, cam.aspect || 1));   // bounding sphere fills ~80% of the shorter side (the silhouette itself ≈70%)
 function resetView(){ size(); tgt.copy(centre); dist = fitDist(); setView("Front"); }
 const ptrs = new Map(); let gesture = null, lastTap = 0;
 const cvs = renderer.domElement; host.style.touchAction = "none";
@@ -343,6 +346,7 @@ host.addEventListener("wheel", e => { e.preventDefault(); zoom(1 + Math.sign(e.d
 
 /* ---------- modes ---------- */
 function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray";
+  if (paintKey && paintKey !== st.colour + "|" + !!st.layers.conduction) paint(st.colour);
   $('.bSeeThrough').hidden=cut;$('.bSeeThrough').disabled=cut;
   $('.bSeeThrough').setAttribute('aria-pressed',xr);$('.bSeeThrough .st').textContent=xr?'On':'Off';
   $('.bCor').setAttribute('aria-pressed',st.coronaries);$('.bCor .st').textContent=st.coronaries?'On':'Off';
@@ -605,7 +609,7 @@ function calloutCandidates(){
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
   for(const label of conduction.labels){label.el.dataset.id='conduction:'+label.id;
     const p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(label.part.anchor)};
-    entry.visible=entry.visible&&p.visible;entries.push(entry);
+    entry.visible=entry.visible&&p.visible;if(p.visible)entry.tap={x:p.x,y:p.y};entries.push(entry);
   }
   for(const [id,el] of virtualLabels)entries.push({id,el,text:el.textContent,layer:'chambers',allowed:false,visible:false});
   if(st.sel&&!st.sel.startsWith('conduction:')){
@@ -653,8 +657,20 @@ $$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Rese
 $(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
 
+/* on-screen silhouette of what is drawn (outer surface, or the kept tissue in a cut), cached per camera/viewer state */
+const silCache={key:'',pts:[]},silV=new T.Vector3();
+function silhouette(){
+  const rect=host.getBoundingClientRect(),cut=st.mode==='cut';
+  const key=[...cam.matrixWorld.elements,...cam.projectionMatrix.elements].map(v=>v.toFixed(4)).join(',')+[rect.left,rect.top,rect.width,rect.height,st.mode,st.cut,st.off,st.flip].join('|');
+  if(key===silCache.key)return silCache.pts;
+  const P=(cut?HI.tissue:HM.mesh).geometry.attributes.position,stride=Math.max(1,Math.floor(P.count/16000)),pts=[];
+  for(let i=0;i<P.count;i+=stride){silV.fromBufferAttribute(P,i).applyMatrix4(H2B);if(cut&&removed(silV))continue;silV.project(cam);
+    if(silV.z<-1||silV.z>1)continue;pts.push(rect.left+(silV.x*.5+.5)*rect.width,rect.top+(-silV.y*.5+.5)*rect.height)}
+  silCache.key=key;silCache.pts=pts;return pts;
+}
 callouts=EXPLORE_UI.callouts({stage:$('.model-stage'),viewer:host,layer:labelLayer,candidates:calloutCandidates,selection:()=>st.sel,
-  mode:()=>st.labelMode,view:()=>st.mode==='cut'?st.cut:st.mode==='xray'?'seeThrough':'external',relevant:D.RELEVANT_LABELS,status:$('.labelStatus')});
+  mode:()=>st.labelMode,view:()=>st.mode==='cut'?st.cut:st.mode==='xray'?'seeThrough':'external',relevant:D.RELEVANT_LABELS,status:$('.labelStatus'),
+  silhouette,list:$('.labelList'),pick:el=>{if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)}});
 document.fonts?.addEventListener('loadingdone',()=>{callouts.invalidate();dirty()});
 
 /* ---------- render loop: runs only while shown; idles when nothing moves ---------- */
@@ -707,7 +723,10 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ if(typeof m =
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },
   setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
   render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); conduction.placeLabels(); if(st.layers.conduction)ecgStrip.draw(conduction.state.ms,true); },
-  visibleLabels: () => callouts.visible(),
+  visibleLabels: () => callouts.visible(), labelListIds: () => callouts.listIds(),
+  heartFill: () => { const p = silhouette(), r = host.getBoundingClientRect(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < p.length; i += 2){ x0 = Math.min(x0, p[i]); x1 = Math.max(x1, p[i]); y0 = Math.min(y0, p[i+1]); y1 = Math.max(y1, p[i+1]); }
+    return { w: (x1 - x0)/r.width, h: (y1 - y0)/r.height, short: Math.max((x1 - x0), (y1 - y0))/Math.min(r.width, r.height), inside: x0 >= r.left - 2 && x1 <= r.right + 2 && y0 >= r.top - 2 && y1 <= r.bottom + 2 }; },
   screenOf(idOrPoint){
     const a = Array.isArray(idOrPoint) ? null : anchors.find(x => x.id === idOrPoint && !x.el.hidden) || anchors.find(x => x.id === idOrPoint);
     const p = a ? a.w.clone() : Array.isArray(idOrPoint) ? toWorld(new T.Vector3(...idOrPoint)) : null;

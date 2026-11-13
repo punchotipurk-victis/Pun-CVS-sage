@@ -168,7 +168,7 @@ function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,p
       float strength=act.z*(1.0-step(1e8,act.y));
       if(uIso>.5)return mix(ink,isoInk(act.y),strength);
       float fired=step(12.0,act.x),hot=step(0.0,act.x)-fired;
-      float after=fired*max(0.0,1.0-act.x*act.w)*.75;
+      float after=fired*max(0.0,.15-(act.x-12.0)*.001);   // faint tint that fades out over 150 ms, long before the next beat
       // The hot band and refractory tail are disjoint. Combining their weights
       // avoids per-fragment divergent validity branches and two dependent mixes.
       return ink+(hot*(uActHot-ink)+after*(uActAfter-ink))*strength;}
