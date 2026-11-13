@@ -122,16 +122,27 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
     /* T6.2-B contract (spec.timing.entry): the bundles are insulated; muscle is entered only from the first Purkinje node of each
        branch onwards, each branch only into its own ventricle (left bundle → LV, right bundle → RV), the septal fascicle only into
        the septum. A blocked branch has no times, so it loses its entry points. Illustrative display branches never seed. */
-    const E=graph.spec.timing.entry||{},R=E.radiusCm??3.5,VP=E.purkinjeVelocity_mps??2.6,J=E.junction_ms??4,snap=graph.spec.timing.atrialSeedSnapCm??.3;
+    const entry=graph.spec.timing.entry||{},radius=entry.radiusCm??3.5,
+      purkinjeVelocity=entry.purkinjeVelocity_mps??2.6,junctionDelay=entry.junction_ms??4,
+      snap=graph.spec.timing.atrialSeedSnapCm??.3;
     const side=id=>/^(RB|MOD)/.test(id)?3:2;
-    for(const e of graph.edges){if(e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
+    const septalOnly=tap=>(entry.septalOnly||[]).includes(tap)?'IVS':null;
+    for(const e of graph.edges){if(e.illustrative||e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
       const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),
-        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!E.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
+        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!entry.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
       if(!isA&&!isV)continue;const count=Math.ceil(length(e)/(isA?.3:.2));
-      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:E.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:(E.septalOnly||[]).includes(e.tap)?'IVS':null})}
+      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:entry.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:septalOnly(e.tap)})}
     }
     if(a.SA<NEVER&&!['none','avnOnly','saOnly'].includes(mode.atrial))A.push({p:graph.nodes.SA.p,t:6});
-    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:(E.septalOnly||[]).includes(n.tapTarget)&&id!=='LVAP'?'IVS':null});
+    for(const [id,n] of Object.entries(graph.nodes))if(!n.illustrative&&n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:id==='LVAP'?null:septalOnly(n.tapTarget)});
+    function terminalTime(p,chamber,label){
+      let time=NEVER;
+      for(const terminal of Q){
+        if(entry.ownVentricle&&terminal.chamber!==chamber||terminal.only&&terminal.only!==label)continue;
+        const distance=Math.hypot(...terminal.p.map((x,k)=>x-p[k]));
+        if(distance<=radius)time=Math.min(time,terminal.t+distance*10/purkinjeVelocity+junctionDelay);
+      }return time;
+    }
     let nextIdle=performance.now()+8;
     if(!vm.noMuscle){for(let i=0;i<inner.positions.length/3;i++){
       if((i&511)===0){if(!stillWanted())throw 'superseded';if(performance.now()>=nextIdle){await new Promise(resolve=>typeof requestIdleCallback==='function'?requestIdleCallback(resolve,{timeout:50}):setTimeout(resolve,0));nextIdle=performance.now()+8}}
@@ -140,7 +151,7 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       // Only muscle endocardium receives fast-network seeds; classification in
       // the solver rejects any excluded/non-muscle destination as well.
       if(!graph.spec.regions.ventricularMuscle.labels.includes(label))continue;
-      let t=NEVER;for(const q of Q){if(E.ownVentricle&&q.chamber!==(rv?3:2))continue;if(q.only&&q.only!==label)continue;const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=R)t=Math.min(t,q.t+d*10/VP+J)}
+      const t=terminalTime(p,rv?3:2,label);
       if(t<NEVER)V.push({p:Array.from(p),t,chamber:rv?3:2});
     }
     if(vm.ap)V.push({p:graph.nodes.AP_V.p,t:22-graph.constants.WPW_LEAD,chamber:2});
@@ -167,7 +178,7 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       },100);
     }return entry;
   }
-  return {get,cache,worker:!!worker,request(mode){const entry=get(mode);if(!entry.ready){entry.requested=true;get(mode)}return entry.promise},visibility(on){visible=!!on;if(visible&&latestMode)get(latestMode)}};
+  return {get,cache,worker:!!worker,seedSources:mode=>sources(mode,()=>true),request(mode){const entry=get(mode);if(!entry.ready){entry.requested=true;get(mode)}return entry.promise},visibility(on){visible=!!on;if(visible&&latestMode)get(latestMode)}};
 }
 function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,palette={}}){
   const uniforms={uActEnabled:{value:0},uIso:{value:0},uActA:{value:0},uActV:{value:0},uIsoMin:{value:0},uIsoMax:{value:150},
@@ -209,7 +220,7 @@ function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,p
   let legendKey='';
   function update(enabled,iso,ready,ms,error){const t=clock(ms);uniforms.uActEnabled.value=enabled&&ready?1:0;uniforms.uIso.value=iso?1:0;uniforms.uActA.value=t.a;uniforms.uActV.value=t.v;
     const key=[enabled,iso,ready,error].join('|');if(key===legendKey)return;legendKey=key;
-    legend.hidden=!enabled;legend.classList.toggle('pending',!ready);legend.classList.toggle('is-map',iso&&ready);legend.querySelector('.actStatus').textContent=error?'Activation unavailable':ready?'':'Computing…';}
+    legend.hidden=!enabled;legend.classList.toggle('pending',!ready);legend.classList.toggle('is-map',iso&&ready);const help=legend.querySelector('.timing-map-help');if(help)help.hidden=!(iso&&ready);legend.querySelector('.actStatus').textContent=error?'Activation unavailable':ready?'':'Computing…';}
   return {apply,update,uniforms};
 }
 window.ACTIVATION={create,solve,display,NEVER};

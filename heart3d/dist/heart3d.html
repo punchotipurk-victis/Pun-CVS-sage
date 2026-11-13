@@ -258,6 +258,11 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .signalLegend span,.x3 .outside-legends .legend span{display:flex;align-items:center;gap:6px}
 .x3 .signalLegend i,.x3 .outside-legends .legend i{display:inline-block;width:15px;height:9px;border-radius:3px}
 .x3 .signal-network{background:#22c3ab}.x3 .signal-impulse{background:#fff;border:1px solid #65756e}.x3 .signal-muscle{background:#ffc83d}
+.x3 .label-border-legend{display:flex;flex-wrap:wrap;gap:8px 18px;font:12px var(--f-mono);color:var(--ink)}
+.x3 .label-border-legend span{display:flex;align-items:center;gap:6px;text-transform:capitalize}
+.x3 .label-border-legend i{width:15px;height:10px;border:2px solid;border-radius:3px;background:#142421}
+.x3 .timing-map-help{max-width:80ch;font:13px/1.5 var(--f-body,sans-serif)}
+.x3 .timing-map-help p{margin:5px 0}
 .x3 .signalLegend .signal-block{color:#ff3b3b;font:700 19px/9px var(--f-mono);font-style:normal}
 .x3 .outside-legends .activationLegend{position:static;max-width:none;background:var(--surface);color:var(--ink);align-self:flex-start}
 .x3 .activation-slot{min-height:26px}
@@ -730,7 +735,7 @@ function times(side,sources,blockedStructs=[],avDelay=constants.D0){
   const adj={},done=new Set();
   for(const [id,time] of Object.entries(sources)){if(!(id in nodes))throw new Error('Unknown source: '+id);t[id]=time}
   for(const e of edges){
-    if(e.circuitOnly||e.T_ms===null||(side&&e.side!==side)||blocked.has('*')||blocked.has(e.struct)||blocked.has(e.id))continue;
+    if(e.illustrative||e.circuitOnly||e.T_ms===null||(side&&e.side!==side)||blocked.has('*')||blocked.has(e.struct)||blocked.has(e.id))continue;
     const duration=edgeDuration(e,avDelay);
     (adj[e.a]??=[]).push([e.b,duration]);(adj[e.b]??=[]).push([e.a,duration]);
   }
@@ -884,8 +889,8 @@ return {D0,ONSET,LEADS,VCG,PL,TA_LOBE,nrm,g,tShape,sstep,bsearch,vecAt,GAIN,lead
 window.ECG={init,timingFromSpec,LEGACY_TIMING};
 })();
 </script>
-<script>/* T6.2(b): contract-driven conduction geometry, picking and a shared playback clock.
-   Tissue activation/isochrones are supplied by T6.2(c); circuits by T8.2. */
+<script>/* T6.2-C: contract-driven conduction geometry, picking and a shared playback clock.
+   Decorative Purkinje branches remain outside the timing graph; circuits come with T8.2. */
 (function(){
 'use strict';
 function create(o){
@@ -893,6 +898,7 @@ function create(o){
   const cycleMs=o.cycleMs||(()=>60000/CONTENT.SC.normal.rh.rate);
   const g=CGRAPH,s=g.spec,d=s.display,group=new T.Group(),parts=[],labels=[],rings=[];
   const colour=key=>o.palette?.[key]||d.colours[key].match(/#[0-9a-f]{6}/i)[0];
+  const redesign=d.redesign,phone=innerWidth<=900;
   world.add(group);group.visible=false;
   const state={enabled:false,ms:0,playing:!o.reduced,speed:o.reduced?.25:1,selected:null,
     mode:{atrial:'sinus',ventricular:'normal',avDelay:g.constants.D0,blocks:[]}};
@@ -906,36 +912,63 @@ function create(o){
     id==='ap'?5:id==='cti'?6:id==='purk'?8:7;
   const front=T.LessEqualDepth,behind=T.GreaterDepth;
   const tapIds=Object.keys(d.shortNames),waveUniforms={uNowA:{value:0},uNowV:{value:-1e9},uPulse:{value:0},
-    uSelectedId:{value:-1},uPull:{value:0},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+    uSelectedId:{value:-1},uPull:{value:0},uWidth:{value:1},uRest:{value:state.playing?0:1},uRestInk:{value:new T.Color(colour('rest'))},uNodeInk:{value:new T.Color('#FFE7A8')},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+  let fadeFrom=waveUniforms.uRest.value,fadeTo=fadeFrom,fadeStart=performance.now();
   let batch;
+  // Pack interpolants into four slots. Separate scalar varyings made the
+  // software rasterizer carry mostly empty vec4 slots for every vertex.
+  const varyings=`varying vec3 vInk;varying vec4 vData0,vData1,vData2;
+    #define vU vData0.x
+    #define vTime vData0.y
+    #define vSide vData0.z
+    #define vRefractory vData0.w
+    #define vAvNode vData1.x
+    #define vBlocked vData1.y
+    #define vSelected vData1.z
+    #define vVisible vData1.w
+    #define vAlpha vData2.x
+    #define vShade vData2.y
+    #define vNode vData2.z
+  `;
   function material(depthFunc){
     const mat=beatify(new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:depthFunc===behind?.45:1,
       depthWrite:false,depthTest:true,depthFunc,clippingPlanes:clips}));
     const previous=mat.onBeforeCompile;
     mat.onBeforeCompile=shader=>{previous(shader);Object.assign(shader.uniforms,waveUniforms);
       shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
-        attribute vec3 aCenter,aInk;attribute float aU,aTime,aSide,aRefractory,aAvNode,aBlocked,aTap,aVisible;
-        varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uSelectedId,uPull;`)
+        attribute vec3 aCenter,aInk;attribute vec4 aParam,aFlags;attribute vec2 aStyle;
+        #define aU aParam.x
+        #define aTime aParam.y
+        #define aSide aParam.z
+        #define aRefractory aParam.w
+        #define aAvNode aFlags.x
+        #define aBlocked aFlags.y
+        #define aTap aFlags.z
+        #define aVisible aFlags.w
+        #define aAlpha aStyle.x
+        #define aNode aStyle.y
+        ${varyings}
+        uniform float uSelectedId,uPull,uWidth;`)
         .replace('#include <begin_vertex>',`#include <begin_vertex>
-        vSelected=1.0-step(.1,abs(aTap-uSelectedId));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected);
+        vSelected=step(-.5,aTap)*(1.0-step(.1,abs(aTap-uSelectedId)));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected)*uWidth;
+        vAlpha=aAlpha;vNode=aNode;vData2.w=0.0;vShade=.72+.28*abs(normal.y);
         vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`)
         // T6.2-B: in cut views the network is drawn only where it lies on the visible cut anatomy: pulled uPull cm toward the
         // camera so subendocardial paths pass the depth test, while paths behind a whole wall stay hidden (no see-through pass).
         .replace('#include <project_vertex>',`#include <project_vertex>
         if(uPull>0.0){mvPosition.xyz+=normalize(-mvPosition.xyz)*uPull;gl_Position=projectionMatrix*mvPosition;}`);
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
-        varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uNowA,uNowV,uPulse;uniform vec3 uHot,uAfter,uBlockedInk;`)
+        ${varyings}
+        uniform float uNowA,uNowV,uPulse,uRest;uniform vec3 uHot,uAfter,uBlockedInk,uRestInk,uNodeInk;`)
         .replace('#include <color_fragment>',`#include <color_fragment>
         if(vVisible<.5)discard;if(vBlocked>.5 && mod(vU*24.0,2.0)>1.0)discard;
         float elapsed=mix(uNowA,uNowV,vSide)-vTime;
         float hot=step(0.0,elapsed)*(1.0-step(12.0,elapsed));
         float after=step(12.0,elapsed)*max(0.0,1.0-elapsed/vRefractory);
-        diffuseColor.rgb=mix(vInk,uBlockedInk,vBlocked);
+        diffuseColor.rgb=mix(mix(vInk,mix(uRestInk,uNodeInk,vNode),uRest),uBlockedInk,vBlocked);
         diffuseColor.rgb=mix(diffuseColor.rgb,uAfter,after*.75);
         diffuseColor.rgb=mix(diffuseColor.rgb,uHot,max(hot,uPulse*vAvNode));
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.0),vSelected*.55);`);
+        diffuseColor.rgb=mix(diffuseColor.rgb*vShade,vec3(1.0),vSelected*.55);diffuseColor.a*=vAlpha;`);
     };mat.customProgramCacheKey=()=> 'conduction-batched-wave-v1';mat.userData.wave=waveUniforms;return mat;
   }
   function addPart(id,geometry,centres,uu,info){
@@ -945,27 +978,40 @@ function create(o){
   }
   function buildBatch(){
     const count=parts.reduce((n,p)=>n+p.geometry.attributes.position.count,0),geometry=new T.BufferGeometry(),arrays={};
-    const fields={position:3,normal:3,aCenter:3,aU:1,aTime:1,aSide:1,aRefractory:1,aAvNode:1,aBlocked:1,aTap:1,aVisible:1,aInk:3};
+    const fields={position:3,normal:3,aCenter:3,aU:1,aTime:1,aSide:1,aRefractory:1,aAvNode:1,aBlocked:1,aTap:1,aVisible:1,aInk:3,aAlpha:1,aNode:1,aParam:4,aFlags:4,aStyle:2};
     for(const [key,width] of Object.entries(fields))arrays[key]=new Float32Array(count*width);
-    const indices=[];let offset=0;
+    const indices=[],glowIndices=[];let offset=0;
     for(const p of parts){p.offset=offset;p.count=p.geometry.attributes.position.count;
       for(const key of ['position','normal','aCenter','aU'])arrays[key].set(p.geometry.attributes[key].array,offset*fields[key]);
       for(const index of p.geometry.index.array)indices.push(index+offset);
+      // A soft 15% halo does not need the core tube's sampling density.
+      // Reuse every second ring and radial vertex; retain the full core radii.
+      if(p.curve&&!p.illustrative){const n=p.geometry.parameters.tubularSegments,r=p.geometry.parameters.radialSegments,stride=r+1;
+        for(let j=0;j<n;j+=2)for(let k=0;k<r;k+=2){const a=j*stride+k,b=Math.min(n,j+2)*stride+k,c=j*stride+(k+2)%r,e=Math.min(n,j+2)*stride+(k+2)%r;glowIndices.push(a+offset,b+offset,c+offset,b+offset,e+offset,c+offset)}
+      }else if(p.nodeId)for(const i of p.geometry.index.array)glowIndices.push(i+offset);
       const ink=new T.Color(p.colour).toArray();
-      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0}
+      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=p.illustrative?-2:tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0;arrays.aAlpha[i]=p.alpha??1;arrays.aNode[i]=p.nodeId?1:0;
+        arrays.aFlags[i*4+2]=arrays.aTap[i];arrays.aStyle[i*2]=arrays.aAlpha[i];arrays.aStyle[i*2+1]=arrays.aNode[i];}
       offset+=p.count;
     }
     for(const [key,width] of Object.entries(fields))geometry.setAttribute(key,new T.BufferAttribute(arrays[key],width));
     geometry.setIndex(indices);geometry.computeBoundingSphere();
     const pair=[behind,front].map((depth,i)=>{const mesh=new T.Mesh(geometry,material(depth));mesh.renderOrder=10+i;group.add(mesh);return mesh});
     for(const p of parts)p.pair=pair;
-    batch={geometry,arrays,pair};
+    // One batched halo, shared geometry; no postprocessing or per-branch draws.
+    const glowMat=material(front);glowMat.opacity=.15;glowMat.blending=T.AdditiveBlending;
+    const baseCompile=glowMat.onBeforeCompile;
+    glowMat.onBeforeCompile=shader=>{baseCompile(shader);shader.vertexShader=shader.vertexShader.replace('*uWidth;','*uWidth*1.6;')};
+    glowMat.customProgramCacheKey=()=> 'conduction-halo-v2';
+    const glowGeometry=new T.BufferGeometry();for(const [key,attr] of Object.entries(geometry.attributes))glowGeometry.setAttribute(key,attr);glowGeometry.setIndex(glowIndices);glowGeometry.boundingSphere=geometry.boundingSphere;
+    const glow=new T.Mesh(glowGeometry,glowMat);glow.renderOrder=12;group.add(glow);
+    batch={geometry,arrays,pair,glow};
   }
   function refreshTiming(){
     const {arrays,geometry}=batch;
-    for(const p of parts){const edge=p.edge,isA=edge?edge.side==='A':p.nodeId?g.nodes[p.nodeId].side==='A':true;
-      const times=isA?timing.a:timing.v;let ta=p.nodeId?times[p.nodeId]:edge?times[edge.a]:timing.a.SA;
-      let tb=p.nodeId?ta:edge?times[edge.b]:1e9;
+    for(const p of parts){const edge=p.edge,isA=p.illustrative?false:edge?edge.side==='A':p.nodeId?g.nodes[p.nodeId].side==='A':true;
+      const times=isA?timing.a:timing.v;let ta=p.terminalId?times[p.terminalId]:p.nodeId?times[p.nodeId]:edge?times[edge.a]:timing.a.SA;
+      let tb=p.terminalId||p.nodeId?ta:edge?times[edge.b]:1e9;
       const blocked=!!(edge&&(timing.blocked.has(edge.struct)||timing.blocked.has(edge.id)||timing.blocked.has('*')));
       if(edge?.side==='AP'){ta=timing.a.AP_A;tb=g.constants.TA_AVN+state.mode.avDelay+22-g.constants.WPW_LEAD}
       // atrialTimes retains the legacy zero-delay HIS alias; this display bridge
@@ -974,34 +1020,38 @@ function create(o){
       if(state.mode.atrial==='avnOnly'&&edge?.side==='A'&&edge.kind!=='avn')ta=tb=1e9;
       if(blocked)ta=tb=1e9;
       ta=Number.isFinite(ta)?ta:1e9;tb=Number.isFinite(tb)?tb:1e9;
-      const travel=edge?g.edgeDuration(edge,state.mode.avDelay)||0:p.nodeId?0:1;
+      const travel=edge?g.edgeDuration(edge,state.mode.avDelay)||0:p.nodeId||p.terminalId?0:1;
       for(let i=p.offset;i<p.offset+p.count;i++){
         const u=arrays.aU[i];arrays.aTime[i]=Math.min(ta+u*travel,tb+(1-u)*travel);
         arrays.aSide[i]=isA||edge?.side==='AP'?0:1;arrays.aRefractory[i]=isA?s.timing.refractory_ms.atrial:s.timing.refractory_ms.ventricular;
         arrays.aBlocked[i]=blocked?1:0;arrays.aVisible[i]=isVisible(p)?1:0;
+        arrays.aParam.set([u,arrays.aTime[i],arrays.aSide[i],arrays.aRefractory[i]],i*4);
+        arrays.aFlags[i*4]=arrays.aAvNode[i];arrays.aFlags[i*4+1]=arrays.aBlocked[i];arrays.aFlags[i*4+3]=arrays.aVisible[i];
       }
     }
-    for(const key of ['aTime','aSide','aRefractory','aBlocked','aVisible'])geometry.attributes[key].needsUpdate=true;
+    for(const key of ['aTime','aSide','aRefractory','aBlocked','aVisible','aParam','aFlags'])geometry.attributes[key].needsUpdate=true;
   }
-  function tube(edge,curve,radius,id=edge.tap){
-    const segments=Math.max(12,Math.ceil(curve.getLength()/.12)),radial=6;
-    const geometry=new T.TubeGeometry(curve,segments,radius,radial,false),centres=[],uu=[];
+  function tube(edge,curve,radii,id=edge.tap,info={}){
+    const [rA,rB]=Array.isArray(radii)?radii:[radii,radii],radius=Math.max(rA,rB);
+    const segments=Math.max(2,Math.ceil(curve.getLength()/.30)),radial=phone?8:12;
+    const geometry=new T.TubeGeometry(curve,segments,1,radial,false),centres=[],uu=[];
     let saFraction=.5;
-    if(!edge){let distance=Infinity;for(let i=0;i<=200;i++){const u=i/200,d=curve.getPointAt(u).distanceToSquared(vector(g.nodes.SA.p));if(d<distance){distance=d;saFraction=u}}}
+    if(!edge&&id==='sa'){let distance=Infinity;for(let i=0;i<=200;i++){const u=i/200,d=curve.getPointAt(u).distanceToSquared(vector(g.nodes.SA.p));if(d<distance){distance=d;saFraction=u}}}
     for(let i=0;i<geometry.attributes.position.count;i++){
-      const u=Math.floor(i/(radial+1))/segments,p=curve.getPointAt(u);centres.push(p.x,p.y,p.z);
-      uu.push(edge?u:u<=saFraction?8*(saFraction-u)/saFraction:10*(u-saFraction)/(1-saFraction));
+      const u=Math.floor(i/(radial+1))/segments,p=curve.getPointAt(u),P=geometry.attributes.position;
+      const r=T.MathUtils.lerp(rA,rB,u);P.setXYZ(i,p.x+(P.getX(i)-p.x)*r,p.y+(P.getY(i)-p.y)*r,p.z+(P.getZ(i)-p.z)*r);centres.push(p.x,p.y,p.z);
+      uu.push(edge||info.illustrative?u:u<=saFraction?8*(saFraction-u)/saFraction:10*(u-saFraction)/(1-saFraction));
     }
-    const pickMaterial=beatify(new T.MeshBasicMaterial({visible:false,clippingPlanes:clips}));
-    const picker=new T.Mesh(new T.TubeGeometry(curve,segments,Math.max(.35,2.5*radius),5,false),pickMaterial);
-    picker.userData.tap=id;group.add(picker);
-    return addPart(id,geometry,centres,uu,{edge,curve,radius,picker,
-      samples:curve.getSpacedPoints(segments*2),anchor:curve.getPointAt(.5)});
+    geometry.computeVertexNormals();
+    return addPart(id,geometry,centres,uu,{edge,curve,radius,radii:[rA,rB],
+      samples:curve.getSpacedPoints(segments*2),anchor:curve.getPointAt(.5),...info});
   }
   for(const edge of g.edges){
     if(edge.kind==='sa')continue;
     const curve=new T.CatmullRomCurve3(edge.points.map(vector),false,'centripetal');
-    tube(edge,curve,d.radiiCm[edge.kind]||.1);
+    const radii=edge.tap==='rbb'?[.12,.10]:edge.id==='AVN-HIS'?[.24,.20]:redesign.tubes.radiusCm[edge.kind]||[.1,.08];
+    tube(edge,curve,radii);
+    for(const [u,r] of [[0,radii[0]],[1,radii[1]]])cap(edge,curve.getPointAt(u),r,u);
   }
   const saCurve=new T.CatmullRomCurve3(['SA_H','SA','SA_T'].map(id=>vector(g.nodes[id].p)),false,'centripetal');
   tube(null,saCurve,.14,'sa');
@@ -1014,9 +1064,70 @@ function create(o){
     const n=geometry.attributes.position.count,centres=Array.from({length:n},()=>centre.toArray()).flat();
     const picker=new T.Mesh(new T.SphereGeometry(['SA','AVN'].includes(nodeId)?.45:.35,10,8).translate(...centre.toArray()),
       beatify(new T.MeshBasicMaterial({visible:false,clippingPlanes:clips})));group.add(picker);
-    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples:[centre],picker});
+    const samples=[centre];if(nodeId==='AVN')for(let i=0;i<n;i+=3)samples.push(new T.Vector3().fromBufferAttribute(geometry.attributes.position,i));
+    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples,picker});
   }
-  node('SA',[.35,.2,.2],'sa');node('AVN',[.3,.18,.2],'avn');node('HIS',[.16,.16,.16],'his');node('BIF',[.14,.14,.14],'his');
+  function cap(edge,p,r,u){const geometry=new T.SphereGeometry(r,phone?8:12,6).translate(...p.toArray()),n=geometry.attributes.position.count;
+    addPart(edge.tap,geometry,Array.from({length:n},()=>p.toArray()).flat(),new Float32Array(n).fill(u),{edge,radius:r,anchor:p,samples:[p],cap:true});}
+  node('SA',[.45,.24,.22],'sa');node('AVN',[.24,.24,.24],'avn');
+  // Align the SA bulge with the exported crista axis, with its epicardial proudness.
+  const sa=parts.find(p=>p.nodeId==='SA'),saAt=vector(g.nodes.SA.p),saAxis=vector(g.nodes.SA_T.p).sub(vector(g.nodes.SA_H.p)).normalize();
+  const saRotation=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),saAxis);
+  sa.geometry.translate(...saAt.clone().negate().toArray()).applyQuaternion(saRotation).translate(...saAt.toArray());
+  if(o.epicardium){const P=o.epicardium.attributes.position,N=o.epicardium.attributes.normal;let closest=0,dd=Infinity;
+    for(let i=0;i<P.count;i++){const distance=new T.Vector3().fromBufferAttribute(P,i).distanceToSquared(saAt);if(distance<dd){dd=distance;closest=i}}
+    sa.geometry.translate(...new T.Vector3().fromBufferAttribute(N,closest).multiplyScalar(.22*.2).toArray());}
+  function buildFan(){
+    const fascicles=redesign.lbbFan.fascicles.map(id=>parts.find(p=>p.edge?.tap===id&&p.curve)).filter(Boolean);
+    for(let k=0;k<fascicles.length-1;k++){
+      const a=fascicles[k],b=fascicles[k+1],pos=[],centres=[],uu=[],idx=[];
+      for(let j=0;j<=16;j++)for(const p of [a,b]){const u=j/16,q=p.curve.getPointAt(u);pos.push(...q.toArray());centres.push(...q.toArray());uu.push(u)}
+      for(let j=0;j<16;j++){const i=j*2;idx.push(i,i+1,i+2,i+1,i+3,i+2)}
+      // Give only the flat ribbon a reverse face; making the whole transparent
+      // batch DoubleSide would add back/front passes for every tube and halo.
+      for(const [a,b,c] of Array.from({length:idx.length/3},(_,i)=>idx.slice(i*3,i*3+3)))idx.push(c,b,a);
+      const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(pos,3));geometry.setIndex(idx);geometry.computeVertexNormals();
+      const samples=[];for(let j=3;j<=13;j++){const u=j/16;samples.push(a.curve.getPointAt(u).lerp(b.curve.getPointAt(u),.5))}
+      addPart('lbb',geometry,centres,uu,{edge:a.edge,anchor:vector(g.nodes.LB1.p),samples,radius:.02,alpha:.35,ribbon:true});
+    }
+  }
+  function buildTree(emit=tube){
+    const surface=o.endocardium;if(!surface)return;
+    const {geometry,names}=surface,P=geometry.attributes.position,N=geometry.attributes.normal,C=geometry.attributes.aCavity,L=geometry.attributes.aLabel;
+    let seed=0x62c2026;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+    const pools={LV:[],RV:[]};
+    for(let i=0;i<P.count;i++){
+      const cavity=names[C.getX(i)],label=names[L.getX(i)],side=cavity==='LV_cavity'?'LV':cavity==='RV_cavity'?'RV':null;
+      if(!side||!s.regions.ventricularMuscle.labels.includes(label)||side==='LV'&&P.getZ(i)<1.8&&label!=='IVS'||side==='RV'&&P.getZ(i)<1.5)continue;
+      pools[side].push({p:new T.Vector3().fromBufferAttribute(P,i),n:new T.Vector3().fromBufferAttribute(N,i),label,index:i});
+    }
+    const terminals=Object.entries(g.nodes).filter(([,n])=>n.purkinje);
+    const snap=(p,pool)=>{let best,dd=Infinity;for(const q of pool){const d=q.p.distanceToSquared(p);if(d<dd){dd=d;best=q}}return best};
+    for(const side of ['LV','RV']){
+      const pool=pools[side],limit=Math.round((side==='LV'?120:60)*(phone?.4:1));if(!pool.length)continue;
+      const own=terminals.filter(([id])=>(/^(RB|MOD)/.test(id)?'RV':'LV')===side);
+      const roots=own.map(([id,n])=>({p:vector(n.p),terminalId:id}));
+      if(side==='LV')for(const p of parts.filter(p=>p.edge?.kind==='fasc'&&p.curve))for(const u of [.5,.8])roots.push({p:p.curve.getPointAt(u),terminalId:own.reduce((a,b)=>vector(a[1].p).distanceToSquared(p.curve.getPointAt(u))<vector(b[1].p).distanceToSquared(p.curve.getPointAt(u))?a:b)[0]});
+      let count=0;
+      function branch(start,direction,level,terminalId){
+        if(level===3||count>=limit)return;
+        for(let k=0,n=2+(random()>.55?1:0);k<n&&count<limit;k++){
+          const q=snap(start,pool),normal=q.n.clone().normalize(),angle=(25+15*random())*Math.PI/180*(k%2?1:-1);
+          let dir=direction.clone().addScaledVector(normal,-direction.dot(normal));if(dir.lengthSq()<.01)dir.set(1,0,-.5);
+          dir.normalize().applyAxisAngle(normal,angle);const length=[.8,.5,.3][level],points=[],surfaceIndices=[],depth=.05+.1*random();
+          for(let j=0;j<=8;j++){const target=start.clone().addScaledVector(dir,length*j/8),hit=snap(target,pool);points.push(hit.p.clone().addScaledVector(hit.n,-depth));surfaceIndices.push(hit.index)}
+          if(points[0].distanceTo(points[8])<.1)continue;
+          // Piecewise linear segments keep every vertex on its own subendocardial shell (no spline overshoot).
+          const curve=new T.CurvePath();for(let j=1;j<points.length;j++)curve.add(new T.LineCurve3(points[j-1],points[j]));
+          const nearest=own.reduce((a,b)=>vector(a[1].p).distanceToSquared(points[4])<vector(b[1].p).distanceToSquared(points[4])?a:b)[0];
+          emit(null,curve,redesign.purkinjeTree.radiusCm,'purk',{illustrative:true,terminalId:nearest,ventricle:side,depthCm:depth,surfaceIndices,controlPoints:points.map(p=>p.toArray()),seed:false,tappable:false});count++;
+          branch(points[8],dir,level+1,terminalId);
+        }
+      }
+      for(const root of roots)branch(root.p,new T.Vector3(random()-.5,random()-.5,-1),0,root.terminalId);
+    }
+  }
+  buildFan();buildTree();
   buildBatch();
   // One leader/label per contract tap id. Node anchors take precedence over curves.
   for(const id of Object.keys(d.shortNames)){
@@ -1084,12 +1195,19 @@ function create(o){
     update(state.ms);onChange?.();return next;
   }
   function isVisible(part){return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
-  function update(ms){
+  function update(ms,wall=performance.now()){
     state.ms=ms;const rr=cycleMs(),phase=((ms%rr)+rr)%rr;
     const clocks=o.clocks?o.clocks(ms):{a:phase,v:phase-g.constants.TA_AVN-state.mode.avDelay};
     waveUniforms.uNowA.value=clocks.a;waveUniforms.uNowV.value=clocks.v;
     waveUniforms.uSelectedId.value=tapIds.indexOf(state.selected);
-    const cut=!!o.cutView?.();waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;if(batch)batch.pair[0].visible=!cut;
+    const cut=!!(o.cutMode?.()??o.cutView?.());waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;waveUniforms.uWidth.value=cut?.8:1;
+    waveUniforms.uRest.value=T.MathUtils.lerp(fadeFrom,fadeTo,Math.min(1,Math.max(0,(wall-fadeStart)/300)));
+    if(batch){const external=!!o.externalMode?.();
+      // External explicitly overlays the wiring on its translucent shell: one
+      // core pass suffices. Only See-through needs front/behind classification.
+      batch.pair[0].visible=!cut&&!external;batch.pair[1].material.depthTest=!external;
+      batch.glow.visible=!cut;batch.glow.material.depthTest=!external;
+    }
     waveUniforms.uPulse.value=clocks.a>=timing.a.AVN&&clocks.a<timing.a.AVN+state.mode.avDelay?
       .55+.45*Math.sin((clocks.a-timing.a.AVN)*.11)**2:0;
   }
@@ -1146,30 +1264,43 @@ function create(o){
   }
   function pick(x,y,ray){
     if(!state.enabled)return null;const hits=[];
-    for(const p of parts){if(!isVisible(p))continue;let px=Infinity,hit3d=false,point=null;
+    for(const p of parts){if(p.illustrative||p.cap||!isVisible(p))continue;let px=Infinity,hit3d=false,point=null;
       for(const sample of p.samples){const q=project(sample);if(q.z<-1||q.z>1||removed(q.w))continue;
         const distance=Math.hypot(q.x-x,q.y-y);if(distance<px){px=distance;point=q.w}
         if(ray.distanceToPoint(q.w)<(p.nodeId?(['SA','AVN'].includes(p.nodeId)?.45:.35):Math.max(.35,2.5*p.radius)))hit3d=true;
       }
-      const rank=p.nodeId?(['SA','AVN'].includes(p.nodeId)?0:1):p.id==='avn'?2:priority(p.id);
+      // The visible AV bead owns its projected footprint, including when its
+      // centre is just behind the cut plane but its round surface is exposed.
+      if(p.nodeId==='AVN'&&Number.isFinite(px)){
+        const c=project(p.anchor),r=host.getBoundingClientRect(),radiusPx=p.radius*cam.projectionMatrix.elements[5]*r.height/(2*c.w.distanceTo(cam.position));
+        if(Math.hypot(c.x-x,c.y-y)<=radiusPx)px=0;
+      }
+      const rank=p.nodeId==='AVN'?-2:p.id==='his'?-1:p.nodeId==='SA'?0:p.id==='avn'?2:priority(p.id);
       if(hit3d||px<=d.pick.minScreenPx)hits.push({id:p.id,px,hit3d,point,priority:rank});
     }
     if(!hits.length)return null;
     // A directly targeted centre stays selectable in the tightly packed His/LBB region;
     // contract priority resolves equally close hits and the wider finger fallback.
     const direct=hits.filter(h=>h.px<=3),pool=direct.length?direct:hits;
-    pool.sort((a,b)=>direct.length&&Math.abs(a.px-b.px)>.15?a.px-b.px:a.priority-b.priority||a.px-b.px);return pool[0];
+    pool.sort((a,b)=>direct.length&&Math.abs(a.px-b.px)>.15?a.px-b.px:a.priority-b.priority||a.px-b.px||a.id.localeCompare(b.id));return pool[0];
   }
   function select(id){if(!(id in d.shortNames))return false;state.selected=id;update(state.ms);onSelect(id);onChange?.();return true;}
   function enable(on){state.enabled=!!on;group.visible=state.enabled;update(state.ms);placeLabels();onChange?.()}
   function seek(ms){if(!Number.isFinite(ms))throw new TypeError('Seek requires milliseconds');anchor(ms);update(state.ms);onChange?.();return state.ms}
   function advance(){const ms=current();state.ms=ms%(cycleMs()*120);if(ms>=cycleMs()*120)anchor(state.ms);return state.ms}
-  function playback({playing=state.playing,speed=state.speed}={}){if(![1,.25,.1].includes(speed))throw new Error('Invalid speed');anchor();state.playing=!!playing;state.speed=speed;onChange?.()}
+  function playback({playing=state.playing,speed=state.speed}={}){if(![1,.25,.1].includes(speed))throw new Error('Invalid speed');anchor();update(state.ms);
+    if(!!playing!==state.playing){fadeFrom=waveUniforms.uRest.value;fadeTo=playing?0:1;fadeStart=performance.now()}
+    state.playing=!!playing;state.speed=speed;onChange?.();
+    // Paused viewers still render the complete fade, then return to idle.
+    if(!playing){const tick=()=>{update(state.ms);onChange?.();if(performance.now()-fadeStart<300)requestAnimationFrame(tick)};requestAnimationFrame(tick)}
+  }
   function visibility(active){if(suspended===!active)return;anchor();suspended=!active;onChange?.()}
   const clockState=()=>({ms:anchorMs,wall:anchorWall,rate:state.speed,running:state.playing&&!suspended});
   function midpoint(id,rest=false){const l=labels.find(l=>l.id===id);if(!l)return null;const p=project(l.part.anchor,!rest);return {x:p.x,y:p.y,visible:state.enabled&&isVisible(l.part)&&!removed(p.w),point:l.part.anchor.toArray()};}
   setMode({});
   return {state,group,parts,labels,rings,enable,update,refreshVisibility:()=>{if(batch&&timing)refreshTiming()},placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
+    fadeState:()=>({from:fadeFrom,to:fadeTo,start:fadeStart,durationMs:300}),
+    treeRecipe(){const out=[];buildTree((edge,curve,radii,id,info)=>out.push(info));return out},
     timing:()=>timing,cacheSize:()=>cache.size,playCircuit(){throw new Error('T8.2')}};
 }
 
@@ -1383,16 +1514,27 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
     /* T6.2-B contract (spec.timing.entry): the bundles are insulated; muscle is entered only from the first Purkinje node of each
        branch onwards, each branch only into its own ventricle (left bundle → LV, right bundle → RV), the septal fascicle only into
        the septum. A blocked branch has no times, so it loses its entry points. Illustrative display branches never seed. */
-    const E=graph.spec.timing.entry||{},R=E.radiusCm??3.5,VP=E.purkinjeVelocity_mps??2.6,J=E.junction_ms??4,snap=graph.spec.timing.atrialSeedSnapCm??.3;
+    const entry=graph.spec.timing.entry||{},radius=entry.radiusCm??3.5,
+      purkinjeVelocity=entry.purkinjeVelocity_mps??2.6,junctionDelay=entry.junction_ms??4,
+      snap=graph.spec.timing.atrialSeedSnapCm??.3;
     const side=id=>/^(RB|MOD)/.test(id)?3:2;
-    for(const e of graph.edges){if(e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
+    const septalOnly=tap=>(entry.septalOnly||[]).includes(tap)?'IVS':null;
+    for(const e of graph.edges){if(e.illustrative||e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
       const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),
-        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!E.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
+        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!entry.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
       if(!isA&&!isV)continue;const count=Math.ceil(length(e)/(isA?.3:.2));
-      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:E.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:(E.septalOnly||[]).includes(e.tap)?'IVS':null})}
+      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:entry.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:septalOnly(e.tap)})}
     }
     if(a.SA<NEVER&&!['none','avnOnly','saOnly'].includes(mode.atrial))A.push({p:graph.nodes.SA.p,t:6});
-    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:(E.septalOnly||[]).includes(n.tapTarget)&&id!=='LVAP'?'IVS':null});
+    for(const [id,n] of Object.entries(graph.nodes))if(!n.illustrative&&n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:id==='LVAP'?null:septalOnly(n.tapTarget)});
+    function terminalTime(p,chamber,label){
+      let time=NEVER;
+      for(const terminal of Q){
+        if(entry.ownVentricle&&terminal.chamber!==chamber||terminal.only&&terminal.only!==label)continue;
+        const distance=Math.hypot(...terminal.p.map((x,k)=>x-p[k]));
+        if(distance<=radius)time=Math.min(time,terminal.t+distance*10/purkinjeVelocity+junctionDelay);
+      }return time;
+    }
     let nextIdle=performance.now()+8;
     if(!vm.noMuscle){for(let i=0;i<inner.positions.length/3;i++){
       if((i&511)===0){if(!stillWanted())throw 'superseded';if(performance.now()>=nextIdle){await new Promise(resolve=>typeof requestIdleCallback==='function'?requestIdleCallback(resolve,{timeout:50}):setTimeout(resolve,0));nextIdle=performance.now()+8}}
@@ -1401,7 +1543,7 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       // Only muscle endocardium receives fast-network seeds; classification in
       // the solver rejects any excluded/non-muscle destination as well.
       if(!graph.spec.regions.ventricularMuscle.labels.includes(label))continue;
-      let t=NEVER;for(const q of Q){if(E.ownVentricle&&q.chamber!==(rv?3:2))continue;if(q.only&&q.only!==label)continue;const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=R)t=Math.min(t,q.t+d*10/VP+J)}
+      const t=terminalTime(p,rv?3:2,label);
       if(t<NEVER)V.push({p:Array.from(p),t,chamber:rv?3:2});
     }
     if(vm.ap)V.push({p:graph.nodes.AP_V.p,t:22-graph.constants.WPW_LEAD,chamber:2});
@@ -1428,7 +1570,7 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       },100);
     }return entry;
   }
-  return {get,cache,worker:!!worker,request(mode){const entry=get(mode);if(!entry.ready){entry.requested=true;get(mode)}return entry.promise},visibility(on){visible=!!on;if(visible&&latestMode)get(latestMode)}};
+  return {get,cache,worker:!!worker,seedSources:mode=>sources(mode,()=>true),request(mode){const entry=get(mode);if(!entry.ready){entry.requested=true;get(mode)}return entry.promise},visibility(on){visible=!!on;if(visible&&latestMode)get(latestMode)}};
 }
 function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,palette={}}){
   const uniforms={uActEnabled:{value:0},uIso:{value:0},uActA:{value:0},uActV:{value:0},uIsoMin:{value:0},uIsoMax:{value:150},
@@ -1470,7 +1612,7 @@ function display({T,meshes,materials,capMaterials,capUniforms,cap,clock,legend,p
   let legendKey='';
   function update(enabled,iso,ready,ms,error){const t=clock(ms);uniforms.uActEnabled.value=enabled&&ready?1:0;uniforms.uIso.value=iso?1:0;uniforms.uActA.value=t.a;uniforms.uActV.value=t.v;
     const key=[enabled,iso,ready,error].join('|');if(key===legendKey)return;legendKey=key;
-    legend.hidden=!enabled;legend.classList.toggle('pending',!ready);legend.classList.toggle('is-map',iso&&ready);legend.querySelector('.actStatus').textContent=error?'Activation unavailable':ready?'':'Computing…';}
+    legend.hidden=!enabled;legend.classList.toggle('pending',!ready);legend.classList.toggle('is-map',iso&&ready);const help=legend.querySelector('.timing-map-help');if(help)help.hidden=!(iso&&ready);legend.querySelector('.actStatus').textContent=error?'Activation unavailable':ready?'':'Computing…';}
   return {apply,update,uniforms};
 }
 window.ACTIVATION={create,solve,display,NEVER};
@@ -1580,7 +1722,7 @@ const EXPLORE_DATA = (() => {
   const ART_NAME = { LM: "Left main", LAD: "Left anterior descending (LAD)", D1: "First diagonal", D2: "Second diagonal", LCx: "Left circumflex (LCx)", OM1: "First obtuse marginal", OM2: "Second obtuse marginal",
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
-  const UI_FLAGS={activationTimingMap:false};
+  const UI_FLAGS={activationTimingMap:true};
   /* ---- one name per valve (Punnatorn, 13 Nov): the model labels the valve, not each leaflet; a tap on any leaflet opens the valve.
      The leaflet ids stay in the phantom, the exports and the shaders. */
   const VALVE_GROUPS = { mitral_valve: ["MV_AML", "MV_PML"], tricuspid_valve: ["TV_septal", "TV_anterior", "TV_posterior"],
@@ -1612,7 +1754,7 @@ const EXPLORE_DATA = (() => {
     sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "coronary_sinus"],
     coronal: [], axial: [], sagittal: [] };
   /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
-     "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
+     "fade" = labels show in All at .55 opacity; selected labels stay fully opaque.
      Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
   const VIEW_LAYERS = {
     external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
@@ -1635,7 +1777,7 @@ const EXPLORE_DATA = (() => {
     raOpen: ["sa", "tracts", "avn", "avn_fast", "avn_slow", "his", "cti"],
     laOpen: ["sa", "tracts", "bach", "avn"],
     sax: ["lsf", "laf", "lpf", "rbb", "moderator", "purk"] };
-  /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
+  /* ---- crowded AV junction: in All, one "AV junction" label at the AV node; a tap fans it out
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
@@ -1645,6 +1787,7 @@ const EXPLORE_DATA = (() => {
 <script>/* T6.2 UI phase A: presentation only. No anatomical coordinates or teaching text. */
 (function(){
 'use strict';
+const labelColours=Object.freeze({anatomy:'#D4AD78',conduction:'#22C3AB',vessels:'#E98A7A',valves:'#E9DFBD'});
 const palette=Object.freeze({idle:'#22C3AB',slowPathway:'#22C3AB',accessory:'#22C3AB',
   wavefront:'#FFFFFF',justFired:'#6BF2DB',muscleWave:'#FFC83D',muscleAfter:'#FFE9A8'});
 /* Callouts sit INSIDE the viewer, in free space next to the heart (never over it), with a straight leader line.
@@ -1782,7 +1925,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
     const seen=new Set(),items=pool.filter(e=>!seen.has(e.id)&&seen.add(e.id)).sort((a,b)=>a.text.localeCompare(b.text));
     const key=items.map(e=>e.id).join('|')+'#'+selection();if(list.dataset.key===key)return;list.dataset.key=key;
     list.replaceChildren(...items.map(e=>{const b=document.createElement('button');b.type='button';b.className='chip'+(e.id===selection()?' sel':'');
-      b.textContent=e.text;b.dataset.id=e.id;b.onclick=()=>pick(e.el);return b}));
+      b.textContent=e.text;b.dataset.id=e.id;b.style.borderColor=e.id===selection()?'#FFFFFF':labelColours[e.layer]||labelColours.anatomy;b.style.opacity=e.id===selection()?'1':e.fade?'.55':'1';b.onclick=()=>pick(e.el);return b}));
   }
   function update(){
     const entries=candidates(),selected=selection(),labelMode=mode(),phone=innerWidth<=900,ids=relevant[view()]||[];
@@ -1801,7 +1944,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
     if(key!==layoutKey){
       layoutKey=key;
       const visible=new Set(eligible.map(e=>e.el));
-      for(const entry of entries)if(entry.el.hidden===visible.has(entry.el))entry.el.hidden=!visible.has(entry.el);
+      for(const entry of [...entries,...shown])if(entry.el.hidden===visible.has(entry.el))entry.el.hidden=!visible.has(entry.el);
       for(const entry of eligible){if(entry.el.parentElement!==layer)layer.appendChild(entry.el);
         if(entry.el.textContent!==entry.text)entry.el.textContent=entry.text;
         entry.el.classList.add('callout');entry.el.classList.toggle('sel',entry.id===selected);entry.el.style.removeProperty('transform');}
@@ -1809,6 +1952,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
       status.textContent=labelMode==='relevant'&&!ids.length?'No labels configured for this view. Tap a structure to explore.':labelMode==='explore'&&!eligible.length?'Tap a structure to show its label and card.':'';
       status.hidden=!status.textContent;
     }
+    for(const entry of eligible){entry.el.style.borderColor=entry.id===selected?'#FFFFFF':labelColours[entry.layer]||labelColours.anatomy;entry.el.style.opacity=entry.id===selected?'1':entry.fade?'.55':'1'}
     shown=eligible;leaders();
   }
   return {update,invalidate(){layoutKey=''},visible(){return shown.map(e=>{const r=e.el.getBoundingClientRect();return{id:e.id,text:e.el.textContent,layer:e.layer,x:r.left+r.width/2,y:r.top+r.height/2}})},
@@ -1822,7 +1966,7 @@ function focusMaterial(mat){const prev=mat.onBeforeCompile,key=mat.customProgram
       .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.0),.28*step(.5,vFocus));');};
   mat.customProgramCacheKey=()=>key+'-focus';
 }
-window.EXPLORE_UI={palette,callouts,focusMaterial};
+window.EXPLORE_UI={palette,labelColours,callouts,focusMaterial};
 })();
 </script>
 <script>/* ===== 3D HEART (explore page): the refined heart only =====
@@ -2160,7 +2304,7 @@ host.addEventListener("pointermove", e => { const p = ptrs.get(e.pointerId); if 
   interacting(); });
 function endPtr(e){ if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId);
   if (gesture && ptrs.size === 0){ if (gesture.moved < 6 && Date.now() - gesture.start < 600){ const lab = gesture.target && gesture.target.closest && gesture.target.closest(".lab");
-      if (lab) { if(lab.dataset.tap)conduction.select(lab.dataset.tap);else select(lab.dataset.id, null); }
+      if (lab) { pickLabel(lab); }
       else { const now = Date.now(); rayAt(e.clientX,e.clientY);const network=conduction.pick(e.clientX,e.clientY,ray.ray);
         if(network){conduction.select(network.id);lastTap=0}else{if (now - lastTap < 320) focusAt(e.clientX, e.clientY); else tapAt(e.clientX, e.clientY); lastTap = now;} } } gesture = null; } }
 host.addEventListener("pointerup", endPtr); host.addEventListener("pointercancel", endPtr);
@@ -2210,7 +2354,7 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   cavityAnchors(); refreshCond();
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
-/* default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" counts as on until phase C dims it).
+/* Default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" enables the layer and dims its All labels).
    Conduction follows its default only on a student's own view change (it starts the beat and the ECG strip). */
 function viewDefaults(view, withConduction){ const V = D.VIEW_LAYERS[view]; if (!V) return;
   for (const [k, v] of Object.entries(V)) if (k !== "conduction" || withConduction) st.layers[k] = v !== "off";
@@ -2283,12 +2427,26 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
 let labelsDirty = true, lastLabelCheck = 0;
+let valveFrameKey='';
+const valveAnchorCache=new Map();
+function refreshValveAnchors(){
+  const frames=HI.items.map(it=>it.frames.find(m=>m?.visible)),key=frames.map(m=>m?.uuid||'').join('|');if(key===valveFrameKey)return false;valveFrameKey=key;
+  for(const a of anchors.filter(a=>a.where==='valve')){
+    const ids=(D.VALVE_GROUPS[a.id]||[a.id]).map(id=>intNames.indexOf(id)),mesh=frames.find(m=>m&&ids.some(id=>m.userData.labels.includes(id)));if(!mesh)continue;
+    const cacheKey=mesh.uuid+':'+a.id;let cached=valveAnchorCache.get(cacheKey);
+    if(!cached){const P=mesh.geometry.attributes.position,indices=[];for(let i=0;i<P.count;i++)if(ids.includes(mesh.userData.labels[i]))indices.push(i);
+      const at=centroidAnchor(mesh.geometry,mesh.userData.labels,id=>ids.includes(id));if(!at)continue;
+      cached={p:at.p,cands:indices.filter((_,i)=>i%Math.max(1,Math.floor(indices.length/24))===0).map(i=>new T.Vector3().fromBufferAttribute(P,i))};valveAnchorCache.set(cacheKey,cached);}
+    a.home.copy(cached.p);a.p.copy(cached.p);a.w=toWorld(a.p);a.cands=cached.cands;a.valveFrame=mesh.uuid;
+  }return true;
+}
 const ray = new T.Raycaster();
 function occluded(w, targets){ const d = cam.position.distanceTo(w); ray.set(cam.position, w.clone().sub(cam.position).normalize()); ray.far = d - .35;
   const hits = ray.intersectObjects(targets, false); return hits.some(h => !removed(h.point)); }
 let refreshCond = () => {}, condLive = false; const condHidden = new Set(), condAt = new Map();   // set once the conduction view exists
 const viewKey = () => st.mode === "cut" ? st.cut : st.mode === "xray" ? "seeThrough" : "external";
 function updateLabelVisibility(){
+  refreshValveAnchors();
   const centreW = centre, m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
   for (const a of anchors){ let show = a.layer !== "conduction" && !!st.layers[a.layer];
     if (a.home && !a.p.equals(a.home)){ a.p.copy(a.home); a.w = toWorld(a.p); }
@@ -2428,11 +2586,11 @@ function deform(p){const v=p.clone(),z=v.z,w=T.MathUtils.smoothstep(z,-1,1.5),u=
   v.z+=BEAT_SHAPE.axialLift*u*(z>=0?1-T.MathUtils.clamp(z/BEAT_SHAPE.apexZ,0,1):T.MathUtils.clamp(1+z/BEAT_SHAPE.baseDepth,0,1));return v;}
 /* T6.2-B: a dissection view draws only the conduction parts it teaches (EXPLORE_DATA.VIEW_CONDUCTION), and only where they lie on the visible anatomy */
 const cutView=()=>st.mode==="cut"&&!CUTS[st.cut].body;
-const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,
-  cutView,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
+const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,endocardium:{geometry:HI.tissue.geometry,names:intNames},
+  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
   cycleMs:()=>60000/C.SC.normal.rh.rate,
   clocks:activationClock,
-  onSelect:id=>select('conduction:'+id,null),onChange:()=>{if(conductionReady){syncClock();dirty()}}});
+  onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
 Object.assign(window.CONDUCTION_VIEW,conduction);
 ecg.LEGACY_TA=ECG.LEGACY_TIMING.TA_AVN;
 const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction});
@@ -2457,7 +2615,8 @@ function syncActivation(){
 function syncClock(){
   const ms=conduction.state.ms,rr=60000/C.SC.normal.rh.rate,v=ecg.curEv(ecgContext.ev,ms+200).v;
   if(st.beat){const ventricularTime=v?ms+200-v.t-v.on:ms-CGRAPH.constants.TA_AVN-conduction.state.mode.avDelay-ecg.ONSET.normal;
-    st.t=((ventricularTime/rr)%1+1)%1;beatU.uSys.value=sysCurve(st.t);HI.setPhase(st.t);}
+    st.t=((ventricularTime/rr)%1+1)%1;beatU.uSys.value=sysCurve(st.t);HI.setPhase(st.t);
+    if(refreshValveAnchors()&&st.mode!=='ext'&&(st.labelMode!=='explore'||D.VALVE_OF[st.sel]||D.VALVE_GROUPS[st.sel]))labelsDirty=true;}
   conduction.update(ms);ecgStrip.draw(ms,false);
   if(conductionReady)syncActivation();
 }
@@ -2483,16 +2642,23 @@ function updateFocus(id,hit){
     }attr.needsUpdate=true;
   }
 }
+let avJunctionExpanded=false;
+const avJunctionLabel=document.createElement('button');avJunctionLabel.type='button';avJunctionLabel.className='lab lab-conduction';avJunctionLabel.dataset.id='group:avJunction';avJunctionLabel.hidden=true;avJunctionLabel.setAttribute('aria-expanded','false');labelLayer.appendChild(avJunctionLabel);
+function pickLabel(el){if(el.dataset.id==='group:avJunction'){avJunctionExpanded=true;avJunctionLabel.setAttribute('aria-expanded','true');callouts?.invalidate();dirty();return}
+  if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null);
+}
 function calloutCandidates(){
+  if(st.labelMode==='explore'&&!st.sel)return [];
+  const exploring=st.labelMode==='explore';
   const rect=host.getBoundingClientRect();
   const project=p=>{const w=toWorld(deform(p)),v=w.clone().project(cam),rest=toWorld(p).project(cam);
     const point={x:rect.left+(v.x*.5+.5)*rect.width,y:rect.top+(-v.y*.5+.5)*rect.height};
     return {point,rest:{x:rect.left+(rest.x*.5+.5)*rect.width,y:rect.top+(-rest.y*.5+.5)*rect.height},
       visible:!removed(w)&&v.z>-1&&v.z<1&&point.x>=rect.left&&point.x<=rect.right&&point.y>=rect.top&&point.y<=rect.bottom};
   };
-  const entries=anchors.filter(a=>a.layer!=='conduction').map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
+  const entries=anchors.filter(a=>a.layer!=='conduction'&&(!exploring||a.id===st.sel)).map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
-  for(const label of conduction.labels){label.el.dataset.id='conduction:'+label.id;
+  for(const label of conduction.labels){if(exploring&&st.sel!=='conduction:'+label.id)continue;label.el.dataset.id='conduction:'+label.id;
     const at=condAt.get(label.id),p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(at||label.part.anchor)};
     const shown=at?!!conduction.state.enabled:p.visible&&!condHidden.has(label.id);entry.visible=entry.visible&&shown;if(shown)entry.tap=at?{x:entry.x,y:entry.y}:{x:p.x,y:p.y};entries.push(entry);
   }
@@ -2507,6 +2673,13 @@ function calloutCandidates(){
       marker.visible=projected.visible;marker.position.copy(toWorld(deform(p)));
     }
   }
+  const group=D.LABEL_GROUPS.avJunction;
+  for(const e of entries)e.fade=st.labelMode==='all'&&D.VIEW_LAYERS[viewKey()]?.[e.layer]==='fade';
+  if(st.labelMode==='all'&&!avJunctionExpanded){
+    const anchor=entries.find(e=>e.id===group.anchor);
+    for(const e of entries)if(group.members.includes(e.id)){e.allowed=false;e.visible=false}
+    if(anchor)entries.push({...anchor,id:'group:avJunction',el:avJunctionLabel,text:group.text,allowed:st.layers.conduction,visible:!condHidden.has('avn')&&anchor.point!=null,fade:false});
+  }else entries.push({id:'group:avJunction',el:avJunctionLabel,text:group.text,layer:'conduction',allowed:false,visible:false});
   return entries;
 }
 
@@ -2532,15 +2705,24 @@ $(".bNone").onclick = () => { for (const k in st.layers) st.layers[k] = false; s
 const tog = (sel, get, set) => { const b = $(sel); const sync = () => { b.setAttribute("aria-pressed", get()); b.querySelector(".st").textContent = get() ? "On" : "Off"; }; b.onclick = () => { set(!get()); sync(); applyMode(); }; sync(); };
 $('.bConduction').onclick=()=>{st.layers.conduction=!st.layers.conduction;syncLayers();};
 $('.bIsochrones').onclick=()=>{isochrones=!!D.UI_FLAGS.activationTimingMap&&!isochrones;syncActivation();dirty()};
+const timingText=CGRAPH.spec.display.tissueWave.timingMapText;
+$('.bIsochrones').replaceChildren(document.createTextNode(timingText.button+' '),Object.assign(document.createElement('b'),{className:'st',textContent:'Off'}));
+$('.bIsochrones').title=timingText.hint;
+const timingHelp=document.createElement('div');timingHelp.className='timing-map-help';timingHelp.hidden=true;
+for(const key of ['hint','legendTitle','legendAtria','explain','compare','caveat']){const p=document.createElement('p');p.dataset.timingText=key;p.textContent=timingText[key]||'TODO(content)';timingHelp.appendChild(p)}
+$('.activationLegend').appendChild(timingHelp);
 $('.bSeeThrough').onclick=()=>{if(st.mode==='cut')return;st.mode=st.mode==='xray'?'ext':'xray';viewDefaults(st.mode==='xray'?'seeThrough':'external',true);applyMode()};
-function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;labelsDirty=true;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
+function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;avJunctionExpanded=false;avJunctionLabel.setAttribute('aria-expanded','false');labelsDirty=true;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
 $$('[data-label-mode]').forEach(b=>b.onclick=()=>labelMode(b.dataset.labelMode));
-labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)});
+labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;pickLabel(el)});
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
 tog(".bBeat", () => st.beat, v => { st.beat = v; if (!v){ beatU.uSys.value = 0; HI.setPhase(0); } kick(); });
 $$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
 $(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
+const labelLegend=document.createElement('div');labelLegend.className='label-border-legend';labelLegend.setAttribute('aria-label','Label border colours');
+for(const [name,colour] of Object.entries({...EXPLORE_UI.labelColours,selected:'#FFFFFF'})){const span=document.createElement('span'),swatch=document.createElement('i');swatch.style.borderColor=colour;span.append(swatch,document.createTextNode(name));labelLegend.appendChild(span)}
+$('.outside-legends').appendChild(labelLegend);
 
 /* on-screen silhouette of what is drawn (outer surface, or the kept tissue in a cut), cached per camera/viewer state */
 const silCache={key:'',pts:[]},silV=new T.Vector3();
@@ -2555,7 +2737,7 @@ function silhouette(){
 }
 callouts=EXPLORE_UI.callouts({stage:$('.model-stage'),viewer:host,layer:labelLayer,candidates:calloutCandidates,selection:()=>st.sel,
   mode:()=>st.labelMode,view:()=>st.mode==='cut'?st.cut:st.mode==='xray'?'seeThrough':'external',relevant:D.RELEVANT_LABELS,status:$('.labelStatus'),
-  silhouette,list:$('.labelList'),pick:el=>{if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)}});
+  silhouette,list:$('.labelList'),pick:pickLabel});
 document.fonts?.addEventListener('loadingdone',()=>{callouts.invalidate();dirty()});
 
 /* ---------- render loop: runs only while shown; idles when nothing moves ---------- */
@@ -2592,6 +2774,7 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),
+  activationSeedSources:()=>activation.seedSources(conduction.state.mode),
   activationState:()=>({ready:activationEntry.ready,error:activationEntry.error,worker:activation.worker,cacheSize:activation.cache.size,isochrones,diagnostics:activationEntry.diagnostics,clocks:{a:activationDisplay.uniforms.uActA.value,v:activationDisplay.uniforms.uActV.value},enabled:activationDisplay.uniforms.uActEnabled.value>0}),
   activationAt(i,mesh='outer'){const k=mesh==='outer'?0:mesh==='interior'?1:-1,m=activationEntry.meshes?.[k],a=activationMeshes[k];if(!m||i<0||i>=m.tA.length)return null;return {tA:m.tA[i],tV:m.tV[i],class:m.classes[i],strength:m.strength[i],p:Array.from(a.positions.subarray(i*3,i*3+3)),label:a.names[a.labels[i]],wall:a.walls[a.wall[i]],cavity:a.cavity?a.names[a.cavity[i]]:null,aha:k===0?HM.attr.aha[i]:null}},
   activationCount:mesh=>activationMeshes[mesh==='interior'?1:0].positions.length/3,
@@ -2603,9 +2786,9 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
     colours:{impulse:CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uHot.value.getHexString(),muscle:activationDisplay.uniforms.uActHot.value.getHexString(),after:activationDisplay.uniforms.uActAfter.value.getHexString()}}),
   now:()=>conduction.now(),seek:ms=>conduction.seek(ms),tapStruct:id=>conduction.select(id),
   frameCost:()=>frameCost,
-  playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m||!cutView())return m;updateLabelVisibility();   // T6.2-B: in a cut, the visible point of the part
-    if(condHidden.has(id))return {...m,visible:false};const at=condAt.get(id);if(!at)return m;const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
-    const occ=[HI.tissue,...HI.valves.children.filter(v=>v.visible)],pts=[at,...conduction.parts.filter(p=>p.id===id).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&!occluded(w,occ)});
+  playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m)return m;const cut=!!cutView();if(cut)updateLabelVisibility();
+    if(cut&&condHidden.has(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
+    const occ=cut?[HI.tissue,...HI.valves.children.filter(v=>v.visible)]:[],pts=[at,...conduction.parts.filter(p=>p.id===id&&!p.illustrative&&!p.cap).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&(!cut||!occluded(w,occ))});
     for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if(conduction.pick(x,y,ray.ray)?.id===id)return {...m,x,y,point:p.toArray()};}   // a point where a tap selects this part
     const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),

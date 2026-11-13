@@ -1,6 +1,7 @@
 /* T6.2 UI phase A: presentation only. No anatomical coordinates or teaching text. */
 (function(){
 'use strict';
+const labelColours=Object.freeze({anatomy:'#D4AD78',conduction:'#22C3AB',vessels:'#E98A7A',valves:'#E9DFBD'});
 const palette=Object.freeze({idle:'#22C3AB',slowPathway:'#22C3AB',accessory:'#22C3AB',
   wavefront:'#FFFFFF',justFired:'#6BF2DB',muscleWave:'#FFC83D',muscleAfter:'#FFE9A8'});
 /* Callouts sit INSIDE the viewer, in free space next to the heart (never over it), with a straight leader line.
@@ -138,7 +139,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
     const seen=new Set(),items=pool.filter(e=>!seen.has(e.id)&&seen.add(e.id)).sort((a,b)=>a.text.localeCompare(b.text));
     const key=items.map(e=>e.id).join('|')+'#'+selection();if(list.dataset.key===key)return;list.dataset.key=key;
     list.replaceChildren(...items.map(e=>{const b=document.createElement('button');b.type='button';b.className='chip'+(e.id===selection()?' sel':'');
-      b.textContent=e.text;b.dataset.id=e.id;b.onclick=()=>pick(e.el);return b}));
+      b.textContent=e.text;b.dataset.id=e.id;b.style.borderColor=e.id===selection()?'#FFFFFF':labelColours[e.layer]||labelColours.anatomy;b.style.opacity=e.id===selection()?'1':e.fade?'.55':'1';b.onclick=()=>pick(e.el);return b}));
   }
   function update(){
     const entries=candidates(),selected=selection(),labelMode=mode(),phone=innerWidth<=900,ids=relevant[view()]||[];
@@ -157,7 +158,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
     if(key!==layoutKey){
       layoutKey=key;
       const visible=new Set(eligible.map(e=>e.el));
-      for(const entry of entries)if(entry.el.hidden===visible.has(entry.el))entry.el.hidden=!visible.has(entry.el);
+      for(const entry of [...entries,...shown])if(entry.el.hidden===visible.has(entry.el))entry.el.hidden=!visible.has(entry.el);
       for(const entry of eligible){if(entry.el.parentElement!==layer)layer.appendChild(entry.el);
         if(entry.el.textContent!==entry.text)entry.el.textContent=entry.text;
         entry.el.classList.add('callout');entry.el.classList.toggle('sel',entry.id===selected);entry.el.style.removeProperty('transform');}
@@ -165,6 +166,7 @@ function callouts({stage,viewer,layer,candidates,selection,mode,view,relevant,st
       status.textContent=labelMode==='relevant'&&!ids.length?'No labels configured for this view. Tap a structure to explore.':labelMode==='explore'&&!eligible.length?'Tap a structure to show its label and card.':'';
       status.hidden=!status.textContent;
     }
+    for(const entry of eligible){entry.el.style.borderColor=entry.id===selected?'#FFFFFF':labelColours[entry.layer]||labelColours.anatomy;entry.el.style.opacity=entry.id===selected?'1':entry.fade?'.55':'1'}
     shown=eligible;leaders();
   }
   return {update,invalidate(){layoutKey=''},visible(){return shown.map(e=>{const r=e.el.getBoundingClientRect();return{id:e.id,text:e.el.textContent,layer:e.layer,x:r.left+r.width/2,y:r.top+r.height/2}})},
@@ -178,5 +180,5 @@ function focusMaterial(mat){const prev=mat.onBeforeCompile,key=mat.customProgram
       .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.0),.28*step(.5,vFocus));');};
   mat.customProgramCacheKey=()=>key+'-focus';
 }
-window.EXPLORE_UI={palette,callouts,focusMaterial};
+window.EXPLORE_UI={palette,labelColours,callouts,focusMaterial};
 })();

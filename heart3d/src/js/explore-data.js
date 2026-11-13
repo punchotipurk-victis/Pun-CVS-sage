@@ -102,7 +102,7 @@ const EXPLORE_DATA = (() => {
   const ART_NAME = { LM: "Left main", LAD: "Left anterior descending (LAD)", D1: "First diagonal", D2: "Second diagonal", LCx: "Left circumflex (LCx)", OM1: "First obtuse marginal", OM2: "Second obtuse marginal",
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
-  const UI_FLAGS={activationTimingMap:false};
+  const UI_FLAGS={activationTimingMap:true};
   /* ---- one name per valve (Punnatorn, 13 Nov): the model labels the valve, not each leaflet; a tap on any leaflet opens the valve.
      The leaflet ids stay in the phantom, the exports and the shaders. */
   const VALVE_GROUPS = { mitral_valve: ["MV_AML", "MV_PML"], tricuspid_valve: ["TV_septal", "TV_anterior", "TV_posterior"],
@@ -134,7 +134,7 @@ const EXPLORE_DATA = (() => {
     sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "coronary_sinus"],
     coronal: [], axial: [], sagittal: [] };
   /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
-     "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
+     "fade" = labels show in All at .55 opacity; selected labels stay fully opaque.
      Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
   const VIEW_LAYERS = {
     external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
@@ -157,7 +157,7 @@ const EXPLORE_DATA = (() => {
     raOpen: ["sa", "tracts", "avn", "avn_fast", "avn_slow", "his", "cti"],
     laOpen: ["sa", "tracts", "bach", "avn"],
     sax: ["lsf", "laf", "lpf", "rbb", "moderator", "purk"] };
-  /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
+  /* ---- crowded AV junction: in All, one "AV junction" label at the AV node; a tap fans it out
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };

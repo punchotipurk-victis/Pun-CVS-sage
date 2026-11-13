@@ -21,10 +21,13 @@ Checks (two-page mode):
 """
 import argparse, asyncio, hashlib, json, os, sys
 from playwright.async_api import async_playwright
+sys.stdout.reconfigure(encoding='utf-8')
 
 ARGS = ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"]
 ap = argparse.ArgumentParser(); ap.add_argument("index"); ap.add_argument("--shots"); ap.add_argument("--baseline", action="store_true")
 ap.add_argument("--quick", action="store_true", help="only 6 scenarios")
+ap.add_argument("--b6", action="store_true", help="run the conduction picking/performance regression three times")
+ap.add_argument("--redesign", action="store_true", help="run only the T6.2-C acceptance checks")
 ap.add_argument("--activation-audit", help="write tissue map audit JSON independently of screenshots"); A = ap.parse_args()
 fails = []
 def check(ok, msg, extra=""):
@@ -421,8 +424,7 @@ async def conduction_view_checks(pg, fr):
             await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
             selected=await fr.evaluate("({selected:CONDUCTION_VIEW.state.selected,title:EXPLORE_APP.card()})")
             expected=await fr.evaluate("id=>CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)   # T6.2-B: full name in the card
-            # T6.2-B: in the 4C cut the AV node, His and LBB origin share one tap zone; any of their cards is a correct answer there
-            if selected!={'selected':tap,'title':expected} and not (mode=='cut' and {tap,selected['selected']}<={'avn','his','lbb'}):errors.append([mode,tap,selected])
+            if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
             counts[mode]+=1
         # Every visible callout remains a pointer card target, including crowded fascicles.
         for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
@@ -471,7 +473,10 @@ async def conduction_view_checks(pg, fr):
     check(speeds==[.1,.25,1],"playback offers 0.1×, 0.25× and 1×")
     # Reuse hook remains explicit about the next task instead of inventing circuit behavior.
     check(await fr.evaluate("(()=>{try{CONDUCTION_VIEW.playCircuit('flutterCCW')}catch(e){return e.message==='T8.2'}return false})()"),"circuit playback remains a T8.2 stub")
-    await fr.evaluate("EXPLORE_APP.labelMode('explore');EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    await fr.evaluate("EXPLORE_APP.select(null,null);EXPLORE_APP.labelMode('explore');EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    # Locator clicks on ECG controls scroll the OUTER page as well as the iframe.
+    # Measure an actually visible viewer, with its visibility observer settled.
+    await pg.evaluate('scrollTo(0,0)');await fr.locator('.viewer').scroll_into_view_if_needed();await pg.wait_for_timeout(400)
     # Warm both the network and its compositor layers before comparing steady work.
     await fr.evaluate("EXPLORE_APP.conduction(true)")
     await fr.evaluate("async()=>new Promise(resolve=>{let n=0;function frame(){if(++n<32)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)})")
@@ -480,14 +485,111 @@ async def conduction_view_checks(pg, fr):
         await fr.evaluate("on=>EXPLORE_APP.conduction(on)",on)
         times=await fr.evaluate("""async()=>new Promise(resolve=>{
             const times=[];let last=0;function frame(t){if(last)times.push(t-last);last=t;
-                if(times.length<32)requestAnimationFrame(frame);else resolve(times.slice(12));}
+                if(times.length<64)requestAnimationFrame(frame);else resolve(times.slice(16));}
             requestAnimationFrame(frame);
         })""")
         frame_times[on].extend(times)
-    off=sorted(frame_times[False])[len(frame_times[False])//2]
-    on=sorted(frame_times[True])[len(frame_times[True])//2]
+    # Arithmetic means across interleaved samples retain the same 1.3× limit
+    # without the old 5-versus-7 vsync median-quantisation jump.
+    off=sum(frame_times[False])/len(frame_times[False])
+    on=sum(frame_times[True])/len(frame_times[True])
     check(on<=off*1.3,"SwiftShader Conduction frame interval is at most 1.3× off after warmup",f"off={off:.1f} ms on={on:.1f} ms ratio={on/off:.2f}")
     await fr.evaluate("EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+
+async def redesign_checks(pg,fr):
+    """T6.2-C: rendering, display isolation, labels and moving valve frames."""
+    original_viewport=pg.viewport_size;await pg.set_viewport_size({'width':1440,'height':1050})
+    await pg.evaluate("location.hash='#heart3d'")
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('ext');EXPLORE_APP.conduction(true);EXPLORE_APP.seek(600);EXPLORE_APP.render()")
+    await pg.wait_for_timeout(350)
+    await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+    geometry=await fr.evaluate('''()=>{
+      const parts=CONDUCTION_VIEW.parts,tree=parts.filter(p=>p.illustrative),g=CGRAPH;
+      const tapered=parts.filter(p=>p.curve&&p.edge).every(p=>{
+        const P=p.geometry.attributes.position,C=p.geometry.attributes.aCenter;
+        return Math.abs(Math.hypot(P.getX(0)-C.getX(0),P.getY(0)-C.getY(0),P.getZ(0)-C.getZ(0))-p.radii[0])<1e-5;
+      });
+      const w=parts[0].pair[0].material.userData.wave;
+      return {tapered,tree:tree.length,lv:tree.filter(p=>p.ventricle==='LV').length,rv:tree.filter(p=>p.ventricle==='RV').length,
+        isolated:tree.every(p=>p.seed===false&&p.tappable===false&&!p.picker&&!p.edge&&p.depthCm>=.05&&p.depthCm<=.15&&g.nodes[p.terminalId]?.purkinje&&
+          (/^(RB|MOD)/.test(p.terminalId)?'RV':'LV')===p.ventricle),
+        caps:parts.some(p=>p.cap),fan:parts.some(p=>p.ribbon&&p.alpha===.35),av:parts.find(p=>p.nodeId==='AVN').radius,
+        rest:w.uRest.value,restInk:w.uRestInk.value.getHexString(),playingInk:parts[0].colour};
+    }''')
+    check(geometry['tapered'] and geometry['caps'] and geometry['fan'] and geometry['av']==.24,
+          'T6.2-C: tapered tubes, round caps, AV bead and translucent LBB fan',str(geometry))
+    check(geometry['tree']>=100 and geometry['lv']>geometry['rv']>0 and geometry['isolated'],
+          'T6.2-C: illustrative tree is subendocardial, ventricle-owned and has no seed or picker',str(geometry))
+    shell=await fr.evaluate('''()=>CONDUCTION_VIEW.parts.filter(p=>p.illustrative).every(p=>p.controlPoints.every((q,j)=>{
+      const v=EXPLORE_APP.activationAt(p.surfaceIndices[j],'interior'),distance=Math.hypot(...q.map((x,k)=>x-v.p[k]));
+      return v.cavity===(p.ventricle==='LV'?'LV_cavity':'RV_cavity')&&distance>=.04999&&distance<=.15001&&
+        !(p.ventricle==='LV'&&v.p[2]<1.8&&v.label!=='IVS')&&!(p.ventricle==='RV'&&v.p[2]<1.5);
+    }))''')
+    check(shell,'T6.2-C: every tree control point lies .05–.15 cm under its own endocardium, outside free zones')
+    deterministic=await fr.evaluate("JSON.stringify(CONDUCTION_VIEW.treeRecipe())===JSON.stringify(CONDUCTION_VIEW.treeRecipe())")
+    check(deterministic,'T6.2-C: rebuilding the illustrative tree repeats the fixed-seed geometry')
+    isolated=await fr.evaluate('''async()=>{
+      const before=JSON.stringify(await EXPLORE_APP.activationSeedSources()),times=JSON.stringify(CGRAPH.times('V',{HIS:0}));
+      const extras=['A','V'].map(side=>({...CGRAPH.edges.find(e=>e.side===side),T_ms:0,illustrative:true}));
+      CGRAPH.edges.push(...extras);
+      try{return times===JSON.stringify(CGRAPH.times('V',{HIS:0}))&&before===JSON.stringify(await EXPLORE_APP.activationSeedSources())}
+      finally{CGRAPH.edges.splice(-extras.length)}
+    }''')
+    check(isolated,'T6.2-C: illustrative edges cannot change muscle seeds')
+    pickable=await fr.evaluate('''()=>{
+      const tree=CONDUCTION_VIEW.parts.filter(p=>p.illustrative),saved=CONDUCTION_VIEW.parts.filter(p=>!p.illustrative).map(p=>[p,p.samples]);
+      // Remove every real hit surface: decorative tubes alone must never win a tap.
+      for(const [p] of saved)p.samples=[];
+      try{return tree.every(p=>{const q=EXPLORE_APP.screenOf(p.anchor.toArray());return EXPLORE_APP.tapAt(...q)?.startsWith('conduction:')!==true})}
+      finally{for(const [p,samples] of saved)p.samples=samples}
+    }''')
+    check(pickable,'T6.2-C: illustrative segments alone never pick')
+    fade=await fr.evaluate('''()=>{const v=CONDUCTION_VIEW,w=v.parts[0].pair[0].material.userData.wave;
+      EXPLORE_APP.select(null,null);EXPLORE_APP.playback({playing:true});const f=v.fadeState();
+      v.update(v.state.ms,f.start+150);const halfway=w.uRest.value;
+      v.update(v.state.ms,f.start+300);return {halfway,playing:w.uRest.value,duration:f.durationMs};
+    }''')
+    await fr.evaluate('EXPLORE_APP.playback({playing:false});EXPLORE_APP.seek(600)')
+    await pg.wait_for_timeout(350)
+    rest=await fr.evaluate('CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uRest.value')
+    check(geometry['restInk']=='f3dfa2' and geometry['rest']==1 and abs(fade['halfway']-.5)<.001 and fade['playing']==0 and fade['duration']==300 and rest==1,
+          'T6.2-C: cream-gold ↔ teal fades for 300 ms, including when paused',str([fade,rest]))
+    await fr.evaluate("EXPLORE_APP.setMode('xray');EXPLORE_APP.viewDefaults('seeThrough');EXPLORE_APP.labelMode('all');EXPLORE_APP.render()")
+    group=fr.locator('.lab[data-id="group:avJunction"]')
+    check(await group.is_visible() and not await fr.locator('.conduction-label[data-tap="his"]').is_visible(),
+          'T6.2-C: All collapses the AV junction to one label')
+    await group.click(); await fr.evaluate('EXPLORE_APP.render()')
+    check(await group.is_hidden() and await fr.locator('.conduction-label[data-tap="his"]').is_visible(),
+          'T6.2-C: tapping AV junction fans out its member labels')
+    fade=await fr.evaluate("[...document.querySelectorAll('.lab-landmarks:not([hidden])')].map(e=>getComputedStyle(e).opacity)")
+    check(bool(fade) and all(x=='0.55' for x in fade),'T6.2-C: fade layers dim All labels to .55',str(fade))
+    await fr.evaluate("EXPLORE_APP.labelMode('relevant');EXPLORE_APP.tapStruct('avn');EXPLORE_APP.render()")
+    check(await group.is_hidden() and await fr.evaluate("getComputedStyle(document.querySelector('[data-tap=avn]')).borderColor==='rgb(255, 255, 255)'"),
+          'T6.2-C: Relevant stays ungrouped and selected label border is white')
+    valve=await fr.evaluate('''()=>{
+      const a=EXPLORE_APP;a.setMode('cut');a.setCut('a4c');const frames=[];
+      for(const t of [0,.15,.4,.7]){a.setBeat(false,t);a.render();frames.push(a.anchors.filter(x=>x.where==='valve').map(x=>[x.id,x.valveFrame,x.home.toArray()]));}
+      return {frames:new Set(frames.map(x=>JSON.stringify(x))).size,all:frames.every(x=>x.every(y=>y[1]))};
+    }''')
+    check(valve['frames']>=3 and valve['all'],'T6.2-C: valve and leaflet anchors follow current exported frames',str(valve))
+    await fr.evaluate('EXPLORE_APP.isochrones(true);EXPLORE_APP.render()');await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+    wording=await fr.evaluate("(()=>{const t=CGRAPH.spec.display.tissueWave.timingMapText;return document.querySelector('.bIsochrones').textContent.includes(t.button)&&[...document.querySelectorAll('[data-timing-text]')].every(e=>e.textContent===t[e.dataset.timingText])})()")
+    check(wording,'T6.2-C: timing map uses all approved timingMapText wording')
+    for view in ('external','seeThrough','a4c','raOpen'):
+        for playing in (False,True):
+            await fr.evaluate("({view,playing})=>{const a=EXPLORE_APP;a.playback({playing:false});a.setBeat(false,0);a.isochrones(false);a.setMode(view==='external'?'ext':view==='seeThrough'?'xray':'cut');if(!['external','seeThrough'].includes(view))a.setCut(view);else a.setView('Front');a.viewDefaults(view);a.conduction(true);a.select(null,null);a.labelMode('all');a.seek(playing?220:600);a.playback({playing});a.render()}",{'view':view,'playing':playing})
+            await pg.wait_for_timeout(350)
+            cut=view in ('a4c','raOpen')
+            check(await fr.evaluate('''({cut,view})=>{const p=CONDUCTION_VIEW.parts[0],w=p.pair[0].material.userData.wave;return p.pair[0].visible===(view==='seeThrough')&&w.uPull.value===(cut?(CGRAPH.spec.display.cutPullCm??.45):0)&&w.uWidth.value===(cut?.8:1)&&CONDUCTION_VIEW.group.children.filter(m=>m.material?.blending===THREE.AdditiveBlending).every(m=>m.visible===!cut)}''',{'cut':cut,'view':view}),
+                  f'T6.2-C: {view} preserves cut subsets, uPull and no hidden-wall pass ({"playing" if playing else "rest"})')
+            if A.shots:
+                # Avoid locator stability polling against a live WebGL stage.
+                await fr.locator('.model-stage').evaluate("e=>e.scrollIntoView({block:'start'})")
+                box=await fr.locator('.model-stage').bounding_box();scroll=await pg.evaluate('({x:scrollX,y:scrollY})')
+                box['x']+=scroll['x'];box['y']+=scroll['y']
+                await pg.screenshot(path=shot(f'T6.2-C-{view}-{"playing" if playing else "rest"}.png'),clip=box)
+    await fr.evaluate("EXPLORE_APP.labelMode('explore');EXPLORE_APP.setMode('ext');EXPLORE_APP.setBeat(false,0);EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(false)")
+    await pg.set_viewport_size(original_viewport)
 
 async def activation_checks(pg,fr):
     """T6.2(c): technical checks plus strict, uncalibrated medical-contract audit.
@@ -495,7 +597,6 @@ async def activation_checks(pg,fr):
     """
     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.conduction(true);EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false)")
     await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
-    await fr.evaluate("EXPLORE_DATA.UI_FLAGS.activationTimingMap=true") # QA fixture; shipped flag remains off.
     state=await fr.evaluate('EXPLORE_APP.activationState()')
     check(state['ready'] and state['worker'] and state['diagnostics']['solver']=='geodesic-26','activation uses the capVolume geodesic worker; precompute ms',str(state))
     synthetic=await fr.evaluate('''async()=>{
@@ -541,6 +642,12 @@ async def activation_checks(pg,fr):
             await fr.evaluate("EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('a4c');EXPLORE_APP.isochrones(true);EXPLORE_APP.render()")
             if A.shots:await fr.locator('.viewer').screenshot(path=shot(f'activation_iso_{mode}.png'))
     normal=maps['normal']
+    reference={'normal':[81.4,34.9,97.6,66.7,66.0,50.3],'rbbb':[117.2,34.9,125.1,66.7,66.0,54.3],
+               'lbbb':[140.9,40.0,157.5,110.0,147.8,50.3],'lafb':[90.9,34.9,102.6,66.7,88.4,50.3],
+               'lpfb':[81.4,34.9,97.6,74.4,66.0,50.3]}
+    for mode,expected in reference.items():
+        m=maps[mode];actual=[m['allV']['max']-m['allV']['min'],m['allV']['min'],m['allV']['p95'],m['inferior']['median'],m['anterolateral']['median'],m['rvBreakthrough']['min']]
+        check(all(abs(a-e)<.15 for a,e in zip(actual,expected)),f'T6.2-C: {mode} preserves every audit number in T6.2-B-timing.md',str(actual))
     def contract(ok,msg,value):check(ok,'CONTRACT: '+msg,str(value))
     def window(value,bounds):
         if not isinstance(bounds,list):bounds=[bounds,bounds]
@@ -591,18 +698,22 @@ async def activation_checks(pg,fr):
     offscreen=await fr.evaluate("Promise.race([EXPLORE_APP.activationReady().then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15000))])")
     check(offscreen,'an explicit map readiness request completes after scrolling to the ECG')
     await fr.evaluate("EXPLORE_APP.setMode({avDelay:82})")
-    await fr.evaluate("EXPLORE_DATA.UI_FLAGS.activationTimingMap=false;EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false);EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal'});EXPLORE_APP.isochrones(false);EXPLORE_APP.conduction(false);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
 
 async def ui_phase_a_checks(pg,fr):
     await pg.evaluate("location.hash='#heart3d'")
     await fr.wait_for_function('EXPLORE_APP.ready')
+    await fr.locator('details.advanced').evaluate('e=>e.open=true')
+    await fr.locator('.bIsochrones').wait_for(state='visible')
     initial=await fr.evaluate('EXPLORE_APP.uiState()')
     check(initial['labelMode']=='explore' and not initial['coronaries'] and not initial['callouts'],
           'UI: Explore starts without labels and coronaries are off')
     await fr.evaluate("EXPLORE_APP.isochrones(true);EXPLORE_APP.render()")
-    check(not initial['timingMapEnabled'] and await fr.locator('.bIsochrones').is_hidden() and
-          not await fr.evaluate('EXPLORE_APP.activationState().isochrones'),
-          'UI: Activation timing map is hidden and cannot be enabled with the shipped flag off')
+    check(initial['timingMapEnabled'] and not await fr.locator('.bIsochrones').is_hidden() and
+          await fr.evaluate('EXPLORE_APP.activationState().isochrones'),
+          'UI: Activation timing map is available with the shipped flag on')
+    await fr.evaluate('EXPLORE_APP.isochrones(false)')
+    await fr.locator('details.advanced').evaluate('e=>e.open=false')
     check(initial['colours']=={'impulse':'ffffff','muscle':'ffc83d','after':'ffe9a8'},
           'UI: white impulse, amber muscle wave and faint fading tint uniforms',str(initial['colours']))
     check(await fr.evaluate("[...document.querySelectorAll('.outside-legends .legend,.signalLegend')].every(e=>!e.closest('.viewer'))"),
@@ -661,6 +772,7 @@ async def ui_phase_a_checks(pg,fr):
             ids=await fr.evaluate('EXPLORE_APP.labelListIds()')
             check(len(boxes['b'])==1 and len(ids)>4 and 'conduction:sa' in ids and inside and offHeart==1,
                   f'UI {name}: All shows one callout in the viewer plus a tappable list of label names',f'{len(boxes["b"])} callouts, list {len(ids)}')
+            await fr.locator('.labelList .chip[data-id="group:avJunction"]').click();await fr.evaluate('EXPLORE_APP.render()')
             await fr.locator('.labelList .chip[data-id="conduction:his"]').click();await fr.evaluate('EXPLORE_APP.render()')
             check(await fr.evaluate("EXPLORE_APP.card()")!='SA node' and [c['id'] for c in await fr.evaluate('EXPLORE_APP.uiState().callouts')]==['conduction:his'],
                   f'UI {name}: tapping a name in the list shows its callout and card')
@@ -700,6 +812,15 @@ async def main():
         pg.on("pageerror", lambda e: errs.append("page: " + str(e)))
         pg.on("console", lambda m: m.type == "error" and errs.append("console: " + m.text))
         await pg.goto(url); await pg.wait_for_timeout(600)
+        if A.b6 or A.redesign:
+            await pg.evaluate("location.hash='#heart3d'"); await pg.wait_for_timeout(700)
+            fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP',timeout=180000)
+            if A.redesign:await redesign_checks(pg,fr)
+            else:
+                for run in range(3):
+                    print(f'B6 consecutive run {run+1}/3',flush=True)
+                    await conduction_view_checks(pg,fr)
+            check(not errs,'no page or console errors',str(errs[:4]));await b.close();print(f'\n{len(fails)} failure(s)');sys.exit(1 if fails else 0)
         if A.baseline:
             await pg.evaluate("location.hash = '#heart3d'"); fr = await lab_frame(pg, "heart3d")
             await explore_checks_legacy(pg, fr, "baseline")
@@ -723,6 +844,7 @@ async def main():
             await conduction_core_checks(await lab_frame(pg, "heart3d"), await lab_frame(pg, "pathology"))
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await conduction_view_checks(pg,await lab_frame(pg,"heart3d"))
+            await redesign_checks(pg,await lab_frame(pg,"heart3d"))
             await activation_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
