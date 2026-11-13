@@ -101,36 +101,48 @@ const EXPLORE_DATA = (() => {
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
   const UI_FLAGS={activationTimingMap:false};
-  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–8 names.
+  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–10 names (up to 20 where the view is explored with the level slider, e.g. 4C), including the essential vessels that can be seen in that view (vessels layer on in every view; coronary arteries still follow the Coronaries switch; the IVC has no surface of its own to label, and See-through hides great-vessel names).
      The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
      A name shows only when its layer is on and its anchor can be seen, so External lists both sides of the heart. */
   const RELEVANT_LABELS = {
-    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "PA_main", "SVC"],
+    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "aortic_arch", "PA_main", "SVC"],
     seeThrough: ["RA", "LA", "RV_cavity", "LV_cavity", "conduction:sa", "conduction:avn", "conduction:lbb", "conduction:rbb"],
-    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body"],
-    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "fossa_ovalis", "TV_septal", "MV_AML"],
-    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC"],
-    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb"],
-    raOpen: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:avn"],
-    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "MV_AML", "MV_PML"],
-    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM"],
+    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body", "coronary_sinus"],
+    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "MV_AML", "MV_PML", "TV_septal", "TV_anterior", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "LVOT", "AV_cusps.NCC",
+          "conduction:sa", "conduction:avn", "conduction:his", "conduction:lbb", "conduction:rbb", "conduction:purk", "coronary_sinus"],
+    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC", "pulmonary_veins"],
+    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb", "PA_main", "SVC"],
+    raOpen: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:sa", "conduction:avn", "SVC"],
+    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "crista_terminalis", "conduction:sa", "conduction:bach", "conduction:avn", "SVC"],
+    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "coronary_sinus"],
     coronal: [], axial: [], sagittal: [] };
   /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
      "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
      Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
   const VIEW_LAYERS = {
     external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
-    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "off" },
-    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "off", conduction: "off" },
-    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "off", conduction: "off" },
-    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" },
-    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "off" },
-    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "off" },
-    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "off" },
-    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" } };
+    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "on" },
+    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "on", conduction: "off" },
+    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "on", conduction: "on" },
+    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "on", conduction: "off" },
+    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "on" },
+    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "on" },
+    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "on" },
+    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "on", conduction: "off" } };
+  /* ---- conduction parts drawn in each dissection view (tap ids; Punnatorn 13 Nov: a beginner should not see the whole network
+     in every cut). Parts not listed are not drawn; listed parts show only where they lie on the visible anatomy, so sliding the
+     cut level reveals more. External / See-through / CT sections draw everything. */
+  const VIEW_CONDUCTION = {
+    valves: ["avn", "his"],
+    a4c: ["sa", "avn", "his", "lbb", "lsf", "laf", "lpf", "rbb", "moderator", "purk"],
+    lvOpen: ["his", "lbb", "lsf", "laf", "lpf", "purk"],
+    rvOpen: ["avn", "his", "rbb", "moderator", "purk"],
+    raOpen: ["sa", "tracts", "avn", "avn_fast", "avn_slow", "his", "cti"],
+    laOpen: ["sa", "tracts", "bach", "avn"],
+    sax: ["lsf", "laf", "lpf", "rbb", "moderator", "purk"] };
   /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
-  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();

@@ -20,7 +20,7 @@ function create(o){
     id==='ap'?5:id==='cti'?6:id==='purk'?8:7;
   const front=T.LessEqualDepth,behind=T.GreaterDepth;
   const tapIds=Object.keys(d.shortNames),waveUniforms={uNowA:{value:0},uNowV:{value:-1e9},uPulse:{value:0},
-    uSelectedId:{value:-1},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+    uSelectedId:{value:-1},uPull:{value:0},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
   let batch;
   function material(depthFunc){
     const mat=beatify(new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:depthFunc===behind?.45:1,
@@ -30,10 +30,14 @@ function create(o){
       shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
         attribute vec3 aCenter,aInk;attribute float aU,aTime,aSide,aRefractory,aAvNode,aBlocked,aTap,aVisible;
         varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uSelectedId;`)
+        uniform float uSelectedId,uPull;`)
         .replace('#include <begin_vertex>',`#include <begin_vertex>
         vSelected=1.0-step(.1,abs(aTap-uSelectedId));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected);
-        vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`);
+        vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`)
+        // T6.2-B: in cut views the network is drawn only where it lies on the visible cut anatomy: pulled uPull cm toward the
+        // camera so subendocardial paths pass the depth test, while paths behind a whole wall stay hidden (no see-through pass).
+        .replace('#include <project_vertex>',`#include <project_vertex>
+        if(uPull>0.0){mvPosition.xyz+=normalize(-mvPosition.xyz)*uPull;gl_Position=projectionMatrix*mvPosition;}`);
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
         varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
         uniform float uNowA,uNowV,uPulse;uniform vec3 uHot,uAfter,uBlockedInk;`)
@@ -193,12 +197,13 @@ function create(o){
     }
     update(state.ms);onChange?.();return next;
   }
-  function isVisible(part){return !part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
+  function isVisible(part){return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
   function update(ms){
     state.ms=ms;const rr=cycleMs(),phase=((ms%rr)+rr)%rr;
     const clocks=o.clocks?o.clocks(ms):{a:phase,v:phase-g.constants.TA_AVN-state.mode.avDelay};
     waveUniforms.uNowA.value=clocks.a;waveUniforms.uNowV.value=clocks.v;
     waveUniforms.uSelectedId.value=tapIds.indexOf(state.selected);
+    const cut=!!o.cutView?.();waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;if(batch)batch.pair[0].visible=!cut;
     waveUniforms.uPulse.value=clocks.a>=timing.a.AVN&&clocks.a<timing.a.AVN+state.mode.avDelay?
       .55+.45*Math.sin((clocks.a-timing.a.AVN)*.11)**2:0;
   }
@@ -278,7 +283,7 @@ function create(o){
   const clockState=()=>({ms:anchorMs,wall:anchorWall,rate:state.speed,running:state.playing&&!suspended});
   function midpoint(id,rest=false){const l=labels.find(l=>l.id===id);if(!l)return null;const p=project(l.part.anchor,!rest);return {x:p.x,y:p.y,visible:state.enabled&&isVisible(l.part)&&!removed(p.w),point:l.part.anchor.toArray()};}
   setMode({});
-  return {state,group,parts,labels,rings,enable,update,placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
+  return {state,group,parts,labels,rings,enable,update,refreshVisibility:()=>{if(batch&&timing)refreshTiming()},placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
     timing:()=>timing,cacheSize:()=>cache.size,playCircuit(){throw new Error('T8.2')}};
 }
 

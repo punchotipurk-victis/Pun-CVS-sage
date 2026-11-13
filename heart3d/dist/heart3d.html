@@ -906,7 +906,7 @@ function create(o){
     id==='ap'?5:id==='cti'?6:id==='purk'?8:7;
   const front=T.LessEqualDepth,behind=T.GreaterDepth;
   const tapIds=Object.keys(d.shortNames),waveUniforms={uNowA:{value:0},uNowV:{value:-1e9},uPulse:{value:0},
-    uSelectedId:{value:-1},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+    uSelectedId:{value:-1},uPull:{value:0},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
   let batch;
   function material(depthFunc){
     const mat=beatify(new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:depthFunc===behind?.45:1,
@@ -916,10 +916,14 @@ function create(o){
       shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
         attribute vec3 aCenter,aInk;attribute float aU,aTime,aSide,aRefractory,aAvNode,aBlocked,aTap,aVisible;
         varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uSelectedId;`)
+        uniform float uSelectedId,uPull;`)
         .replace('#include <begin_vertex>',`#include <begin_vertex>
         vSelected=1.0-step(.1,abs(aTap-uSelectedId));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected);
-        vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`);
+        vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`)
+        // T6.2-B: in cut views the network is drawn only where it lies on the visible cut anatomy: pulled uPull cm toward the
+        // camera so subendocardial paths pass the depth test, while paths behind a whole wall stay hidden (no see-through pass).
+        .replace('#include <project_vertex>',`#include <project_vertex>
+        if(uPull>0.0){mvPosition.xyz+=normalize(-mvPosition.xyz)*uPull;gl_Position=projectionMatrix*mvPosition;}`);
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
         varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
         uniform float uNowA,uNowV,uPulse;uniform vec3 uHot,uAfter,uBlockedInk;`)
@@ -1079,12 +1083,13 @@ function create(o){
     }
     update(state.ms);onChange?.();return next;
   }
-  function isVisible(part){return !part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
+  function isVisible(part){return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
   function update(ms){
     state.ms=ms;const rr=cycleMs(),phase=((ms%rr)+rr)%rr;
     const clocks=o.clocks?o.clocks(ms):{a:phase,v:phase-g.constants.TA_AVN-state.mode.avDelay};
     waveUniforms.uNowA.value=clocks.a;waveUniforms.uNowV.value=clocks.v;
     waveUniforms.uSelectedId.value=tapIds.indexOf(state.selected);
+    const cut=!!o.cutView?.();waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;if(batch)batch.pair[0].visible=!cut;
     waveUniforms.uPulse.value=clocks.a>=timing.a.AVN&&clocks.a<timing.a.AVN+state.mode.avDelay?
       .55+.45*Math.sin((clocks.a-timing.a.AVN)*.11)**2:0;
   }
@@ -1164,7 +1169,7 @@ function create(o){
   const clockState=()=>({ms:anchorMs,wall:anchorWall,rate:state.speed,running:state.playing&&!suspended});
   function midpoint(id,rest=false){const l=labels.find(l=>l.id===id);if(!l)return null;const p=project(l.part.anchor,!rest);return {x:p.x,y:p.y,visible:state.enabled&&isVisible(l.part)&&!removed(p.w),point:l.part.anchor.toArray()};}
   setMode({});
-  return {state,group,parts,labels,rings,enable,update,placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
+  return {state,group,parts,labels,rings,enable,update,refreshVisibility:()=>{if(batch&&timing)refreshTiming()},placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
     timing:()=>timing,cacheSize:()=>cache.size,playCircuit(){throw new Error('T8.2')}};
 }
 
@@ -1574,38 +1579,50 @@ const EXPLORE_DATA = (() => {
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
   const UI_FLAGS={activationTimingMap:false};
-  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–8 names.
+  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–10 names (up to 20 where the view is explored with the level slider, e.g. 4C), including the essential vessels that can be seen in that view (vessels layer on in every view; coronary arteries still follow the Coronaries switch; the IVC has no surface of its own to label, and See-through hides great-vessel names).
      The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
      A name shows only when its layer is on and its anchor can be seen, so External lists both sides of the heart. */
   const RELEVANT_LABELS = {
-    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "PA_main", "SVC"],
+    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "aortic_arch", "PA_main", "SVC"],
     seeThrough: ["RA", "LA", "RV_cavity", "LV_cavity", "conduction:sa", "conduction:avn", "conduction:lbb", "conduction:rbb"],
-    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body"],
-    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "fossa_ovalis", "TV_septal", "MV_AML"],
-    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC"],
-    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb"],
-    raOpen: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:avn"],
-    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "MV_AML", "MV_PML"],
-    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM"],
+    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body", "coronary_sinus"],
+    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "MV_AML", "MV_PML", "TV_septal", "TV_anterior", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "LVOT", "AV_cusps.NCC",
+          "conduction:sa", "conduction:avn", "conduction:his", "conduction:lbb", "conduction:rbb", "conduction:purk", "coronary_sinus"],
+    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC", "pulmonary_veins"],
+    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb", "PA_main", "SVC"],
+    raOpen: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:sa", "conduction:avn", "SVC"],
+    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "crista_terminalis", "conduction:sa", "conduction:bach", "conduction:avn", "SVC"],
+    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "coronary_sinus"],
     coronal: [], axial: [], sagittal: [] };
   /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
      "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
      Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
   const VIEW_LAYERS = {
     external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
-    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "off" },
-    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "off", conduction: "off" },
-    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "off", conduction: "off" },
-    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" },
-    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "off" },
-    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "off" },
-    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "off" },
-    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" } };
+    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "on" },
+    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "on", conduction: "off" },
+    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "on", conduction: "on" },
+    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "on", conduction: "off" },
+    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "on" },
+    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "on" },
+    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "on" },
+    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "on", conduction: "off" } };
+  /* ---- conduction parts drawn in each dissection view (tap ids; Punnatorn 13 Nov: a beginner should not see the whole network
+     in every cut). Parts not listed are not drawn; listed parts show only where they lie on the visible anatomy, so sliding the
+     cut level reveals more. External / See-through / CT sections draw everything. */
+  const VIEW_CONDUCTION = {
+    valves: ["avn", "his"],
+    a4c: ["sa", "avn", "his", "lbb", "lsf", "laf", "lpf", "rbb", "moderator", "purk"],
+    lvOpen: ["his", "lbb", "lsf", "laf", "lpf", "purk"],
+    rvOpen: ["avn", "his", "rbb", "moderator", "purk"],
+    raOpen: ["sa", "tracts", "avn", "avn_fast", "avn_slow", "his", "cti"],
+    laOpen: ["sa", "tracts", "bach", "avn"],
+    sax: ["lsf", "laf", "lpf", "rbb", "moderator", "purk"] };
   /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
-  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();
 </script>
 <script>/* T6.2 UI phase A: presentation only. No anatomical coordinates or teaching text. */
@@ -2050,7 +2067,7 @@ const NB = new T.Vector3(0.28, -0.22, -0.934).normalize(), VALVE_C = new T.Vecto
 const CUTS = {
   valves: { name: "Valves from above (atria removed)", group: "Dissection views", n: NB.clone().negate(), c: VALVE_C.clone().addScaledVector(NB, 1.1), up: ANT, zoom: .62, at: VALVE_C.clone(),
     about: "The atria and the great arteries are cut away just above the valves, and you look down on the base of the heart, as in the atlas view of the fibrous skeleton. The four valves sit side by side: pulmonary in front, aortic in the middle, mitral and tricuspid behind. The central fibrous body binds the mitral, tricuspid and aortic rings together." },
-  a4c: { name: "Four-chamber section", group: "Dissection views", n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, 0.15, 2), up: BASE,
+  a4c: { name: "Four-chamber section", group: "Dissection views", n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, -0.45, 2), up: BASE,   /* T6.2-B: 0.6 cm lower, through the AV valves, LVOT and the His–bundle branches */
     about: "The classic long-axis section through all four chambers. Compare the thin RV wall with the thick LV, see the septa, and note that the tricuspid valve hinges a little closer to the apex than the mitral valve." },
   lvOpen: { name: "Left heart opened (LV outflow)", group: "Dissection views", n: new T.Vector3().crossVectors(new T.Vector3(1.6, -1.3, -0.28), new T.Vector3(0, 0, 1)).normalize(), c: new T.Vector3(0.8, -0.6, 2), up: BASE,
     about: "A long-axis cut through the LA, the LV and the aortic valve. Follow blood from the LA through the mitral valve, then up the outflow tract past the anterior mitral leaflet (which is in fibrous continuity with the aortic valve) into the aorta. The chordae tie the leaflets to the two papillary muscles." },
@@ -2136,7 +2153,7 @@ function cavityAnchors(){ const cut = st.mode === "cut" && !CUTS[st.cut].body, g
       if (best >= 0) p = new T.Vector3(P.getX(best), P.getY(best), P.getZ(best)); }
     a.p = p; a.home = p.clone(); a.w = toWorld(p); }
   labelsDirty = true; }
-function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; if (!cut && anchors.length) cavityAnchors();
+function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; if (!cut && anchors.length){ cavityAnchors(); refreshCond(); }
   if (paintKey && paintKey !== st.colour + "|" + !!st.layers.conduction) paint(st.colour);
   $('.bSeeThrough').hidden=cut;$('.bSeeThrough').disabled=cut;
   $('.bSeeThrough').setAttribute('aria-pressed',xr);$('.bSeeThrough .st').textContent=xr?'On':'Off';
@@ -2164,7 +2181,7 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   if (C0.n2) plane2.setFromNormalAndCoplanarPoint(toWorldDir(C0.n2), toWorld(C0.c2)); else plane2.copy(plane);
   planeNeg.copy(plane).negate(); plane2Neg.copy(plane2).negate();
   for (const g of capGroups){ const n = g.pl.normal, p0 = n.clone().multiplyScalar(-g.pl.constant); g.cap.position.copy(p0).addScaledVector(n, -.002); g.cap.lookAt(p0.clone().sub(n)); }
-  cavityAnchors();
+  cavityAnchors(); refreshCond();
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
 /* default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" counts as on until phase C dims it).
@@ -2238,6 +2255,7 @@ let labelsDirty = true, lastLabelCheck = 0;
 const ray = new T.Raycaster();
 function occluded(w, targets){ const d = cam.position.distanceTo(w); ray.set(cam.position, w.clone().sub(cam.position).normalize()); ray.far = d - .35;
   const hits = ray.intersectObjects(targets, false); return hits.some(h => !removed(h.point)); }
+let refreshCond = () => {}, condLive = false; const condHidden = new Set(), condAt = new Map();   // set once the conduction view exists
 const viewKey = () => st.mode === "cut" ? st.cut : st.mode === "xray" ? "seeThrough" : "external";
 function updateLabelVisibility(){
   const centreW = centre, m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
@@ -2246,15 +2264,25 @@ function updateLabelVisibility(){
     if (show){ if (ext) show = a.where === "ext" || a.where === "vessel" || ((a.where === "lm") && a.layer === "conduction");
       else if (!cut) show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
+    const eligible = show;   // layer and mode allow it; the geometry tests follow
     if (show && cut && removed(a.w)) show = false;
     /* All uses geometric visibility. Relevant applies its separate per-view list in the callout controller. */
-    const eligible = show;
     if (show && a.where === "vessel") show = a.nw.dot(cam.position.clone().sub(a.w).normalize()) > .12;   // vessels: the surface must face you
     if (show && occT.length && !(ext && (a.layer === "conduction" || a.where === "vessel"))) show = !occluded(a.w, occT);
     if (!show && eligible && a.cands?.length && st.labelMode === "relevant" && (D.RELEVANT_LABELS[viewKey()] || []).includes(a.id)){   // try the nearest other parts of the structure (at most 6 rays; outer-surface points must face you)
-      const tries = a.cands.map(p => ({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 6);
+      /* a part cut away within 3 mm of the cut is pointed at on the cut face itself (the cap shows the same tissue) */
+      const onFace = c => { if (!cut || !removed(c.w)) return c; const d1 = plane.distanceToPoint(c.w), d2 = plane2.distanceToPoint(c.w), P = d1 >= d2 ? plane : plane2, d = Math.max(d1, d2);
+        if (d < -.3) return c; const w = c.w.clone().addScaledVector(P.normal, .08 - d); return { p: w.clone().applyMatrix4(H2B.clone().invert()), w }; };
+      const tries = a.cands.map(p => onFace({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 16);
       for (const c of tries) if (!occT.length || !occluded(c.w, occT)){ a.p = c.p.clone(); a.w = c.w; show = true; break; } }
     a.vis = show; }
+  // conduction names in a cut: hidden when the part is not drawn in this view, cut away, or behind a wall
+  // (the name may move to another visible point of the same part, as for anatomy names)
+  condHidden.clear(); condAt.clear(); if (cut && !CUTS[st.cut].body) for (const l of (condLive ? conduction.labels : [])){ const list = D.VIEW_CONDUCTION[st.cut];
+    if (list && !list.includes(l.id)){ condHidden.add(l.id); continue; }
+    const pts = [l.part.anchor, ...conduction.parts.filter(p => p.id === l.id).flatMap(p => p.samples || []).filter((_, i, a) => i % Math.max(1, Math.floor(a.length/8)) === 0)];
+    const ok = pts.find(p => { const w = toWorld(p); return !removed(w) && !occluded(w, occT); });
+    if (ok) condAt.set(l.id, ok); else condHidden.add(l.id); }
   if (cut){ const inner = new Set(anchors.filter(a => a.vis && a.where !== "ext").map(a => a.id)); for (const a of anchors) if (a.vis && a.where === "ext" && inner.has(a.id)) a.vis = false; }   // one label per structure
   labelsDirty = false; lastLabelCheck = performance.now(); }
 function placeLabels(){
@@ -2366,7 +2394,10 @@ const activationClock=ms=>{const {a,v}=ecg.curEv(ecgContext.ev,ms+200);return {a
 function deform(p){const v=p.clone(),z=v.z,w=T.MathUtils.smoothstep(z,-1,1.5),u=beatU.uSys.value;
   v.x*=1-BEAT_SHAPE.radialSqueeze*u*w;v.y*=1-BEAT_SHAPE.radialSqueeze*u*w;
   v.z+=BEAT_SHAPE.axialLift*u*(z>=0?1-T.MathUtils.clamp(z/BEAT_SHAPE.apexZ,0,1):T.MathUtils.clamp(1+z/BEAT_SHAPE.baseDepth,0,1));return v;}
+/* T6.2-B: a dissection view draws only the conduction parts it teaches (EXPLORE_DATA.VIEW_CONDUCTION), and only where they lie on the visible anatomy */
+const cutView=()=>st.mode==="cut"&&!CUTS[st.cut].body;
 const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,
+  cutView,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
   cycleMs:()=>60000/C.SC.normal.rh.rate,
   clocks:activationClock,
   onSelect:id=>select('conduction:'+id,null),onChange:()=>{if(conductionReady){syncClock();dirty()}}});
@@ -2430,8 +2461,8 @@ function calloutCandidates(){
   const entries=anchors.filter(a=>a.layer!=='conduction').map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
   for(const label of conduction.labels){label.el.dataset.id='conduction:'+label.id;
-    const p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(label.part.anchor)};
-    entry.visible=entry.visible&&p.visible;if(p.visible)entry.tap={x:p.x,y:p.y};entries.push(entry);
+    const at=condAt.get(label.id),p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(at||label.part.anchor)};
+    const shown=at?!!conduction.state.enabled:p.visible&&!condHidden.has(label.id);entry.visible=entry.visible&&shown;if(shown)entry.tap=at?{x:entry.x,y:entry.y}:{x:p.x,y:p.y};entries.push(entry);
   }
   for(const [id,el] of virtualLabels)entries.push({id,el,text:el.textContent,layer:'chambers',allowed:false,visible:false});
   if(st.sel&&!st.sel.startsWith('conduction:')){
@@ -2524,6 +2555,7 @@ window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== 
 conductionReady=true;
 paint(st.colour); applyMode(); resetView(); select(null, null);syncLayersUI();ecgStrip.draw(conduction.state.ms,true);
 $(".busy").hidden = true;
+condLive = true; refreshCond = () => conduction.refreshVisibility(); refreshCond();
 window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
@@ -2539,7 +2571,11 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
     colours:{impulse:CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uHot.value.getHexString(),muscle:activationDisplay.uniforms.uActHot.value.getHexString(),after:activationDisplay.uniforms.uActAfter.value.getHexString()}}),
   now:()=>conduction.now(),seek:ms=>conduction.seek(ms),tapStruct:id=>conduction.select(id),
   frameCost:()=>frameCost,
-  playback:options=>conduction.playback(options),conductionMidpoint:id=>conduction.midpoint(id),
+  playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m||!cutView())return m;updateLabelVisibility();   // T6.2-B: in a cut, the visible point of the part
+    if(condHidden.has(id))return {...m,visible:false};const at=condAt.get(id);if(!at)return m;const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
+    const occ=[HI.tissue,...HI.valves.children.filter(v=>v.visible)],pts=[at,...conduction.parts.filter(p=>p.id===id).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&!occluded(w,occ)});
+    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if(conduction.pick(x,y,ray.ray)?.id===id)return {...m,x,y,point:p.toArray()};}   // a point where a tap selects this part
+    const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },

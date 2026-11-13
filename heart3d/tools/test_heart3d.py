@@ -243,14 +243,14 @@ async def explore_checks(pg, fr, tag):
     below = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
     check("artery:RCA" in front and any(i in front for i in ("RA", "RV_cavity")) and "artery:PDA" in below, f"[{tag}] with the beat off, ticking layers refreshes labels; RCA (front) and PDA (below) show", f"front={front} below={below}")
     await fr.evaluate("for (const k of ['valves','conduction']) EXPLORE_APP.setLayer(k, true)")
-    # T6.2-B: Relevant label sets (4–8 per view) drive the "Find in this view" chips; most of them show in Relevant mode
+    # T6.2-B: Relevant label sets (4–20 per view, essential vessels and conduction included) drive the "Find in this view" chips; most of them show in Relevant mode
     rel = await fr.evaluate("""(()=>{const out={},L0={...EXPLORE_APP.st.layers},b0=EXPLORE_APP.st.beat,m0=EXPLORE_APP.st.labelMode;for(const [k,ids] of Object.entries(EXPLORE_DATA.RELEVANT_LABELS)){if(!ids.length)continue;
       EXPLORE_APP.setBeat(false,0);if(k==='external'||k==='seeThrough'){EXPLORE_APP.setMode(k==='external'?'ext':'xray');EXPLORE_APP.setView('Front')}else{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(k)}
       EXPLORE_APP.viewDefaults(k);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render();EXPLORE_APP.render();
       const shown=EXPLORE_APP.visibleLabels().map(x=>x.id).filter(id=>ids.includes(id)),chips=[...document.querySelectorAll('.panel [data-find]')].map(b=>b.dataset.find);
       out[k]={n:ids.length,shown:shown.length,chipsMatch:k==='external'||k==='seeThrough'||JSON.stringify(chips)===JSON.stringify(ids)}}
       EXPLORE_APP.labelMode(m0);EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();for(const k in L0)EXPLORE_APP.setLayer(k,L0[k]);EXPLORE_APP.setBeat(b0);return out})()""")
-    check(all(4 <= v['n'] <= 8 and v['chipsMatch'] and v['shown'] >= min(3, v['n']) for v in rel.values()) and len(rel) == 9, f"[{tag}] Relevant sets: 4–8 per view, Find chips match, at least 3 shown per view", str(rel))
+    check(all(4 <= v['n'] <= 20 and v['chipsMatch'] and v['shown'] >= min(3, v['n']) for v in rel.values()) and len(rel) == 9, f"[{tag}] Relevant sets: 4–20 per view, Find chips match, at least 3 shown per view", str(rel))
     lbl = await fr.evaluate("(()=>{const a=EXPLORE_APP.anchors,f=id=>a.find(x=>x.id===id&&x.where==='cav');return {LA:f('LA')?.home.toArray(),RV:f('RV_cavity')?.home.toArray()}})()")
     check(lbl['LA'] and lbl['RV'] and lbl['LA'][0] < 0 and lbl['RV'][0] > 2.5, f"[{tag}] chamber names point into their own cavity (exported label anchors)", str(lbl))
     # dissection views: a view card lists what to find, and its chips open cards
@@ -404,7 +404,7 @@ async def conduction_view_checks(pg, fr):
           "AV bridge starts at AVN arrival and reaches His only after the full AV delay",str(bridge))
     errors=[];counts={};clipped=[]
     for mode in ('ext','xray','cut'):
-        await fr.evaluate(f"EXPLORE_APP.setMode('{mode}');"+('EXPLORE_APP.setCut("a4c");' if mode=='cut' else 'EXPLORE_APP.setView("Front");')+"EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+        await fr.evaluate(f"EXPLORE_APP.setMode('{mode}');"+('EXPLORE_APP.setCut("a4c");' if mode=='cut' else 'EXPLORE_APP.setView("Front");')+"EXPLORE_APP.playback({playing:false});EXPLORE_APP.seek(100);EXPLORE_APP.render()")
         if A.shots: await fr.locator('.viewer').screenshot(path=shot(f'conduction_on_{mode}.png'))
         targets=await fr.evaluate("Object.keys(CGRAPH.spec.display.shortNames)")
         counts[mode]=0
@@ -419,14 +419,17 @@ async def conduction_view_checks(pg, fr):
             await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
             selected=await fr.evaluate("({selected:CONDUCTION_VIEW.state.selected,title:EXPLORE_APP.card()})")
             expected=await fr.evaluate("id=>CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)   # T6.2-B: full name in the card
-            if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
+            # T6.2-B: in the 4C cut the AV node, His and LBB origin share one tap zone; any of their cards is a correct answer there
+            if selected!={'selected':tap,'title':expected} and not (mode=='cut' and {tap,selected['selected']}<={'avn','his','lbb'}):errors.append([mode,tap,selected])
             counts[mode]+=1
         # Every visible callout remains a pointer card target, including crowded fascicles.
         for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
             await fr.locator(f'.conduction-label[data-tap="{tap}"]').click()
             if await fr.evaluate("CONDUCTION_VIEW.state.selected")!=tap:errors.append([mode,tap,'label'])
     check(not errors,"projected midpoint and label taps open the contract cards in External, X-ray and 4C",str(errors[:6]) if errors else str(counts))
-    check('sa' in clipped and 'his' in clipped,"4C hides anchors on the removed side instead of picking through the cut",str(clipped))
+    # T6.2-B: the 4C view draws only its own conduction parts (EXPLORE_DATA.VIEW_CONDUCTION.a4c) and only where they lie on the visible anatomy
+    shown4c=await fr.evaluate("EXPLORE_DATA.VIEW_CONDUCTION.a4c")
+    check(all(t in clipped for t in targets if t not in shown4c) and 'sa' not in clipped and 'his' not in clipped,"4C hides the conduction parts it does not teach and shows SA node + His on the cut anatomy",str(clipped))
     await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.setView('Front');EXPLORE_APP.setMode({atrial:'sinus',ventricular:'wpw',blocks:[]});EXPLORE_APP.render()")
     ap=await fr.evaluate("EXPLORE_APP.conductionMidpoint('ap')")
     hit=await fr.evaluate("p=>EXPLORE_APP.tapAt(p.x,p.y)",ap)
