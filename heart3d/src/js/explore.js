@@ -416,8 +416,10 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     const lm = JI.landmarks[id];
     if (lm){ let p; if (lm.kind === "point") p = lm.p; else if (lm.points && Array.isArray(lm.points)) p = lm.points[Math.floor(lm.points.length/2)]; else continue;
       anchors.push({ id, layer: L.id, text, p: new T.Vector3(...p), nrm: null, where: "lm" }); continue; }
-    const vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(intNames.indexOf(id)));
-    if (vi){ const li = intNames.indexOf(id); const a = centroidAnchor(vi.geometry, vi.userData.labels, l => l === li); if (a) anchors.push({ id, layer: L.id, text, p: a.p, nrm: null, where: "valve" }); continue; }
+    // valves: one name per valve (EXPLORE_DATA.VALVE_GROUPS), anchored on its leaflets
+    const lis = (D.VALVE_GROUPS[id] || [id]).map(n => intNames.indexOf(n)).filter(i => i > 0);
+    const vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => lis.some(li => m.userData.labels.includes(li)));
+    if (vi){ const a = centroidAnchor(vi.geometry, vi.userData.labels, l => lis.includes(l)); if (a) anchors.push({ id, layer: L.id, text, p: a.p, nrm: null, where: "valve" }); continue; }
     const ti = intNames.indexOf(id);
     if (ti > 0){ const a = centroidAnchor(HI.tissue.geometry, tl, l => l === ti); if (a) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "int" }); }
     const ei = extNames.indexOf(id);
@@ -435,7 +437,7 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     if (a.where === "ext"){ const ids = (a.layer === "chambers" ? extOf[a.id] || [] : [a.id]).map(n => extNames.indexOf(n)).filter(i => i > 0); a.cands = spread(HM.mesh.geometry, extLab, l => ids.includes(l)); }
     else if (a.where === "int"){ const ti = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tl, l => l === ti); }
     else if (a.where === "cav"){ const ci = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tc, l => l === ci); }
-    else if (a.where === "valve"){ const li = intNames.indexOf(a.id), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(li)); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => l === li); }
+    else if (a.where === "valve"){ const lis = (D.VALVE_GROUPS[a.id] || [a.id]).map(n => intNames.indexOf(n)), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => lis.some(li => m.userData.labels.includes(li))); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => lis.includes(l), 14); }
     else if (a.where === "lm"){ const lm = JI.landmarks[a.id], ti = intNames.indexOf(a.id); a.cands = [...(Array.isArray(lm?.points) ? lm.points.map(p => new T.Vector3(...p)) : []), ...(ti > 0 ? spread(HI.tissue.geometry, tl, l => l === ti, 6) : [])]; }
     a.home = a.p.clone(); }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
@@ -571,6 +573,7 @@ function startCard(){ return `<span class="eyebrow">Start here</span><h2>Explore
   <p><b>External</b> shows the surface and the coronary arteries. <b>See-through</b> turns the wall to glass so the valves and the conduction system show inside. <b>Cut</b> opens the heart along a body plane (coronal, axial, sagittal) or a cardiac plane (4-, 2-, 3-chamber, short axis); move the slider to slide the cut through the heart.</p>
   <p><b>Label colours</b> paint the heart by function: blue/purple for the right heart that carries deoxygenated blood, red for the left heart and aorta that carry oxygenated blood.</p>`; }
 function select(id, hit){
+  id = D.VALVE_OF[id] || id;   // a tap on a leaflet opens its valve
   if(id!==st.sel)selectionHit=hit;else if(hit)selectionHit=hit;
   hit=hit||selectionHit;
   updateFocus(id,hit);
@@ -635,7 +638,7 @@ function updateFocus(id,hit){
   for(const record of focusRecords){const attr=record.mesh.geometry.attributes.aFocus,mask=attr.array;
     if(!id||id.startsWith('conduction:'))mask.fill(0);
     else if(record.kind==='vessel')mask.fill(id===(record.mesh.userData.kind==='artery'?'artery:':'vein:')+record.mesh.userData.id?1:0);
-    else{const names=record.kind==='outer'?extNames:intNames,labels=new Set((record.kind==='outer'?(extOf[id]||[id]):[id]).map(n=>names.indexOf(n)).filter(i=>i>0)),cavity=intNames.indexOf(id);
+    else{const names=record.kind==='outer'?extNames:intNames,labels=new Set((record.kind==='outer'?(extOf[id]||[id]):(D.VALVE_GROUPS[id]||[id])).map(n=>names.indexOf(n)).filter(i=>i>0)),cavity=intNames.indexOf(id);
       for(let i=0;i<mask.length;i++)mask[i]=id.startsWith('wall:')?(record.kind==='outer'&&D.AHA_WALL(extAha[i])===id.slice(5)?1:0):
         labels.has(record.labels[i])||cavity>0&&record.cavity?.[i]===cavity?1:0;
     }attr.needsUpdate=true;

@@ -26,7 +26,7 @@ const EXPLORE_DATA = (() => {
   /* ---- layers (the "Labels" drop-down): which structures carry a label in each group ---- */
   const LAYERS = [
     { id: "chambers", name: "Chambers", ids: ["RA", "RV_cavity", "LA", "LV_cavity", "LAA", "LVOT", "RVOT"] },
-    { id: "valves", name: "Valves & leaflets", ids: ["MV_AML", "MV_PML", "TV_septal", "TV_anterior", "TV_posterior", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "PV_cusps", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM"] },
+    { id: "valves", name: "Valves", ids: ["mitral_valve", "tricuspid_valve", "aortic_valve", "pulmonary_valve", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM"] },
     { id: "vessels", name: "Vessels", ids: ["aortic_root", "aortic_arch", "PA_main", "RPA", "LPA", "SVC", "IVC", "pulmonary_veins", "coronary_sinus", "artery:LM", "artery:LAD", "artery:LCx", "artery:RCA", "artery:PDA", "artery:OM1", "artery:D1", "vein:GCV"] },
     { id: "conduction", name: "Conduction", ids: ["sa_node", "internodal_anterior", "internodal_middle", "internodal_posterior", "bachmann_bundle", "av_node", "his_bundle", "rbb", "lbb_anterior_fascicle", "lbb_posterior_fascicle", "lbb_septal_fascicle"] },
     { id: "landmarks", name: "Anatomical landmarks", ids: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "IAS", "IVS", "membranous_septum", "central_fibrous_body", "koch_triangle", "todaro_tendon", "eustachian_valve", "thebesian_valve", "cs_ostium", "cti", "moderator_band"] }];
@@ -38,6 +38,7 @@ const EXPLORE_DATA = (() => {
      LBB, RBB, LAF, LPF) and CTI. Everything else in words; "Pulm." / "Ant." / "Post." only when the words do not fit.
      Valve leaflets read "<valve>, <leaflet>" so they group by valve. The card always shows the full name. */
   const SHORT = { RA: "RA", RV_cavity: "RV", LA: "LA", LV_cavity: "LV", LAA: "LAA", LVOT: "LVOT", RVOT: "RVOT",
+    mitral_valve: "Mitral valve", tricuspid_valve: "Tricuspid valve", aortic_valve: "Aortic valve", pulmonary_valve: "Pulmonary valve",
     MV_AML: "Mitral, anterior", MV_PML: "Mitral, posterior", TV_septal: "Tricuspid, septal", TV_anterior: "Tricuspid, ant.", TV_posterior: "Tricuspid, post.",
     "AV_cusps.RCC": "Aortic, right cusp", "AV_cusps.LCC": "Aortic, left cusp", "AV_cusps.NCC": "Aortic, non-cor.", PV_cusps: "Pulm. valve", chordae: "Chordae",
     "papillary_muscles.ALPM": "Ant-lat papillary", "papillary_muscles.PMPM": "Post-med papillary",
@@ -52,6 +53,7 @@ const EXPLORE_DATA = (() => {
   const CARD = { sa_node: ["struct", "sa"], internodal_anterior: ["struct", "tracts"], internodal_middle: ["struct", "tracts"], internodal_posterior: ["struct", "tracts"], crista_terminalis: ["struct", "tracts"],
     bachmann_bundle: ["struct", "bach"], av_node: ["struct", "avn"], koch_triangle: ["struct", "avn"], his_bundle: ["struct", "his"], his_bifurcation: ["struct", "his"], rbb: ["struct", "rbb"],
     lbb_septal_fascicle: ["struct", "lbb"], lbb_anterior_fascicle: ["struct", "laf"], lbb_posterior_fascicle: ["struct", "lpf"], LA: ["struct", "la"], LA_wall: ["struct", "la"], pulmonary_veins: ["struct", "la"], RVOT: ["struct", "rvot"],
+    mitral_valve: ["valve", "mitral"], tricuspid_valve: ["valve", "tricuspid"], aortic_valve: ["valve", "aortic"], pulmonary_valve: ["valve", "pulmonary"],
     MV_AML: ["valve", "mitral"], MV_PML: ["valve", "mitral"], chordae: ["valve", "mitral"], TV_septal: ["valve", "tricuspid"], TV_anterior: ["valve", "tricuspid"], TV_posterior: ["valve", "tricuspid"], TV_annulus: ["valve", "tricuspid"],
     "AV_cusps.RCC": ["valve", "aortic"], "AV_cusps.LCC": ["valve", "aortic"], "AV_cusps.NCC": ["valve", "aortic"], PV_cusps: ["valve", "pulmonary"], LAA: ["valve", "laa"], LVOT: ["valve", "lvot"] };
   /* coronary tree (heart-mesh.json ids) → the lab's vessel keys (CONTENT.VESSEL); split by position along the artery */
@@ -101,17 +103,21 @@ const EXPLORE_DATA = (() => {
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
   const UI_FLAGS={activationTimingMap:false};
+  /* ---- one name per valve (Punnatorn, 13 Nov): the model labels the valve, not each leaflet; a tap on any leaflet opens the valve.
+     The leaflet ids stay in the phantom, the exports and the shaders. */
+  const VALVE_GROUPS = { mitral_valve: ["MV_AML", "MV_PML"], tricuspid_valve: ["TV_septal", "TV_anterior", "TV_posterior"],
+    aortic_valve: ["AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC"], pulmonary_valve: ["PV_cusps"] };
+  const VALVE_OF = Object.fromEntries(Object.entries(VALVE_GROUPS).flatMap(([g, ids]) => ids.map(id => [id, g])));
   /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–10 names (up to 20 where the view is explored with the level slider, e.g. 4C), including the essential vessels that can be seen in that view (vessels layer on in every view; coronary arteries still follow the Coronaries switch; the IVC has no surface of its own to label, and See-through hides great-vessel names).
      The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
      A name shows only when its layer is on and its anchor can be seen, so External lists both sides of the heart. */
   const RELEVANT_LABELS = {
     external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "aortic_arch", "PA_main", "SVC"],
     seeThrough: ["RA", "LA", "RV_cavity", "LV_cavity", "conduction:sa", "conduction:avn", "conduction:lbb", "conduction:rbb"],
-    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body", "coronary_sinus"],
-    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "MV_AML", "MV_PML", "TV_septal", "TV_anterior", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "LVOT", "AV_cusps.NCC",
-          "conduction:sa", "conduction:avn", "conduction:his", "conduction:lbb", "conduction:rbb", "conduction:purk", "coronary_sinus"],
-    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC", "pulmonary_veins"],
-    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb", "PA_main", "SVC"],
+    valves: ["pulmonary_valve", "aortic_valve", "mitral_valve", "tricuspid_valve", "central_fibrous_body", "coronary_sinus"],
+    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "mitral_valve", "tricuspid_valve", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "LVOT", "aortic_valve", "conduction:sa", "conduction:avn", "conduction:his", "conduction:lbb", "conduction:rbb", "conduction:purk", "coronary_sinus"],
+    lvOpen: ["LA", "LV_cavity", "LVOT", "mitral_valve", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "aortic_valve", "pulmonary_veins"],
+    rvOpen: ["RV_cavity", "tricuspid_valve", "moderator_band", "RVOT", "pulmonary_valve", "IVS", "conduction:rbb", "PA_main", "SVC"],
     raOpen: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:sa", "conduction:avn", "SVC"],
     laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "crista_terminalis", "conduction:sa", "conduction:bach", "conduction:avn", "SVC"],
     sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "coronary_sinus"],
@@ -144,5 +150,5 @@ const EXPLORE_DATA = (() => {
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
-  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  return { UI_FLAGS, VALVE_GROUPS, VALVE_OF, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();
