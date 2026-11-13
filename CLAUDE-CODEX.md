@@ -22,7 +22,7 @@ Repo: `punchotipurk-victis/Pun-CVS-sage` (public; GitHub Pages serves `index.htm
 | | Codex | Claude | Punnatorn (+ cardiology staff) |
 |---|---|---|---|
 | Owns | code: viewer/UI, bug fixes, tests, refactors, build/embed, performance, data plumbing | anatomy (phantom + exports), conduction/landmark specs, **all teaching text** (cards, pearls, scenario scripts, MCQs), design decisions, review of risky PRs | priorities, approval, merging, testing previews, medical review with staff |
-| Never | writes medical text (leaves `TODO(content)`), edits anatomy or exported JSON by hand, merges | re-explores the whole repo, runs long tests Codex can run, merges | — |
+| Never | writes medical text (leaves `TODO(content)`), edits anatomy or exported JSON by hand, merges | re-explores the whole repo, runs long tests Codex can run, merges outside `heart3d/rework` (lead conversation only, §4) | — |
 
 When a task needs both, split it: Claude writes the spec or data (a JSON or markdown file in the repo), then Codex wires it up.
 
@@ -43,7 +43,7 @@ Nothing important may live only in a chat.
 - Long-running branch for the 3D Heart rework: `heart3d/rework` (draft PR #6 into `site/home-echo`).
 - **Codex:** one task = branch `codex/<task-id>` from `heart3d/rework` → PR into `heart3d/rework`.
 - **Claude:** content/anatomy work on `claude/<task-id>` → PR into `heart3d/rework` (or commits straight to `heart3d/rework` when Punnatorn asks).
-- **Only Punnatorn merges.** Nobody merges into `site/home-echo` or the default branch.
+- **Merging (Punnatorn, 12 Nov):** the lead Claude conversation (`claude/heart3d/INTEGRATOR.md`) merges task PRs into `heart3d/rework` once they pass its review gate. **Only Punnatorn** merges anything else; nobody else merges into `site/home-echo` or the default branch.
 - Commit messages: imperative summary line, then what and why in plain English.
 
 ## 5. Definition of done (any agent)
