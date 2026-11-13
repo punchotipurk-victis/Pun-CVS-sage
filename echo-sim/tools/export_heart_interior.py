@@ -154,6 +154,36 @@ def cap_volume(bake, names, excluded):
     return {"lo": bake["lo"].tolist(), "n": [nx, ny, nz], "v": CAP_VOXEL,
             "rle": base64.b64encode(runs).decode(), "tissueByLabel": tissue_by_label}
 
+# ------------------------------------------------------------------ label anchors (T6.2-B)
+# Where a chamber's NAME points on the 3D Heart page.
+#   label_<id>_cav: the deepest point of the chamber's blood (largest distance to any wall), so it is always inside the cavity,
+#                   even for the crescent-shaped RV, whose centroid lies in the septum / LV.
+#   label_<id>_ext: just under the epicardium of the chamber's own wall, on the side a student sees it from
+#                   (RA: right heart border; RV: anterior surface; LA: posterior surface; LV: left heart border).
+LABEL_CHAMBERS = {  # id: (blood labels, outer-wall labels, body directions (patient frame: +x left, +y head, +z anterior) with weights)
+    "RA": (("RA",), ("RA_wall",), {(-1, 0, 0): 1.0, (0, 0, 1): 0.3}),
+    "RV_cavity": (("RV_cavity",), ("RV_free_wall",), {(0, 0, 1): 1.0}),
+    "LA": (("LA",), ("LA_wall",), {(0, 0, -1): 1.0, (0, -1, 0): 0.4}),
+    "LV_cavity": (("LV_cavity",), ("LV_myocardium", "PW"), {(1, 0, 0): 1.0, (0, 0, 1): 0.2}),
+}
+def label_anchors(LAB, BLOOD, HEART_T, DTO, C, v, ID, near, r3):
+    fr = json.load(open(os.path.join(root, "export", "heart-mesh.json")))["frames"]["heart"]
+    R = np.array([fr["X_patient"], fr["Y_patient"], fr["Z_patient"]])        # rows: heart axes in the patient frame → R @ body = heart
+    EPI = HEART_T & (DTO >= 0.03) & (DTO <= 0.25)
+    out = {}
+    for cid, (blood, wall, dirs) in LABEL_CHAMBERS.items():
+        m = np.isin(LAB, ID(*blood)) & BLOOD
+        if not m.any(): continue
+        d = ndimage.distance_transform_edt(m)
+        cav = C[np.unravel_index(np.argmax(d), d.shape)]
+        out[f"label_{cid}_cav"] = {"kind": "point", "p": r3(cav), "note": f"{cid} name anchor: deepest point of the cavity"}
+        h = sum(w*(R @ np.array(b, float)) for b, w in dirs.items())
+        if cid == "LV_cavity": h[2] = 0      # LV: the lateral wall at mid level, not the apex
+        h = h/np.linalg.norm(h)
+        ext = near(EPI & np.isin(LAB, ID(*wall)), C[m].mean(axis=0) + 6.0*h, maxr=9.0)   # from the blood centroid (mid-chamber), not the deepest point
+        out[f"label_{cid}_ext"] = {"kind": "point", "p": r3(ext), "note": f"{cid} name anchor on its outer wall (the side students see it from)"}
+    return out
+
 # ------------------------------------------------------------------ landmarks
 def landmarks(H, names):
     LAB, TISv, lo, v = H["labels"], H["tissue"], H["lo"], H["v"]
@@ -260,6 +290,7 @@ def landmarks(H, names):
       "svc_junction": {"kind": "point", "p": r3(svcA)},
       "pv_ostia": {"kind": "points", "points": {k: r3(L[k]) for k in ("PVein_LU", "PVein_LL", "PVein_RU", "PVein_RL")}},
       "laa_tip": {"kind": "point", "p": r3(L["LAA_tip"])},
+      **label_anchors(LAB, BLOOD, HEART_T, DTO, C, v, ID, near, r3),
       "papillary": {"kind": "points", "points": {k: r3(L[k]) for k in ("ALPM_base", "ALPM_tip", "PMPM_base", "PMPM_tip")}},
     }
     # checks: every conduction point sits in (or on) heart tissue

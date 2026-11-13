@@ -243,6 +243,18 @@ async def explore_checks(pg, fr, tag):
     below = [l["id"] for l in await fr.evaluate("EXPLORE_APP.visibleLabels()")]
     check("artery:RCA" in front and any(i in front for i in ("RA", "RV_cavity")) and "artery:PDA" in below, f"[{tag}] with the beat off, ticking layers refreshes labels; RCA (front) and PDA (below) show", f"front={front} below={below}")
     await fr.evaluate("for (const k of ['valves','conduction']) EXPLORE_APP.setLayer(k, true)")
+    # T6.2-B: Relevant label sets (4–20 per view, essential vessels and conduction included) drive the "Find in this view" chips; most of them show in Relevant mode
+    rel = await fr.evaluate("""(()=>{const out={},L0={...EXPLORE_APP.st.layers},b0=EXPLORE_APP.st.beat,m0=EXPLORE_APP.st.labelMode;for(const [k,ids] of Object.entries(EXPLORE_DATA.RELEVANT_LABELS)){if(!ids.length)continue;
+      EXPLORE_APP.setBeat(false,0);if(k==='external'||k==='seeThrough'){EXPLORE_APP.setMode(k==='external'?'ext':'xray');EXPLORE_APP.setView('Front')}else{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(k)}
+      EXPLORE_APP.viewDefaults(k);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render();EXPLORE_APP.render();
+      const shown=EXPLORE_APP.visibleLabels().map(x=>x.id).filter(id=>ids.includes(id)),chips=[...document.querySelectorAll('.panel [data-find]')].map(b=>b.dataset.find);
+      out[k]={n:ids.length,shown:shown.length,chipsMatch:k==='external'||k==='seeThrough'||JSON.stringify(chips)===JSON.stringify(ids)}}
+      EXPLORE_APP.labelMode(m0);EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();for(const k in L0)EXPLORE_APP.setLayer(k,L0[k]);EXPLORE_APP.setBeat(b0);return out})()""")
+    check(all(4 <= v['n'] <= 20 and v['chipsMatch'] and v['shown'] >= min(3, v['n']) for v in rel.values()) and len(rel) == 9, f"[{tag}] Relevant sets: 4–20 per view, Find chips match, at least 3 shown per view", str(rel))
+    leaf = await fr.evaluate("(()=>{EXPLORE_APP.select('MV_AML',null);const c=document.querySelector('.panel h2').textContent;EXPLORE_APP.select(null,null);return [c,EXPLORE_DATA.RELEVANT_LABELS.valves.includes('MV_AML'),EXPLORE_DATA.RELEVANT_LABELS.valves.includes('mitral_valve')]})()")
+    check('anterior leaflet' in leaf[0].lower() and not leaf[1] and leaf[2], f"[{tag}] one name per valve on the model; a leaflet tap names the leaflet", str(leaf))
+    lbl = await fr.evaluate("(()=>{const a=EXPLORE_APP.anchors,f=id=>a.find(x=>x.id===id&&x.where==='cav');return {LA:f('LA')?.home.toArray(),RV:f('RV_cavity')?.home.toArray()}})()")
+    check(lbl['LA'] and lbl['RV'] and lbl['LA'][0] < 0 and lbl['RV'][0] > 2.5, f"[{tag}] chamber names point into their own cavity (exported label anchors)", str(lbl))
     # dissection views: a view card lists what to find, and its chips open cards
     await fr.evaluate("EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('valves'); EXPLORE_APP.render()")
     vc = await fr.evaluate("[document.querySelector('.panel h2').textContent, document.querySelectorAll('.panel [data-find]').length]")
@@ -394,7 +406,7 @@ async def conduction_view_checks(pg, fr):
           "AV bridge starts at AVN arrival and reaches His only after the full AV delay",str(bridge))
     errors=[];counts={};clipped=[]
     for mode in ('ext','xray','cut'):
-        await fr.evaluate(f"EXPLORE_APP.setMode('{mode}');"+('EXPLORE_APP.setCut("a4c");' if mode=='cut' else 'EXPLORE_APP.setView("Front");')+"EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+        await fr.evaluate(f"EXPLORE_APP.setMode('{mode}');"+('EXPLORE_APP.setCut("a4c");' if mode=='cut' else 'EXPLORE_APP.setView("Front");')+"EXPLORE_APP.playback({playing:false});EXPLORE_APP.seek(100);EXPLORE_APP.render()")
         if A.shots: await fr.locator('.viewer').screenshot(path=shot(f'conduction_on_{mode}.png'))
         targets=await fr.evaluate("Object.keys(CGRAPH.spec.display.shortNames)")
         counts[mode]=0
@@ -408,15 +420,18 @@ async def conduction_view_checks(pg, fr):
             origin=await fr.evaluate("(()=>{const e=document.querySelector('.viewer'),r=e.getBoundingClientRect(),s=getComputedStyle(e);return {x:r.left+parseFloat(s.borderLeftWidth),y:r.top+parseFloat(s.borderTopWidth)}})()")
             await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
             selected=await fr.evaluate("({selected:CONDUCTION_VIEW.state.selected,title:EXPLORE_APP.card()})")
-            expected=await fr.evaluate("id=>CGRAPH.spec.display.shortNames[id]",tap)
-            if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
+            expected=await fr.evaluate("id=>CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)   # T6.2-B: full name in the card
+            # T6.2-B: in the 4C cut the AV node, His and LBB origin share one tap zone; any of their cards is a correct answer there
+            if selected!={'selected':tap,'title':expected} and not (mode=='cut' and {tap,selected['selected']}<={'avn','his','lbb'}):errors.append([mode,tap,selected])
             counts[mode]+=1
         # Every visible callout remains a pointer card target, including crowded fascicles.
         for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
             await fr.locator(f'.conduction-label[data-tap="{tap}"]').click()
             if await fr.evaluate("CONDUCTION_VIEW.state.selected")!=tap:errors.append([mode,tap,'label'])
     check(not errors,"projected midpoint and label taps open the contract cards in External, X-ray and 4C",str(errors[:6]) if errors else str(counts))
-    check('sa' in clipped and 'his' in clipped,"4C hides anchors on the removed side instead of picking through the cut",str(clipped))
+    # T6.2-B: the 4C view draws only its own conduction parts (EXPLORE_DATA.VIEW_CONDUCTION.a4c) and only where they lie on the visible anatomy
+    shown4c=await fr.evaluate("EXPLORE_DATA.VIEW_CONDUCTION.a4c")
+    check(all(t in clipped for t in targets if t not in shown4c) and 'sa' not in clipped and 'his' not in clipped,"4C hides the conduction parts it does not teach and shows SA node + His on the cut anatomy",str(clipped))
     await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.setView('Front');EXPLORE_APP.setMode({atrial:'sinus',ventricular:'wpw',blocks:[]});EXPLORE_APP.render()")
     ap=await fr.evaluate("EXPLORE_APP.conductionMidpoint('ap')")
     hit=await fr.evaluate("p=>EXPLORE_APP.tapAt(p.x,p.y)",ap)
@@ -531,7 +546,7 @@ async def activation_checks(pg,fr):
         if not isinstance(bounds,list):bounds=[bounds,bounds]
         tolerance=max(8,max(bounds)*.15)
         return value is not None and bounds[0]-tolerance<=value<=bounds[1]+tolerance
-    targets=[('SA',[0,10]),('IAS',48.7),('BB2',67.6),('AVN',65.6),('LAA',85.5),('LAP',100),('AP_A',103.2),('LAI',[110,125])]
+    targets=[('SA',[0,10]),('IAS',48.7),('BB2',67.6),('AVN',65.6),('LAA',85.5),('LAP',100),('AP_A',103.2),('LAI',[75,110])]   # T6.2-B: LAI revised (regions.regionTiming)
     for node,bounds in targets:contract(window(normal['near'][node]['time'],bounds),f'normal nearest atrial tissue at {node} meets regionTiming',normal['near'][node])
     contract(window(normal['atrialMax']-normal['atrialMin'],[90,120]),'normal total atrial activation 90–120 ms',normal['atrialMax']-normal['atrialMin'])
     contract(window(normal['allV']['min'],[26,34]) and normal['first']['label']=='IVS','first ventricular muscle is LV septum at 26–34 ms',normal['first'])
@@ -541,12 +556,15 @@ async def activation_checks(pg,fr):
     contract(window(normal['lvMidApex']['median'],[50,75]),'LV mid/apical epicardial tissue 50–75 ms',normal['lvMidApex'])
     contract(window(normal['allV']['p95'],[95,125]),'normal last 5% enters 95–125 ms window',normal['allV'])
     contract(window(normal['allV']['max']-normal['allV']['min'],[80,100]),'normal ventricular activation duration 80–100 ms',normal['allV'])
-    for mode,minimum,wall in [('rbbb',120,'RV'),('lbbb',130,'LV')]:
+    # T6.2-B: RBBB = normal + 30 ms and >= 110 ms (muscle map; the surface QRS >= 120 ms comes from the VCG template)
+    normalDuration=normal['allV']['max']-normal['allV']['min']
+    for mode,minimum,wall in [('rbbb',max(110,normalDuration+30),'RV'),('lbbb',130,'LV')]:
         m=maps[mode];duration=m['allV']['max']-m['allV']['min']
         contract(duration>=minimum and m[wall]['p95']>=m['allV']['p95'],f'{mode}: duration >= {minimum} ms and delayed {wall} tail',{'duration':duration,'tail':m[wall],'all':m['allV']})
     blocked=maps['lbbb'];right,left=blocked['rvSeptal'].get('min'),blocked['lvSeptal'].get('min')
     contract(right is not None and left is not None and right<left and blocked['septum']['min']>normal['septum']['min'],'LBBB activates septum right-to-left instead of retaining normal left-side entry',{'normal':normal['septum'],'lbbb':blocked['septum'],'right':blocked['rvSeptal'],'left':blocked['lvSeptal']})
-    for mode,region in [('lafb','anterolateral'),('lpfb','inferior')]:contract(maps[mode][region]['median']>normal[region]['median']+.01,f'{mode}: target LV region later than normal',{'normal':normal[region],'blocked':maps[mode][region]})
+    for mode,region in [('lafb','anterolateral'),('lpfb','inferior')]:
+        m=maps[mode];contract(m[region]['median']>normal[region]['median']+.01 and m['allV']['max']-m['allV']['min']<120,f'{mode}: target LV region later than normal; total < 120 ms',{'normal':normal[region],'blocked':m[region],'duration':m['allV']['max']-m['allV']['min']})
     wpw=maps['wpw']['first'];ap=await fr.evaluate('CGRAPH.nodes.AP_V.p')
     contract(sum((a-b)**2 for a,b in zip(wpw['p'],ap))**.5<=1,'WPW starts within 1 cm of AP_V',wpw)
     if A.shots or A.activation_audit:
@@ -599,7 +617,7 @@ async def ui_phase_a_checks(pg,fr):
         await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
         await fr.evaluate('EXPLORE_APP.render()')
         labels=await fr.evaluate('EXPLORE_APP.visibleLabels()')
-        check([x['id'] for x in labels]==['conduction:sa'] and await fr.evaluate("EXPLORE_APP.card()==='SA node'"),
+        check([x['id'] for x in labels]==['conduction:sa'] and await fr.evaluate("['SA node','Sinoatrial (SA) node'].includes(EXPLORE_APP.card())"),   # T6.2-B: the card shows the full name
               f'UI {name}: a real Explore tap opens one SA callout and card',str(labels))
         tap=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),b:EXPLORE_APP.uiState().callouts}})()")
         check(len(tap['b'])==1 and all(c['overHeart']==0 and c['nearHeart']==0 and c['box']['left']>=tap['v']['left'] and c['box']['right']<=tap['v']['right'] and
@@ -617,13 +635,14 @@ async def ui_phase_a_checks(pg,fr):
         await capture('explore_tap')
         await fr.evaluate("EXPLORE_APP.select('RA',null);EXPLORE_APP.render()")
         check((await fr.evaluate('EXPLORE_APP.uiState().focusVertices'))>0,f'UI {name}: anatomy selection highlights existing mesh vertices')
-        await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.push('RA');EXPLORE_APP.labelMode('relevant');EXPLORE_APP.select(null,null);EXPLORE_APP.render()")
+        await fr.evaluate("window.__rel=EXPLORE_DATA.RELEVANT_LABELS.external.splice(0);EXPLORE_DATA.RELEVANT_LABELS.external.push('RA');EXPLORE_APP.labelMode('relevant');EXPLORE_APP.select(null,null);EXPLORE_APP.render()")
         relevantIds=await fr.evaluate('EXPLORE_APP.labelListIds()') if width==400 else [x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]
         check(relevantIds==['RA'],f'UI {name}: Relevant reads the per-view list',str(relevantIds))
         await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.length=0;EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
         check(await fr.locator('.labelStatus').inner_text()=='No labels configured for this view. Tap a structure to explore.' and
               [x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]==['conduction:sa'],
               f'UI {name}: Relevant preserves an unlisted tapped structure and explains an empty list')
+        await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.push(...window.__rel)")
         await capture('relevant')
         await fr.evaluate("EXPLORE_APP.labelMode('all');EXPLORE_APP.render()")
         boxes=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),c:EXPLORE_APP.uiState().callouts}})()")

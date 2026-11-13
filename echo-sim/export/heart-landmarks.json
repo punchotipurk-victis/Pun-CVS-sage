@@ -842,6 +842,78 @@
     1.59
    ]
   },
+  "label_RA_cav": {
+   "kind": "point",
+   "p": [
+    2.85,
+    0.85,
+    -2.55
+   ],
+   "note": "RA name anchor: deepest point of the cavity"
+  },
+  "label_RA_ext": {
+   "kind": "point",
+   "p": [
+    5.05,
+    1.35,
+    -4.05
+   ],
+   "note": "RA name anchor on its outer wall (the side students see it from)"
+  },
+  "label_RV_cavity_cav": {
+   "kind": "point",
+   "p": [
+    4.25,
+    1.85,
+    2.45
+   ],
+   "note": "RV_cavity name anchor: deepest point of the cavity"
+  },
+  "label_RV_cavity_ext": {
+   "kind": "point",
+   "p": [
+    6.15,
+    -0.35,
+    3.45
+   ],
+   "note": "RV_cavity name anchor on its outer wall (the side students see it from)"
+  },
+  "label_LA_cav": {
+   "kind": "point",
+   "p": [
+    -1.45,
+    0.05,
+    -2.65
+   ],
+   "note": "LA name anchor: deepest point of the cavity"
+  },
+  "label_LA_ext": {
+   "kind": "point",
+   "p": [
+    -2.65,
+    3.25,
+    -4.15
+   ],
+   "note": "LA name anchor on its outer wall (the side students see it from)"
+  },
+  "label_LV_cavity_cav": {
+   "kind": "point",
+   "p": [
+    0.05,
+    -0.05,
+    6.35
+   ],
+   "note": "LV_cavity name anchor: deepest point of the cavity"
+  },
+  "label_LV_cavity_ext": {
+   "kind": "point",
+   "p": [
+    -1.55,
+    -2.85,
+    3.25
+   ],
+   "note": "LV_cavity name anchor on its outer wall (the side students see it from)"
+  },
   "papillary": {
    "kind": "points",
    "points": {
