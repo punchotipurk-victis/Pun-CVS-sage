@@ -130,7 +130,10 @@ function create(o){
   buildBatch();
   // One leader/label per contract tap id. Node anchors take precedence over curves.
   for(const id of Object.keys(d.shortNames)){
-    const candidates=parts.filter(p=>p.id===id),part=candidates.find(p=>p.nodeId)||candidates[0];if(!part)continue;
+    const candidates=parts.filter(p=>p.id===id),at=d.labelAnchors?.[id];
+    // spec display.labelAnchors: the label points at a node on one of the tap id's curves (T6.2-B)
+    let part=candidates.find(p=>p.nodeId)||(at&&candidates.find(p=>p.edge&&[p.edge.a,p.edge.b].includes(at)))||candidates[0];if(!part)continue;
+    if(at&&g.nodes[at])part=Object.assign(Object.create(part),{anchor:vector(g.nodes[at].p)});
     const el=document.createElement('button');el.type='button';el.className='lab lab-conduction conduction-label';
     el.dataset.tap=id;el.textContent=d.shortNames[id];el.hidden=true;labelLayer.appendChild(el);
     labels.push({id,part,el});

@@ -20,8 +20,21 @@
  "timing": {
   "clocks": "Two clocks, as legacy. Atrial clock: t = 0 when the SA node fires. Ventricular clock: t = 0 when the penetrating His (node HIS) fires. In a conducted beat, V-clock 0 = A-clock (TA_AVN + avDelay).",
   "avDelay": "Default D0 = round(170 − TA_AVN − 22) ms (= 82). Rhythm generators add to it (first-degree block, Wenckebach increments). It lives on edge AVN→HIS; the bead stays inside the AV-node ellipsoid for this time (pulsing), so students see 'the pause'.",
-  "atrialSeeds": "Every atrial edge except kinds sa / ine / avn is a fast lane: sample it every 0.3 cm and seed the atrial muscle with t = min(t_a + u·T, t_b + (1−u)·T) (u = arc fraction). Plus a seed at SA at t = 6 ms.",
-  "ventricularSeeds": "Purkinje terminals: every point on an edge of kind bb / fasc / mod / purk sampled every 0.2 cm (time interpolated as above) plus the purkinje:true nodes. An endocardial point s gets t(s) = min over terminals q within 3.5 cm of [ t(q) + |s − q|·10 / 2.6 ] + 4 ms (Purkinje–muscle junction). Ectopic focus: seed the muscle at the focus at t = 0 and enter the Purkinje tree retrogradely at the nearest terminal after retro_ms + distance/0.75 m/s (legacy).",
+  "atrialSeeds": "Every atrial edge except kinds sa / ine / avn is a fast lane: sample it every 0.3 cm and seed the atrial muscle with t = min(t_a + u·T, t_b + (1−u)·T) (u = arc fraction). Plus a seed at SA at t = 6 ms. A seed snaps to the nearest atrial voxel within atrialSeedSnapCm (the thin LA walls are often more than 0.3 cm from the path).",
+  "atrialSeedSnapCm": 0.6,
+  "ventricularSeeds": "See entry (T6.2-B). Ectopic focus: seed the muscle at the focus at t = 0 and enter the Purkinje tree retrogradely at the nearest terminal after retro_ms + distance/0.75 m/s (legacy).",
+  "entry": {
+   "rule": "Ventricular muscle is entered ONLY at Purkinje terminals. (1) The His bundle and the proximal bundles are insulated: an edge of kind bb / fasc / mod / purk seeds muscle only if its proximal end (node a, toward the His) is a purkinje:true node, plus the purkinje:true nodes themselves. (2) Each branch enters only its own ventricle: left-bundle terminals (lsf, laf, lpf; nodes LSF*, LAF*, LPF*, LVAP) seed only LV endocardium (cavity LV_cavity / LVOT); right-bundle terminals (RB3, moderator band, MODFW, RBAP) seed only RV endocardium (cavity RV_cavity / RVOT, via the moderator band). (3) The septal fascicle (tap lsf, nodes LSF1/LSF2) seeds only the septal surface (label IVS); LVAP seeds the apex. (4) A blocked branch has no times, so it loses all its entry points. (5) An endocardial point s gets t(s) = min over allowed terminals q within radiusCm of [ t(q) + |s − q|·10 / purkinjeVelocity_mps ] + junction_ms. (6) Display-only branches tagged illustrative (display.purkinjeTree) never seed and never change timing.",
+   "fromFirstPurkinjeNode": true,
+   "ownVentricle": true,
+   "septalOnly": [
+    "lsf"
+   ],
+   "radiusCm": 3.0,
+   "purkinjeVelocity_mps": 2.0,
+   "junction_ms": 4,
+   "why": "The 13 Nov audit (PR #12) seeded the base of the septum from the proximal bundles at 14.5 ms after His and let the right bundle seed the LV septum, so LBBB looked normal. With entry at the terminals the first muscle is the LV mid-septum at ≈ 30 ms after His (Durrer: QRS onset), the RV free wall breaks through via the moderator band, and blocks change the map. Prototype in activation.js sources() (T6.2-B); audit numbers in heart3d/reviews/T6.2-B-timing.md."
+  },
   "muscleVelocity_mps": {
    "atrial": 1.0,
    "ventricular": 0.6,
@@ -427,6 +440,13 @@
    "pericardium"
   ],
   "neverActivateDisplay": "Keep their own colour while the wave passes. Exception: outer-surface epicardial fat / coronary vertices with wall LV or RV show the time of the nearest muscle vertex at 40 % strength ('wave seen through the fat'), so the outer view is not full of holes.",
+  "mapCm": 0.6,
+  "mapNote": "Each mesh vertex takes the time of the nearest voxel of its class within mapCm (0.3 cm left thin LA / LAA wall vertices unmapped, so they never activated).",
+  "laa": {
+   "fromNode": "LAA",
+   "radiusCm": 0.9,
+   "rule": "Bachmann → LAA. The appendage wall (0.15 cm) is thinner than the 0.2 cm grid, so the geodesic cannot reach it. Atrial vertices facing the LAA cavity (interior mesh), labelled LAA (outer mesh) or within radiusCm of the axis LAA node → landmark laa_tip take t = t(LAA node) + |p − LAA node|·10 / atrial velocity when that is earlier."
+  },
   "endocardium": "Interior mesh: vertex.cavity ∈ {LV_cavity, LVOT} → LV endocardium; {RV_cavity, RVOT} → RV endocardium; {RA, LA, LAA} → atrial endocardium. Only endocardial vertices get Purkinje seeds.",
   "purkinjeFreeZones": [
    "LV base: no Purkinje seeds where z < 1.8 cm, except on IVS (septal surface). The basal posterolateral LV activates last (Durrer).",
@@ -468,11 +488,12 @@
      "ms": 103.2
     },
     {
-     "region": "LA inferior / last atrial tissue",
+     "region": "LA inferior wall (LAI), reached through the septum and the CS musculature",
      "ms": [
-      110,
-      125
-     ]
+      75,
+      110
+     ],
+     "revised": "T6.2-B: 110–125 was the legacy graph time of node LAI, which has no muscle; real muscle spread from the septum reaches the LA floor at ≈ 80–100 ms. The last atrial tissue is the LAA tip / lateral LA (see total)."
     },
     {
      "region": "total atrial activation (P duration)",
@@ -492,6 +513,13 @@
      "ms": [
       26,
       34
+     ],
+     "labels": [
+      "IVS"
+     ],
+     "cavity": [
+      "LV_cavity",
+      "LVOT"
      ]
     },
     {
@@ -529,6 +557,29 @@
       100
      ],
      "legacyQrsMs": 92
+    }
+   ],
+   "blocks": [
+    {
+     "mode": "rbbb",
+     "rule": "total ≥ normal total + 30 ms and ≥ 110 ms; the RV free wall / RVOT holds the last 5 %",
+     "revised": "T6.2-B: was ≥ 120 ms. The 3D map measures muscle activation only (≈ 117 ms with the T6.2-B entry rule, +36 ms over normal); the surface QRS ≥ 120 ms and the terminal R′ come from the legacy VCG template, which does not change."
+    },
+    {
+     "mode": "lbbb",
+     "rule": "total ≥ 130 ms; the septum is entered from the RIGHT (RV-side septal surface earlier than the LV side, and later than the normal LV-side entry); the LV lateral wall holds the last 5 %"
+    },
+    {
+     "mode": "lafb",
+     "rule": "anterolateral LV (AHA 6, 12) later than normal; total stays < 120 ms"
+    },
+    {
+     "mode": "lpfb",
+     "rule": "inferior LV (AHA 4, 10, 15) later than normal; total stays < 120 ms"
+    },
+    {
+     "mode": "wpw",
+     "rule": "first ventricular vertex within 1 cm of AP_V"
     }
    ]
   }
@@ -592,25 +643,33 @@
    "sa": "SA node",
    "tracts": "Internodal routes",
    "bach": "Bachmann's bundle",
-   "la": "Left atrium",
+   "la": "LA conduction",
    "avn": "AV node",
    "avn_fast": "Fast pathway",
    "avn_slow": "Slow pathway",
    "his": "His bundle",
-   "lbb": "Left bundle",
+   "lbb": "LBB",
    "lsf": "Septal fascicle",
-   "laf": "Left anterior fascicle",
-   "lpf": "Left posterior fascicle",
-   "rbb": "Right bundle",
+   "laf": "LAF",
+   "lpf": "LPF",
+   "rbb": "RBB",
    "moderator": "Moderator band",
    "purk": "Purkinje fibres",
    "ap": "Accessory pathway",
-   "cti": "Cavotricuspid isthmus"
+   "cti": "CTI"
+  },
+  "shortNamesRule": "≤ 18 characters, sentence case; abbreviations only where the ECG report uses them (SA node, AV node, LBB, RBB, LAF, LPF, CTI). The card shows the full name (content.js STRUCT name).",
+  "labelAnchors": {
+   "_rule": "A tap id's label points at this node instead of the midpoint of its first curve (for la that midpoint was on the CS route, right of the septum, so 'Left atrium' pointed behind the RA).",
+   "la": "LAP"
   },
   "labels": "One label per tap id at the curve's arc midpoint with a short leader line; hide labels whose anchor is behind a cut. At ≤ 400 px viewer width show only SA, AV node, His, LBB, RBB.",
   "depth": "Draw conduction on top (depthTest false) but in two passes: parts in front of the nearest tissue at full opacity, parts hidden behind tissue at 45 %. Students then see the network inside the heart and still sense depth.",
   "colours": {
-   "idle": "#22C3AB (legacy teal)",
+   "decision": "T6.2-B (Punnatorn, 13 Nov), option (c): the network is cream-gold at rest, like the reference pictures; while the beat plays it dims to teal so the amber muscle wave reads clearly. Wave and impulse colours do not change.",
+   "rest": "#F3DFA2 cream-gold (beat paused / Conduction on without playback); nodes #FFE7A8 with a soft glow",
+   "playing": "#22C3AB teal, cross-fade 300 ms when playback starts or stops",
+   "idle": "#22C3AB (legacy teal) – the playing colour",
    "wavefront": "#FFF7B8 (pale gold), 12 ms long band along the curve",
    "justFired": "#6BF2DB fading back to idle over the refractory time",
    "slowPathway": "#F2A33A (amber) idle colour of avn_slow",
@@ -620,9 +679,106 @@
    "ablationLine": "white dashed line along landmark cti (only in flutter scenes)",
    "circuitArrow": "animated chevrons along the circuit, gold; slow zone drawn amber"
   },
+  "redesign": {
+   "task": "T6.2-B → Codex T6.2-C. Style borrowed from Punnatorn's two reference pictures (13 Nov), not copied: smooth, rounded, tapered tubes; a bulging SA node; a round AV-node bead; the LBB as a fan; a fine Purkinje tree.",
+   "tubes": {
+    "profile": "radius tapers linearly along each edge from rA to rB (cm); round caps at nodes; 12 radial segments (8 on phones)",
+    "radiusCm": {
+     "his": [
+      0.2,
+      0.18
+     ],
+     "bb": [
+      0.16,
+      0.12
+     ],
+     "fasc": [
+      0.12,
+      0.06
+     ],
+     "mod": [
+      0.12,
+      0.08
+     ],
+     "purk": [
+      0.06,
+      0.02
+     ],
+     "tract": [
+      0.1,
+      0.08
+     ],
+     "bach": [
+      0.16,
+      0.1
+     ],
+     "cs": [
+      0.09,
+      0.07
+     ],
+     "ine": [
+      0.11,
+      0.09
+     ],
+     "cti": [
+      0.14,
+      0.14
+     ],
+     "ap": [
+      0.16,
+      0.16
+     ]
+    },
+    "note": "Bundle → fascicle → terminal reads thick → fine, so students see the hierarchy without labels."
+   },
+   "saNode": {
+    "shape": "crescent bulge along the crista at the SVC–RA junction: ellipsoid 0.45 × 0.24 × 0.22 cm, 20 % proud of the epicardium, long axis along SA_H → SA_T",
+    "glow": true
+   },
+   "avNode": {
+    "shape": "round bead, sphere r 0.24 cm at AVN, joined to the His by a short taper (0.24 → 0.20)",
+    "glow": true
+   },
+   "lbbFan": {
+    "shape": "from LB1 a thin fan (ribbon) on the LV septal surface spanning the three fascicles; ribbon opacity 35 %, fascicle tubes on top",
+    "fascicles": [
+     "lsf",
+     "laf",
+     "lpf"
+    ]
+   },
+   "rbb": {
+    "shape": "thin cord (0.12 → 0.10) down the RV septum to RB3, then along the moderator band to MODFW"
+   },
+   "purkinjeTree": {
+    "illustrative": true,
+    "timing": "never: no seeds, no tap target, not in Dijkstra; it lights with the wave of the nearest real terminal",
+    "generate": "from each purkinje:true node and from the distal half of each fascicle: 3 levels of branching (2–3 children, 25–40° spread, length 0.8 → 0.5 → 0.3 cm), every point snapped to 0.05–0.15 cm under the endocardium of its OWN ventricle (subendocardial), growing from the apex up both ventricular walls; stop at the purkinje-free zones (LV base z < 1.8 cm except septum; RVOT)",
+    "radiusCm": [
+     0.04,
+     0.015
+    ],
+    "count": "about 120 LV + 60 RV segments; 40 % on phones",
+    "seed": "fixed RNG seed so screenshots are stable",
+    "tag": "every generated segment carries illustrative: true"
+   },
+   "look": {
+    "dark": "soft additive glow (rest colour, 40 % intensity, 2 px bloom fake: a second, 1.6× wider tube at 15 % opacity) on the dark viewer background (reference 1)",
+    "cut": "no glow in Cut mode: thin clean lines, 0.8× radius, on the cut anatomy (reference 2)"
+   }
+  },
   "tissueWave": {
    "default": "Gold band on the muscle where 0 ≤ now − t_act < 12 ms, then the just-fired tint fades over the refractory time. Atria and ventricles use the same palette so the student sees one impulse travelling.",
    "isochroneToggle": "Static map coloured by activation time (10 ms bands, colour-blind-safe sequential ramp, legend in ms; first = light, last = dark). This is the best view for comparing normal vs LBBB vs WPW.",
+   "timingMapText": {
+    "button": "Activation timing map",
+    "hint": "Colours show WHEN each part of the muscle fires in one beat. Light = early, dark = late.",
+    "legendTitle": "Time after the impulse leaves the His bundle (ms)",
+    "legendAtria": "Atria: time after the SA node fires (ms)",
+    "explain": "Normal: the left side of the septum fires first, so the septum is activated left to right (the small q in I and V6). Then the impulse spreads from the inside (endocardium) to the outside, apex before base, and the base of the LV lateral wall and the RV outflow tract fire last. Total about 80–100 ms, which is the width of the QRS.",
+    "compare": "Switch to LBBB: the septum now fires from the right, the LV is reached late through the muscle, and the map stretches past 130 ms (wide QRS). In RBBB the RV free wall is last. In WPW the earliest colour sits at the accessory pathway, before the His.",
+    "caveat": "A teaching model: real maps vary with fibre direction and disease."
+   },
    "playback": "Speeds 1×, 0.25×, 0.1×; pause and step ±5 ms. The ECG cursor and the 3D wave share one clock.",
    "phaseLink": "While the bead is on a part, the ECG phase chip shows what that part makes on the surface ECG (P, PR, QRS…), reusing the legacy phase text (TODO(content) for new parts)."
   }

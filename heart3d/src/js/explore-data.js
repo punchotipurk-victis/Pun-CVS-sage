@@ -27,18 +27,25 @@ const EXPLORE_DATA = (() => {
   const LAYERS = [
     { id: "chambers", name: "Chambers", ids: ["RA", "RV_cavity", "LA", "LV_cavity", "LAA", "LVOT", "RVOT"] },
     { id: "valves", name: "Valves & leaflets", ids: ["MV_AML", "MV_PML", "TV_septal", "TV_anterior", "TV_posterior", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "PV_cusps", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM"] },
-    { id: "vessels", name: "Vessels", ids: ["aortic_root.ascending", "aortic_arch", "PA_main", "RPA", "LPA", "SVC", "IVC", "pulmonary_veins", "coronary_sinus", "artery:LM", "artery:LAD", "artery:LCx", "artery:RCA", "artery:PDA", "artery:OM1", "artery:D1", "vein:GCV"] },
+    { id: "vessels", name: "Vessels", ids: ["aortic_root", "aortic_arch", "PA_main", "RPA", "LPA", "SVC", "IVC", "pulmonary_veins", "coronary_sinus", "artery:LM", "artery:LAD", "artery:LCx", "artery:RCA", "artery:PDA", "artery:OM1", "artery:D1", "vein:GCV"] },
     { id: "conduction", name: "Conduction", ids: ["sa_node", "internodal_anterior", "internodal_middle", "internodal_posterior", "bachmann_bundle", "av_node", "his_bundle", "rbb", "lbb_anterior_fascicle", "lbb_posterior_fascicle", "lbb_septal_fascicle"] },
     { id: "landmarks", name: "Anatomical landmarks", ids: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "IAS", "IVS", "membranous_septum", "central_fibrous_body", "koch_triangle", "todaro_tendon", "eustachian_valve", "thebesian_valve", "cs_ostium", "cti", "moderator_band"] }];
 
-  /* ---- short names for labels on the model ---- */
-  const SHORT = { RA: "RA", RV_cavity: "RV", LA: "LA", LV_cavity: "LV", LAA: "LAA", LVOT: "LVOT", RVOT: "RVOT", MV_AML: "AML", MV_PML: "PML", TV_septal: "TV septal", TV_anterior: "TV anterior", TV_posterior: "TV posterior",
-    "AV_cusps.RCC": "RCC", "AV_cusps.LCC": "LCC", "AV_cusps.NCC": "NCC", PV_cusps: "Pulm. valve", chordae: "Chordae", "papillary_muscles.ALPM": "AL papillary", "papillary_muscles.PMPM": "PM papillary",
-    "aortic_root.ascending": "Aorta", aortic_arch: "Arch", PA_main: "Pulm. trunk", RPA: "RPA", LPA: "LPA", SVC: "SVC", IVC: "IVC", pulmonary_veins: "Pulm. veins", coronary_sinus: "Coronary sinus",
+  /* ---- short names for labels on the model (T6.2-B) ----
+     Rule: at most 18 characters; sentence case, eponyms keep their capital (Koch's triangle, Tendon of Todaro).
+     Abbreviate only what a student already reads on an echo or ECG report: chambers (RA, RV, LA, LV, LAA, LVOT, RVOT), veins and
+     arteries (SVC, IVC, RPA, LPA, LM, LAD, LCx, RCA, PDA, OM1, D1), the conduction parts named in ECG diagnoses (SA node, AV node,
+     LBB, RBB, LAF, LPF) and CTI. Everything else in words; "Pulm." / "Ant." / "Post." only when the words do not fit.
+     Valve leaflets read "<valve>, <leaflet>" so they group by valve. The card always shows the full name. */
+  const SHORT = { RA: "RA", RV_cavity: "RV", LA: "LA", LV_cavity: "LV", LAA: "LAA", LVOT: "LVOT", RVOT: "RVOT",
+    MV_AML: "Mitral, anterior", MV_PML: "Mitral, posterior", TV_septal: "Tricuspid, septal", TV_anterior: "Tricuspid, ant.", TV_posterior: "Tricuspid, post.",
+    "AV_cusps.RCC": "Aortic, right cusp", "AV_cusps.LCC": "Aortic, left cusp", "AV_cusps.NCC": "Aortic, non-cor.", PV_cusps: "Pulm. valve", chordae: "Chordae",
+    "papillary_muscles.ALPM": "Ant-lat papillary", "papillary_muscles.PMPM": "Post-med papillary",
+    "aortic_root.ascending": "Ascending aorta", aortic_root: "Aortic root", aortic_arch: "Aortic arch", PA_main: "Pulm. trunk", RPA: "RPA", LPA: "LPA", SVC: "SVC", IVC: "IVC", pulmonary_veins: "Pulm. veins", coronary_sinus: "Coronary sinus",
     "artery:LM": "LM", "artery:LAD": "LAD", "artery:LCx": "LCx", "artery:RCA": "RCA", "artery:PDA": "PDA", "artery:OM1": "OM1", "artery:D1": "D1", "vein:GCV": "Great cardiac v.",
-    sa_node: "SA node", internodal_anterior: "Ant. internodal", internodal_middle: "Mid. internodal", internodal_posterior: "Post. internodal", bachmann_bundle: "Bachmann's", av_node: "AV node", his_bundle: "His",
+    sa_node: "SA node", internodal_anterior: "Ant. internodal", internodal_middle: "Mid. internodal", internodal_posterior: "Post. internodal", bachmann_bundle: "Bachmann's bundle", av_node: "AV node", his_bundle: "His bundle",
     rbb: "RBB", lbb_anterior_fascicle: "LAF", lbb_posterior_fascicle: "LPF", lbb_septal_fascicle: "Septal fascicle",
-    crista_terminalis: "Crista terminalis", pectinate_muscles: "Pectinate mm.", fossa_ovalis: "Fossa ovalis", IAS: "IAS", IVS: "IVS", membranous_septum: "Membranous septum", central_fibrous_body: "Central fibrous body",
+    crista_terminalis: "Crista terminalis", pectinate_muscles: "Pectinate muscles", fossa_ovalis: "Fossa ovalis", IAS: "Atrial septum", IVS: "Ventricular septum", membranous_septum: "Membranous septum", central_fibrous_body: "Central fib. body",
     koch_triangle: "Koch's triangle", todaro_tendon: "Tendon of Todaro", eustachian_valve: "Eustachian valve", thebesian_valve: "Thebesian valve", cs_ostium: "CS ostium", cti: "CTI", moderator_band: "Moderator band" };
 
   /* ---- what a tap opens: an existing card (CONTENT.STRUCT / SIMC.VALVENOTE / CONTENT.VESSEL / walls) or a short note ---- */
@@ -94,8 +101,36 @@ const EXPLORE_DATA = (() => {
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
   const UI_FLAGS={activationTimingMap:false};
-  // TODO(content): Claude supplies approved label ids for each view. A conduction
-  // id uses the existing "conduction:<tap id>" namespace. Do not infer a syllabus.
-  const RELEVANT_LABELS=Object.fromEntries(['external','seeThrough','valves','a4c','raOpen','rvOpen','laOpen','lvOpen','sax','coronal','axial','sagittal'].map(id=>[id,[]]));
-  return { UI_FLAGS, RELEVANT_LABELS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–8 names.
+     The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
+     A name shows only when its layer is on and its anchor can be seen, so External lists both sides of the heart. */
+  const RELEVANT_LABELS = {
+    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "PA_main", "SVC"],
+    seeThrough: ["RA", "LA", "RV_cavity", "LV_cavity", "conduction:sa", "conduction:avn", "conduction:lbb", "conduction:rbb"],
+    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body"],
+    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "fossa_ovalis", "TV_septal", "MV_AML"],
+    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC"],
+    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb"],
+    raOpen: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:avn"],
+    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "MV_AML", "MV_PML"],
+    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM"],
+    coronal: [], axial: [], sagittal: [] };
+  /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
+     "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
+     Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
+  const VIEW_LAYERS = {
+    external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
+    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "off" },
+    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "off", conduction: "off" },
+    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "off", conduction: "off" },
+    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" },
+    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "off" },
+    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "off" },
+    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "off" },
+    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" } };
+  /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
+     into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
+  const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
+    members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
+  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();

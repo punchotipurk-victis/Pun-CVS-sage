@@ -59,7 +59,7 @@ async function solve(job){
     };
     async function propagate(side,source){
       const t=new Float32Array(total).fill(N),heap=new Heap(total,t),velocity=spec.timing.muscleVelocity_mps[side===1?'atrial':'ventricular'];
-      for(const s of source){const id=nearest(s.p,side);if(id>=0&&s.t<t[id]){t[id]=s.t;heap.put(id)}}
+      for(const s of source){let id=nearest(s.p,side);if(id<0&&s.snap>.3)id=nearest(s.p,side,s.snap);if(id>=0&&s.t<t[id]){t[id]=s.t;heap.put(id)}}
       const steps=[];for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy||dz)steps.push([dx,dy,dz,dx+nx*dy+xy*dz,Math.hypot(dx,dy,dz)*v*10/velocity]);
       let visits=0;
       while(heap.n){const id=heap.pop(),time=t[id],x=id%nx,y=Math.floor(id/nx)%ny,z=Math.floor(id/xy);
@@ -67,11 +67,12 @@ async function solve(job){
           const q=id+delta,c=classes[q];if(side===1?c!==1:c<2)continue;
           const value=time+cost;if(value<t[q]-.00001){t[q]=value;heap.put(q)}
         }if((++visits&2047)===0)await cooperate();
-      }return t;
+      }
+      return t;
     }
     tA=await propagate(1,seeds.a);tV=await propagate(2,seeds.v);
     for(const m of meshes)for(let i=0;i<m.classes.length;i++){const c=m.classes[i];if(!c)continue;
-      const id=nearest(m.positions.subarray(i*3,i*3+3),c===1?1:2);if(id<0){diagnostics.unmapped++;continue}
+      const q=m.positions.subarray(i*3,i*3+3);let id=nearest(q,c===1?1:2);if(id<0&&spec.regions.mapCm>.3)id=nearest(q,c===1?1:2,spec.regions.mapCm);if(id<0){diagnostics.unmapped++;continue}
       const t=c===1?tA[id]:tV[id];(c===1?m.tA:m.tV)[i]=t;if(t>=N)diagnostics.unreachable++;if((i&511)===0)await cooperate();
     }
   }else{
@@ -83,6 +84,12 @@ async function solve(job){
       (c===1?m.tA:m.tV)[i]=best;if((i&1023)===0)await cooperate();
     }
   }
+  /* Contract regions.laa: the appendage wall is thinner than the 0.2 cm grid, so the geodesic cannot reach it; it fires from
+     Bachmann's LAA end at the atrial muscle velocity (vertices facing the LAA cavity, or within radiusCm of the LAA axis). */
+  const tip=landmarks.laa_tip?.p,segD=q=>{if(!tip||!seeds.laa)return 1e9;const a=seeds.laa.p,ab=tip.map((x,k)=>x-a[k]),L2=ab.reduce((n,x)=>n+x*x,0),u=Math.max(0,Math.min(1,ab.reduce((n,x,k)=>n+x*(q[k]-a[k]),0)/L2));return dist(q,a.map((x,k)=>x+u*ab[k]))};
+  if(seeds.laa)for(const m of meshes)for(let i=0;i<m.classes.length;i++){if(m.classes[i]!==1)continue;
+    const q=m.positions.subarray(i*3,i*3+3),inLAA=(m.cavity?m.names[m.cavity[i]]==='LAA':m.names[m.labels[i]]==='LAA')||segD(q)<=(spec.regions.laa?.radiusCm||0);if(!inLAA)continue;
+    const val=seeds.laa.t+dist(m.positions.subarray(i*3,i*3+3),seeds.laa.p)*10/spec.timing.muscleVelocity_mps.atrial;if(val<m.tA[i])m.tA[i]=val}
   // Display-only exception. Never change classes or introduce a cross-side time.
   const outer=meshes[0],inner=meshes[1],bins=new Map(),cell=.5,key=p=>p.map(x=>Math.floor(x/cell)).join(',');
   for(let i=0;i<inner.classes.length;i++){if(inner.classes[i]>1&&inner.tV[i]<N){const p=Array.from(inner.positions.subarray(i*3,i*3+3)),k=key(p);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(i)}if((i&2047)===0)await cooperate()}
@@ -112,13 +119,19 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
     let a=graph.atrialTimes(mode.atrial),v=graph.ventGraph(mode.ventricular);
     if(mode.blocks?.length){a=graph.times('A',Object.fromEntries(Object.entries(a).filter(([id])=>Object.hasOwn(am.seed,id))),[...block],0);v=graph.times('V',Object.fromEntries(Object.entries(v).filter(([id])=>id==='HIS')),[...block])}
     const A=[],Q=[],V=[];
+    /* T6.2-B contract (spec.timing.entry): the bundles are insulated; muscle is entered only from the first Purkinje node of each
+       branch onwards, each branch only into its own ventricle (left bundle → LV, right bundle → RV), the septal fascicle only into
+       the septum. A blocked branch has no times, so it loses its entry points. Illustrative display branches never seed. */
+    const E=graph.spec.timing.entry||{},R=E.radiusCm??3.5,VP=E.purkinjeVelocity_mps??2.6,J=E.junction_ms??4,snap=graph.spec.timing.atrialSeedSnapCm??.3;
+    const side=id=>/^(RB|MOD)/.test(id)?3:2;
     for(const e of graph.edges){if(e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
-      const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind);
+      const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),
+        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!E.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
       if(!isA&&!isV)continue;const count=Math.ceil(length(e)/(isA?.3:.2));
-      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:['rbb','purk'].includes(e.struct)?3:2})}
+      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:E.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:(E.septalOnly||[]).includes(e.tap)?'IVS':null})}
     }
     if(a.SA<NEVER&&!['none','avnOnly','saOnly'].includes(mode.atrial))A.push({p:graph.nodes.SA.p,t:6});
-    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2});
+    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:(E.septalOnly||[]).includes(n.tapTarget)&&id!=='LVAP'?'IVS':null});
     let nextIdle=performance.now()+8;
     if(!vm.noMuscle){for(let i=0;i<inner.positions.length/3;i++){
       if((i&511)===0){if(!stillWanted())throw 'superseded';if(performance.now()>=nextIdle){await new Promise(resolve=>typeof requestIdleCallback==='function'?requestIdleCallback(resolve,{timeout:50}):setTimeout(resolve,0));nextIdle=performance.now()+8}}
@@ -127,12 +140,12 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       // Only muscle endocardium receives fast-network seeds; classification in
       // the solver rejects any excluded/non-muscle destination as well.
       if(!graph.spec.regions.ventricularMuscle.labels.includes(label))continue;
-      let t=NEVER;for(const q of Q){const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=3.5)t=Math.min(t,q.t+d*10/2.6+4)}
+      let t=NEVER;for(const q of Q){if(E.ownVentricle&&q.chamber!==(rv?3:2))continue;if(q.only&&q.only!==label)continue;const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=R)t=Math.min(t,q.t+d*10/VP+J)}
       if(t<NEVER)V.push({p:Array.from(p),t,chamber:rv?3:2});
     }
     if(vm.ap)V.push({p:graph.nodes.AP_V.p,t:22-graph.constants.WPW_LEAD,chamber:2});
     if(vm.focus)V.push({p:graph.spec.foci[vm.focus].p,t:0,chamber:vm.focus==='rvot'?3:2});}
-    return {a:A,v:V};
+    const L=graph.spec.regions.laa;return {a:A,v:V,laa:L&&a[L.fromNode]<NEVER?{p:graph.nodes[L.fromNode].p,t:a[L.fromNode]}:null};
   }
   function get(mode){const key=JSON.stringify([mode.atrial,mode.ventricular,mode.avDelay,[...(mode.blocks||[])].sort()]);wanted=key;latestMode=mode;
     let entry=cache.get(key);if(!entry){entry={key,ready:false};entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject});cache.set(key,entry)}

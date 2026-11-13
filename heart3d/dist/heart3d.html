@@ -1016,7 +1016,10 @@ function create(o){
   buildBatch();
   // One leader/label per contract tap id. Node anchors take precedence over curves.
   for(const id of Object.keys(d.shortNames)){
-    const candidates=parts.filter(p=>p.id===id),part=candidates.find(p=>p.nodeId)||candidates[0];if(!part)continue;
+    const candidates=parts.filter(p=>p.id===id),at=d.labelAnchors?.[id];
+    // spec display.labelAnchors: the label points at a node on one of the tap id's curves (T6.2-B)
+    let part=candidates.find(p=>p.nodeId)||(at&&candidates.find(p=>p.edge&&[p.edge.a,p.edge.b].includes(at)))||candidates[0];if(!part)continue;
+    if(at&&g.nodes[at])part=Object.assign(Object.create(part),{anchor:vector(g.nodes[at].p)});
     const el=document.createElement('button');el.type='button';el.className='lab lab-conduction conduction-label';
     el.dataset.tap=id;el.textContent=d.shortNames[id];el.hidden=true;labelLayer.appendChild(el);
     labels.push({id,part,el});
@@ -1312,7 +1315,7 @@ async function solve(job){
     };
     async function propagate(side,source){
       const t=new Float32Array(total).fill(N),heap=new Heap(total,t),velocity=spec.timing.muscleVelocity_mps[side===1?'atrial':'ventricular'];
-      for(const s of source){const id=nearest(s.p,side);if(id>=0&&s.t<t[id]){t[id]=s.t;heap.put(id)}}
+      for(const s of source){let id=nearest(s.p,side);if(id<0&&s.snap>.3)id=nearest(s.p,side,s.snap);if(id>=0&&s.t<t[id]){t[id]=s.t;heap.put(id)}}
       const steps=[];for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy||dz)steps.push([dx,dy,dz,dx+nx*dy+xy*dz,Math.hypot(dx,dy,dz)*v*10/velocity]);
       let visits=0;
       while(heap.n){const id=heap.pop(),time=t[id],x=id%nx,y=Math.floor(id/nx)%ny,z=Math.floor(id/xy);
@@ -1320,11 +1323,12 @@ async function solve(job){
           const q=id+delta,c=classes[q];if(side===1?c!==1:c<2)continue;
           const value=time+cost;if(value<t[q]-.00001){t[q]=value;heap.put(q)}
         }if((++visits&2047)===0)await cooperate();
-      }return t;
+      }
+      return t;
     }
     tA=await propagate(1,seeds.a);tV=await propagate(2,seeds.v);
     for(const m of meshes)for(let i=0;i<m.classes.length;i++){const c=m.classes[i];if(!c)continue;
-      const id=nearest(m.positions.subarray(i*3,i*3+3),c===1?1:2);if(id<0){diagnostics.unmapped++;continue}
+      const q=m.positions.subarray(i*3,i*3+3);let id=nearest(q,c===1?1:2);if(id<0&&spec.regions.mapCm>.3)id=nearest(q,c===1?1:2,spec.regions.mapCm);if(id<0){diagnostics.unmapped++;continue}
       const t=c===1?tA[id]:tV[id];(c===1?m.tA:m.tV)[i]=t;if(t>=N)diagnostics.unreachable++;if((i&511)===0)await cooperate();
     }
   }else{
@@ -1336,6 +1340,12 @@ async function solve(job){
       (c===1?m.tA:m.tV)[i]=best;if((i&1023)===0)await cooperate();
     }
   }
+  /* Contract regions.laa: the appendage wall is thinner than the 0.2 cm grid, so the geodesic cannot reach it; it fires from
+     Bachmann's LAA end at the atrial muscle velocity (vertices facing the LAA cavity, or within radiusCm of the LAA axis). */
+  const tip=landmarks.laa_tip?.p,segD=q=>{if(!tip||!seeds.laa)return 1e9;const a=seeds.laa.p,ab=tip.map((x,k)=>x-a[k]),L2=ab.reduce((n,x)=>n+x*x,0),u=Math.max(0,Math.min(1,ab.reduce((n,x,k)=>n+x*(q[k]-a[k]),0)/L2));return dist(q,a.map((x,k)=>x+u*ab[k]))};
+  if(seeds.laa)for(const m of meshes)for(let i=0;i<m.classes.length;i++){if(m.classes[i]!==1)continue;
+    const q=m.positions.subarray(i*3,i*3+3),inLAA=(m.cavity?m.names[m.cavity[i]]==='LAA':m.names[m.labels[i]]==='LAA')||segD(q)<=(spec.regions.laa?.radiusCm||0);if(!inLAA)continue;
+    const val=seeds.laa.t+dist(m.positions.subarray(i*3,i*3+3),seeds.laa.p)*10/spec.timing.muscleVelocity_mps.atrial;if(val<m.tA[i])m.tA[i]=val}
   // Display-only exception. Never change classes or introduce a cross-side time.
   const outer=meshes[0],inner=meshes[1],bins=new Map(),cell=.5,key=p=>p.map(x=>Math.floor(x/cell)).join(',');
   for(let i=0;i<inner.classes.length;i++){if(inner.classes[i]>1&&inner.tV[i]<N){const p=Array.from(inner.positions.subarray(i*3,i*3+3)),k=key(p);if(!bins.has(k))bins.set(k,[]);bins.get(k).push(i)}if((i&2047)===0)await cooperate()}
@@ -1365,13 +1375,19 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
     let a=graph.atrialTimes(mode.atrial),v=graph.ventGraph(mode.ventricular);
     if(mode.blocks?.length){a=graph.times('A',Object.fromEntries(Object.entries(a).filter(([id])=>Object.hasOwn(am.seed,id))),[...block],0);v=graph.times('V',Object.fromEntries(Object.entries(v).filter(([id])=>id==='HIS')),[...block])}
     const A=[],Q=[],V=[];
+    /* T6.2-B contract (spec.timing.entry): the bundles are insulated; muscle is entered only from the first Purkinje node of each
+       branch onwards, each branch only into its own ventricle (left bundle → LV, right bundle → RV), the septal fascicle only into
+       the septum. A blocked branch has no times, so it loses its entry points. Illustrative display branches never seed. */
+    const E=graph.spec.timing.entry||{},R=E.radiusCm??3.5,VP=E.purkinjeVelocity_mps??2.6,J=E.junction_ms??4,snap=graph.spec.timing.atrialSeedSnapCm??.3;
+    const side=id=>/^(RB|MOD)/.test(id)?3:2;
     for(const e of graph.edges){if(e.circuitOnly||block.has('*')||block.has(e.struct)||block.has(e.id))continue;
-      const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind);
+      const isA=e.side==='A'&&!['sa','ine','avn'].includes(e.kind)&&!['none','avnOnly','saOnly'].includes(mode.atrial),
+        isV=e.side==='V'&&['bb','fasc','mod','purk'].includes(e.kind)&&(!E.fromFirstPurkinjeNode||!!(graph.nodes[e.a].purkinje));
       if(!isA&&!isV)continue;const count=Math.ceil(length(e)/(isA?.3:.2));
-      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:['rbb','purk'].includes(e.struct)?3:2})}
+      for(let i=0;i<=count;i++){const u=i/Math.max(1,count),t=graph.edgeTimeAt(e,u,isA?a:v);if(Number.isFinite(t))(isA?A:Q).push({p:graph.pointAt(e,u),t,chamber:E.fromFirstPurkinjeNode?side(e.a):['rbb','purk'].includes(e.struct)?3:2,snap,only:(E.septalOnly||[]).includes(e.tap)?'IVS':null})}
     }
     if(a.SA<NEVER&&!['none','avnOnly','saOnly'].includes(mode.atrial))A.push({p:graph.nodes.SA.p,t:6});
-    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2});
+    for(const [id,n] of Object.entries(graph.nodes))if(n.purkinje&&v[id]<NEVER)Q.push({p:n.p,t:v[id],chamber:['RB3','RBAP','MODFW'].includes(id)?3:2,only:(E.septalOnly||[]).includes(n.tapTarget)&&id!=='LVAP'?'IVS':null});
     let nextIdle=performance.now()+8;
     if(!vm.noMuscle){for(let i=0;i<inner.positions.length/3;i++){
       if((i&511)===0){if(!stillWanted())throw 'superseded';if(performance.now()>=nextIdle){await new Promise(resolve=>typeof requestIdleCallback==='function'?requestIdleCallback(resolve,{timeout:50}):setTimeout(resolve,0));nextIdle=performance.now()+8}}
@@ -1380,12 +1396,12 @@ function create({graph,outer,inner,landmarks,cap,onReady}){
       // Only muscle endocardium receives fast-network seeds; classification in
       // the solver rejects any excluded/non-muscle destination as well.
       if(!graph.spec.regions.ventricularMuscle.labels.includes(label))continue;
-      let t=NEVER;for(const q of Q){const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=3.5)t=Math.min(t,q.t+d*10/2.6+4)}
+      let t=NEVER;for(const q of Q){if(E.ownVentricle&&q.chamber!==(rv?3:2))continue;if(q.only&&q.only!==label)continue;const d=Math.hypot(...q.p.map((x,k)=>x-p[k]));if(d<=R)t=Math.min(t,q.t+d*10/VP+J)}
       if(t<NEVER)V.push({p:Array.from(p),t,chamber:rv?3:2});
     }
     if(vm.ap)V.push({p:graph.nodes.AP_V.p,t:22-graph.constants.WPW_LEAD,chamber:2});
     if(vm.focus)V.push({p:graph.spec.foci[vm.focus].p,t:0,chamber:vm.focus==='rvot'?3:2});}
-    return {a:A,v:V};
+    const L=graph.spec.regions.laa;return {a:A,v:V,laa:L&&a[L.fromNode]<NEVER?{p:graph.nodes[L.fromNode].p,t:a[L.fromNode]}:null};
   }
   function get(mode){const key=JSON.stringify([mode.atrial,mode.ventricular,mode.avDelay,[...(mode.blocks||[])].sort()]);wanted=key;latestMode=mode;
     let entry=cache.get(key);if(!entry){entry={key,ready:false};entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject});cache.set(key,entry)}
@@ -1484,18 +1500,25 @@ const EXPLORE_DATA = (() => {
   const LAYERS = [
     { id: "chambers", name: "Chambers", ids: ["RA", "RV_cavity", "LA", "LV_cavity", "LAA", "LVOT", "RVOT"] },
     { id: "valves", name: "Valves & leaflets", ids: ["MV_AML", "MV_PML", "TV_septal", "TV_anterior", "TV_posterior", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "PV_cusps", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM"] },
-    { id: "vessels", name: "Vessels", ids: ["aortic_root.ascending", "aortic_arch", "PA_main", "RPA", "LPA", "SVC", "IVC", "pulmonary_veins", "coronary_sinus", "artery:LM", "artery:LAD", "artery:LCx", "artery:RCA", "artery:PDA", "artery:OM1", "artery:D1", "vein:GCV"] },
+    { id: "vessels", name: "Vessels", ids: ["aortic_root", "aortic_arch", "PA_main", "RPA", "LPA", "SVC", "IVC", "pulmonary_veins", "coronary_sinus", "artery:LM", "artery:LAD", "artery:LCx", "artery:RCA", "artery:PDA", "artery:OM1", "artery:D1", "vein:GCV"] },
     { id: "conduction", name: "Conduction", ids: ["sa_node", "internodal_anterior", "internodal_middle", "internodal_posterior", "bachmann_bundle", "av_node", "his_bundle", "rbb", "lbb_anterior_fascicle", "lbb_posterior_fascicle", "lbb_septal_fascicle"] },
     { id: "landmarks", name: "Anatomical landmarks", ids: ["crista_terminalis", "pectinate_muscles", "fossa_ovalis", "IAS", "IVS", "membranous_septum", "central_fibrous_body", "koch_triangle", "todaro_tendon", "eustachian_valve", "thebesian_valve", "cs_ostium", "cti", "moderator_band"] }];
 
-  /* ---- short names for labels on the model ---- */
-  const SHORT = { RA: "RA", RV_cavity: "RV", LA: "LA", LV_cavity: "LV", LAA: "LAA", LVOT: "LVOT", RVOT: "RVOT", MV_AML: "AML", MV_PML: "PML", TV_septal: "TV septal", TV_anterior: "TV anterior", TV_posterior: "TV posterior",
-    "AV_cusps.RCC": "RCC", "AV_cusps.LCC": "LCC", "AV_cusps.NCC": "NCC", PV_cusps: "Pulm. valve", chordae: "Chordae", "papillary_muscles.ALPM": "AL papillary", "papillary_muscles.PMPM": "PM papillary",
-    "aortic_root.ascending": "Aorta", aortic_arch: "Arch", PA_main: "Pulm. trunk", RPA: "RPA", LPA: "LPA", SVC: "SVC", IVC: "IVC", pulmonary_veins: "Pulm. veins", coronary_sinus: "Coronary sinus",
+  /* ---- short names for labels on the model (T6.2-B) ----
+     Rule: at most 18 characters; sentence case, eponyms keep their capital (Koch's triangle, Tendon of Todaro).
+     Abbreviate only what a student already reads on an echo or ECG report: chambers (RA, RV, LA, LV, LAA, LVOT, RVOT), veins and
+     arteries (SVC, IVC, RPA, LPA, LM, LAD, LCx, RCA, PDA, OM1, D1), the conduction parts named in ECG diagnoses (SA node, AV node,
+     LBB, RBB, LAF, LPF) and CTI. Everything else in words; "Pulm." / "Ant." / "Post." only when the words do not fit.
+     Valve leaflets read "<valve>, <leaflet>" so they group by valve. The card always shows the full name. */
+  const SHORT = { RA: "RA", RV_cavity: "RV", LA: "LA", LV_cavity: "LV", LAA: "LAA", LVOT: "LVOT", RVOT: "RVOT",
+    MV_AML: "Mitral, anterior", MV_PML: "Mitral, posterior", TV_septal: "Tricuspid, septal", TV_anterior: "Tricuspid, ant.", TV_posterior: "Tricuspid, post.",
+    "AV_cusps.RCC": "Aortic, right cusp", "AV_cusps.LCC": "Aortic, left cusp", "AV_cusps.NCC": "Aortic, non-cor.", PV_cusps: "Pulm. valve", chordae: "Chordae",
+    "papillary_muscles.ALPM": "Ant-lat papillary", "papillary_muscles.PMPM": "Post-med papillary",
+    "aortic_root.ascending": "Ascending aorta", aortic_root: "Aortic root", aortic_arch: "Aortic arch", PA_main: "Pulm. trunk", RPA: "RPA", LPA: "LPA", SVC: "SVC", IVC: "IVC", pulmonary_veins: "Pulm. veins", coronary_sinus: "Coronary sinus",
     "artery:LM": "LM", "artery:LAD": "LAD", "artery:LCx": "LCx", "artery:RCA": "RCA", "artery:PDA": "PDA", "artery:OM1": "OM1", "artery:D1": "D1", "vein:GCV": "Great cardiac v.",
-    sa_node: "SA node", internodal_anterior: "Ant. internodal", internodal_middle: "Mid. internodal", internodal_posterior: "Post. internodal", bachmann_bundle: "Bachmann's", av_node: "AV node", his_bundle: "His",
+    sa_node: "SA node", internodal_anterior: "Ant. internodal", internodal_middle: "Mid. internodal", internodal_posterior: "Post. internodal", bachmann_bundle: "Bachmann's bundle", av_node: "AV node", his_bundle: "His bundle",
     rbb: "RBB", lbb_anterior_fascicle: "LAF", lbb_posterior_fascicle: "LPF", lbb_septal_fascicle: "Septal fascicle",
-    crista_terminalis: "Crista terminalis", pectinate_muscles: "Pectinate mm.", fossa_ovalis: "Fossa ovalis", IAS: "IAS", IVS: "IVS", membranous_septum: "Membranous septum", central_fibrous_body: "Central fibrous body",
+    crista_terminalis: "Crista terminalis", pectinate_muscles: "Pectinate muscles", fossa_ovalis: "Fossa ovalis", IAS: "Atrial septum", IVS: "Ventricular septum", membranous_septum: "Membranous septum", central_fibrous_body: "Central fib. body",
     koch_triangle: "Koch's triangle", todaro_tendon: "Tendon of Todaro", eustachian_valve: "Eustachian valve", thebesian_valve: "Thebesian valve", cs_ostium: "CS ostium", cti: "CTI", moderator_band: "Moderator band" };
 
   /* ---- what a tap opens: an existing card (CONTENT.STRUCT / SIMC.VALVENOTE / CONTENT.VESSEL / walls) or a short note ---- */
@@ -1551,10 +1574,38 @@ const EXPLORE_DATA = (() => {
     RCA: "Right coronary artery (RCA)", PDA: "Posterior descending (PDA)", PLB: "Posterolateral branch", AM: "Acute marginal", CB: "Conus branch", SAN: "SA nodal artery", AVN: "AV nodal artery", S1: "First septal", S2: "Second septal", S3: "Third septal", RVB1: "RV branch", RVB2: "RV branch" };
   const CONDUCTION_SHORT={...(CGRAPH.spec?.display.shortNames||{})};
   const UI_FLAGS={activationTimingMap:false};
-  // TODO(content): Claude supplies approved label ids for each view. A conduction
-  // id uses the existing "conduction:<tap id>" namespace. Do not infer a syllabus.
-  const RELEVANT_LABELS=Object.fromEntries(['external','seeThrough','valves','a4c','raOpen','rvOpen','laOpen','lvOpen','sax','coronal','axial','sagittal'].map(id=>[id,[]]));
-  return { UI_FLAGS, RELEVANT_LABELS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–8 names.
+     The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
+     A name shows only when its layer is on and its anchor can be seen, so External lists both sides of the heart. */
+  const RELEVANT_LABELS = {
+    external: ["RA", "RV_cavity", "LV_cavity", "LA", "LAA", "aortic_root", "PA_main", "SVC"],
+    seeThrough: ["RA", "LA", "RV_cavity", "LV_cavity", "conduction:sa", "conduction:avn", "conduction:lbb", "conduction:rbb"],
+    valves: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "central_fibrous_body"],
+    a4c: ["RA", "LA", "RV_cavity", "LV_cavity", "IVS", "fossa_ovalis", "TV_septal", "MV_AML"],
+    lvOpen: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.NCC"],
+    rvOpen: ["RV_cavity", "TV_septal", "TV_anterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "conduction:rbb"],
+    raOpen: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "cs_ostium", "koch_triangle", "eustachian_valve", "cti", "conduction:avn"],
+    laOpen: ["LA", "pulmonary_veins", "LAA", "fossa_ovalis", "MV_AML", "MV_PML"],
+    sax: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM"],
+    coronal: [], axial: [], sagittal: [] };
+  /* ---- default layers per view, applied when the student enters the view: "on" · "fade" · "off".
+     "fade" = labels show in All but dimmed (Codex, phase C); until then it behaves as "on".
+     Coronaries stay off in every cut (st.coronaries). Conduction is on only where the view teaches it. */
+  const VIEW_LAYERS = {
+    external:   { chambers: "on", vessels: "on", valves: "off", landmarks: "off", conduction: "off" },
+    seeThrough: { chambers: "on", valves: "on", conduction: "on", landmarks: "fade", vessels: "off" },
+    valves:     { valves: "on", landmarks: "on", chambers: "off", vessels: "off", conduction: "off" },
+    a4c:        { chambers: "on", valves: "on", landmarks: "on", vessels: "off", conduction: "off" },
+    lvOpen:     { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" },
+    rvOpen:     { chambers: "on", valves: "on", landmarks: "on", conduction: "on", vessels: "off" },
+    raOpen:     { landmarks: "on", conduction: "on", valves: "fade", chambers: "off", vessels: "off" },
+    laOpen:     { chambers: "on", vessels: "on", valves: "on", landmarks: "on", conduction: "off" },
+    sax:        { chambers: "on", valves: "on", landmarks: "fade", vessels: "off", conduction: "off" } };
+  /* ---- crowded AV junction (proposal for Codex, phase C): in All, one "AV junction" label at the AV node; a tap fans it out
+     into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
+  const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
+    members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
+  return { UI_FLAGS, RELEVANT_LABELS, VIEW_LAYERS, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();
 </script>
 <script>/* T6.2 UI phase A: presentation only. No anatomical coordinates or teaching text. */
@@ -1998,36 +2049,22 @@ const BASE = new T.Vector3(0, 0, -1), ANT = new T.Vector3(0, -1, 0);
 const NB = new T.Vector3(0.28, -0.22, -0.934).normalize(), VALVE_C = new T.Vector3(1.81, -1.2, 0.47);   // best plane through the four valve centres (toward the base)
 const CUTS = {
   valves: { name: "Valves from above (atria removed)", group: "Dissection views", n: NB.clone().negate(), c: VALVE_C.clone().addScaledVector(NB, 1.1), up: ANT, zoom: .62, at: VALVE_C.clone(),
-    about: "The atria and the great arteries are cut away just above the valves, and you look down on the base of the heart, as in the atlas view of the fibrous skeleton. The four valves sit side by side: pulmonary in front, aortic in the middle, mitral and tricuspid behind. The central fibrous body binds the mitral, tricuspid and aortic rings together.",
-    find: ["PV_cusps", "AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC", "MV_AML", "MV_PML", "TV_septal", "TV_anterior", "TV_posterior", "central_fibrous_body", "artery:RCA", "artery:LCx", "coronary_sinus"],
-    layers: { valves: true, vessels: true, landmarks: true, chambers: false, conduction: false } },
+    about: "The atria and the great arteries are cut away just above the valves, and you look down on the base of the heart, as in the atlas view of the fibrous skeleton. The four valves sit side by side: pulmonary in front, aortic in the middle, mitral and tricuspid behind. The central fibrous body binds the mitral, tricuspid and aortic rings together." },
   a4c: { name: "Four-chamber section", group: "Dissection views", n: new T.Vector3(0, 1, 0), c: new T.Vector3(1.5, 0.15, 2), up: BASE,
-    about: "The classic long-axis section through all four chambers. Compare the thin RV wall with the thick LV, see the septa, and note that the tricuspid valve hinges a little closer to the apex than the mitral valve.",
-    find: ["RA", "LA", "RV_cavity", "LV_cavity", "IAS", "fossa_ovalis", "IVS", "membranous_septum", "MV_AML", "TV_septal", "moderator_band", "papillary_muscles.PMPM", "av_node"],
-    layers: { chambers: true, valves: true, landmarks: true, conduction: true, vessels: false } },
+    about: "The classic long-axis section through all four chambers. Compare the thin RV wall with the thick LV, see the septa, and note that the tricuspid valve hinges a little closer to the apex than the mitral valve." },
   lvOpen: { name: "Left heart opened (LV outflow)", group: "Dissection views", n: new T.Vector3().crossVectors(new T.Vector3(1.6, -1.3, -0.28), new T.Vector3(0, 0, 1)).normalize(), c: new T.Vector3(0.8, -0.6, 2), up: BASE,
-    about: "A long-axis cut through the LA, the LV and the aortic valve. Follow blood from the LA through the mitral valve, then up the outflow tract past the anterior mitral leaflet (which is in fibrous continuity with the aortic valve) into the aorta. The chordae tie the leaflets to the two papillary muscles.",
-    find: ["LA", "LV_cavity", "LVOT", "MV_AML", "MV_PML", "chordae", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "AV_cusps.RCC", "AV_cusps.NCC", "IVS", "membranous_septum"],
-    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: false } },
+    about: "A long-axis cut through the LA, the LV and the aortic valve. Follow blood from the LA through the mitral valve, then up the outflow tract past the anterior mitral leaflet (which is in fibrous continuity with the aortic valve) into the aorta. The chordae tie the leaflets to the two papillary muscles." },
   rvOpen: { name: "Right ventricle opened", group: "Dissection views", n: new T.Vector3(-1, 0.55, 0).normalize(), c: new T.Vector3(3.6, -0.6, 3.2), up: BASE, zoom: .8, at: new T.Vector3(2.8, -0.6, 2.4),
     n2: NB.clone(), c2: VALVE_C.clone().addScaledVector(NB, 1.3),          /* only the front RV wall (and the RVOT front) below the valve plane */
-    about: "The front wall of the RV is removed, so you look at the septal surface of the RV. Find the tricuspid leaflets, the moderator band crossing from the septum to the anterior papillary muscle (it carries the right bundle branch), the coarse trabeculae, and the smooth outflow tract leading up to the pulmonary valve.",
-    find: ["RV_cavity", "TV_septal", "TV_anterior", "TV_posterior", "moderator_band", "RVOT", "PV_cusps", "IVS", "rbb"],
-    layers: { chambers: true, valves: true, landmarks: true, conduction: true, vessels: false } },
+    about: "The front wall of the RV is removed, so you look at the septal surface of the RV. Find the tricuspid leaflets, the moderator band crossing from the septum to the anterior papillary muscle (it carries the right bundle branch), the coarse trabeculae, and the smooth outflow tract leading up to the pulmonary valve." },
   raOpen: { name: "Right atrium opened (Koch's triangle)", group: "Dissection views", n: new T.Vector3(-1, 0, 0), c: new T.Vector3(3.9, 0.8, -2.2), up: BASE, zoom: .7, at: new T.Vector3(2.6, 0.9, -1.4),
     n2: NB.clone().negate(), c2: VALVE_C.clone().addScaledVector(NB, -0.1),   /* only the lateral RA wall, above the valve plane */
-    about: "The lateral RA wall is removed and you face the septal wall from the right. Find the fossa ovalis, the crista terminalis with the pectinate muscles in front of it, the openings of the SVC, IVC and coronary sinus, and Koch's triangle (CS ostium, tendon of Todaro, septal tricuspid hinge) with the AV node at its apex.",
-    find: ["fossa_ovalis", "crista_terminalis", "pectinate_muscles", "SVC", "cs_ostium", "thebesian_valve", "eustachian_valve", "todaro_tendon", "koch_triangle", "av_node", "TV_septal", "cti"],
-    layers: { chambers: false, valves: true, landmarks: true, conduction: true, vessels: true } },
+    about: "The lateral RA wall is removed and you face the septal wall from the right. Find the fossa ovalis, the crista terminalis with the pectinate muscles in front of it, the openings of the SVC, IVC and coronary sinus, and Koch's triangle (CS ostium, tendon of Todaro, septal tricuspid hinge) with the AV node at its apex." },
   laOpen: { name: "Left atrium opened (from behind)", group: "Dissection views", n: new T.Vector3(0, -1, 0), c: new T.Vector3(-1.1, 0.7, -2.2), up: BASE, zoom: .66, at: new T.Vector3(-0.6, 0.2, -1.9),
     n2: NB.clone().negate(), c2: VALVE_C.clone().addScaledVector(NB, 0.15),   /* only the back wall of the atria, above the valve plane */
-    about: "The back wall of the LA is removed. Find the four pulmonary vein openings (where AF triggers fire and where ablation isolates them), the narrow mouth of the left atrial appendage, the septum with the fossa ovalis from the left, and the mitral valve below.",
-    find: ["pulmonary_veins", "LAA", "IAS", "fossa_ovalis", "MV_AML", "MV_PML", "LA"],
-    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: true } },
+    about: "The back wall of the LA is removed. Find the four pulmonary vein openings (where AF triggers fire and where ablation isolates them), the narrow mouth of the left atrial appendage, the septum with the fossa ovalis from the left, and the mitral valve below." },
   sax: { name: "Short axis (papillary muscles)", group: "Dissection views", n: new T.Vector3(0, 0, -1), c: new T.Vector3(0, 0, 4.2), up: ANT,
-    about: "A cross-section of both ventricles seen from the apex, as in a short-axis echo. The round, thick LV holds two papillary muscles; the thin RV wraps around it like a crescent; the septum bulges into the RV.",
-    find: ["LV_cavity", "RV_cavity", "IVS", "papillary_muscles.ALPM", "papillary_muscles.PMPM", "moderator_band"],
-    layers: { chambers: true, valves: true, landmarks: true, conduction: false, vessels: false } },
+    about: "A cross-section of both ventricles seen from the apex, as in a short-axis echo. The round, thick LV holds two papillary muscles; the thin RV wraps around it like a crescent; the septum bulges into the RV." },
   coronal:  { name: "Coronal", group: "Body sections (CT-style)", body: true, n: fromBodyDir([0, 0, -1]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 1, 0]),
     about: "A frontal slice as on a coronal CT, seen from the front. Slide it from front to back through the heart." },
   axial:    { name: "Axial", group: "Body sections (CT-style)", body: true, n: fromBodyDir([0, 1, 0]), c: new T.Vector3(1.5, 0, 1), up: fromBodyDir([0, 0, 1]),
@@ -2087,7 +2124,19 @@ host.addEventListener("pointerup", endPtr); host.addEventListener("pointercancel
 host.addEventListener("wheel", e => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY)*.1); interacting(); }, { passive: false });
 
 /* ---------- modes ---------- */
-function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray";
+/* T6.2-B: a chamber's name points INTO its cavity. Outside Cut: the deepest point of the cavity (exporter label_<id>_cav).
+   In a cut, that point is often cut away or hidden behind the septum, so the name points where the cut opens the chamber:
+   the endocardial vertex of that cavity on the kept side, close to the cut face and to the deepest point. */
+function cavityAnchors(){ const cut = st.mode === "cut" && !CUTS[st.cut].body, geo = HI.tissue.geometry, P = geo.attributes.position, cav = geo.attributes.aCavity.array, v = new T.Vector3();
+  for (const a of anchors){ if (a.where !== "cav") continue; if (!a.p0) a.p0 = a.p.clone(); let p = a.p0;
+    if (cut){ const ci = intNames.indexOf(a.id), deep = toWorld(a.p0); let best = -1, bd = Infinity;
+      for (let i = 0; i < cav.length; i++){ if (cav[i] !== ci) continue; const w = toWorld(v.set(P.getX(i), P.getY(i), P.getZ(i))); if (removed(w)) continue;
+        const dp = Math.max(plane.distanceToPoint(w), plane2.distanceToPoint(w)); if (dp < .4) continue;   // kept by a margin, so the beat never moves it behind the cut
+        const score = 3*Math.abs(dp - .6) + w.distanceTo(deep); if (score < bd){ bd = score; best = i; } }
+      if (best >= 0) p = new T.Vector3(P.getX(best), P.getY(best), P.getZ(best)); }
+    a.p = p; a.home = p.clone(); a.w = toWorld(p); }
+  labelsDirty = true; }
+function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; if (!cut && anchors.length) cavityAnchors();
   if (paintKey && paintKey !== st.colour + "|" + !!st.layers.conduction) paint(st.colour);
   $('.bSeeThrough').hidden=cut;$('.bSeeThrough').disabled=cut;
   $('.bSeeThrough').setAttribute('aria-pressed',xr);$('.bSeeThrough .st').textContent=xr?'On':'Off';
@@ -2115,20 +2164,28 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   if (C0.n2) plane2.setFromNormalAndCoplanarPoint(toWorldDir(C0.n2), toWorld(C0.c2)); else plane2.copy(plane);
   planeNeg.copy(plane).negate(); plane2Neg.copy(plane2).negate();
   for (const g of capGroups){ const n = g.pl.normal, p0 = n.clone().multiplyScalar(-g.pl.constant); g.cap.position.copy(p0).addScaledVector(n, -.002); g.cap.lookAt(p0.clone().sub(n)); }
+  cavityAnchors();
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
+/* default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" counts as on until phase C dims it).
+   Conduction follows its default only on a student's own view change (it starts the beat and the ECG strip). */
+function viewDefaults(view, withConduction){ const V = D.VIEW_LAYERS[view]; if (!V) return;
+  for (const [k, v] of Object.entries(V)) if (k !== "conduction" || withConduction) st.layers[k] = v !== "off";
+  syncLayersUI(); if (withConduction) syncLayers(); }
 function chooseCut(k, fromUser){ st.cut = k; st.coronaries=false; st.off = 0; st.flip = 1; $(".rngOff").value = 0; $(".selCut").value = k; const C0 = CUTS[k];
-  if (C0.layers){ const {conduction:unused,...layers}=C0.layers; Object.assign(st.layers,layers); syncLayersUI(); }
+  viewDefaults(k, fromUser === "ui");
   applyMode(); tgt.copy(C0.at ? toWorld(C0.at) : centre); dist = fitDist()*(C0.zoom || 1); faceCut(); if (fromUser !== false) showView(k); }
-function showView(k){ const C0 = CUTS[k]; st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
+/* "Find in this view" = the view's Relevant labels (EXPLORE_DATA.RELEVANT_LABELS) */
+const findName = id => id.startsWith("conduction:") ? D.CONDUCTION_SHORT[id.slice(11)] || id : D.SHORT[id] || id;
+function showView(k){ const C0 = CUTS[k], find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
   panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
-    (C0.find ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${C0.find.filter(id => anchors.some(a => a.id === id)).map(id => `<button class="chip" data-find="${esc(id)}">${esc(D.SHORT[id] || id)}</button>`).join("")}</div>` : "");
-  panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => select(b.dataset.find, null)); window.__lastCard = C0.name; dirty(); }
+    (find.length ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${find.map(id => `<button class="chip" data-find="${esc(id)}">${esc(findName(id))}</button>`).join("")}</div>` : "");
+  panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const id = b.dataset.find; if (id.startsWith("conduction:")){ if (!st.layers.conduction){ st.layers.conduction = true; syncLayers(); } conduction.select(id.slice(11)); } else select(id, null); }); window.__lastCard = C0.name; dirty(); }
 
 /* ---------- labels: anchors per structure, de-cluttered, hidden when behind tissue or cut away ---------- */
-function centroidAnchor(geom, labels, pred){ const P = geom.attributes.position, N = geom.attributes.normal; let sx = 0, sy = 0, sz = 0, n = 0;
+function centroidAnchor(geom, labels, pred, target){ const P = geom.attributes.position, N = geom.attributes.normal; let sx = 0, sy = 0, sz = 0, n = 0;
   for (let i = 0; i < labels.length; i++) if (pred(labels[i], i)){ sx += P.getX(i); sy += P.getY(i); sz += P.getZ(i); n++; }
-  if (!n) return null; const c = new T.Vector3(sx/n, sy/n, sz/n); let best = -1, bd = 1e9;
+  if (!n) return null; const c = target || new T.Vector3(sx/n, sy/n, sz/n); let best = -1, bd = 1e9;   // nearest labelled vertex to the target (default: the centroid)
   for (let i = 0; i < labels.length; i++) if (pred(labels[i], i)){ const d = (P.getX(i)-c.x)**2 + (P.getY(i)-c.y)**2 + (P.getZ(i)-c.z)**2; if (d < bd){ bd = d; best = i; } }
   return { p: new T.Vector3(P.getX(best), P.getY(best), P.getZ(best)), nrm: N ? new T.Vector3(N.getX(best), N.getY(best), N.getZ(best)) : null, centroid: c, count: n }; }
 const anchors = [];   // { id, layer, text, p (heart frame), nrm, where: 'ext'|'int'|'cav'|'valve'|'lm'|'vessel' }
@@ -2137,9 +2194,11 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
   const tl = HI.tissue.geometry.attributes.aLabel.array, tc = HI.tissue.geometry.attributes.aCavity.array;
   for (const L of D.LAYERS) for (const id of L.ids){ const text = D.SHORT[id] || id;
     if (L.id === "chambers"){
-      const ci = intNames.indexOf(id); if (ci > 0){ const a = centroidAnchor(HI.tissue.geometry, tc, c => c === ci); if (a) anchors.push({ id, layer: L.id, text, p: a.centroid, nrm: null, where: "cav" }); }
+      /* T6.2-B: the exporter's label_<id>_cav / _ext landmarks (deepest point of the cavity; outer wall on the side students see) */
+      const lc = JI.landmarks["label_" + id + "_cav"], le = JI.landmarks["label_" + id + "_ext"];
+      const ci = intNames.indexOf(id); if (ci > 0){ const a = lc ? null : centroidAnchor(HI.tissue.geometry, tc, c => c === ci); if (lc || a) anchors.push({ id, layer: L.id, text, p: lc ? new T.Vector3(...lc.p) : a.centroid, nrm: null, where: "cav" }); }
       const ex = (extOf[id] || []).map(n => extNames.indexOf(n)).filter(i => i > 0);
-      if (ex.length){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => ex.includes(l)); if (a && a.count > 30) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
+      if (ex.length){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => ex.includes(l), le && new T.Vector3(...le.p)); if (a && a.count > 30) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
       continue; }
     if (id.startsWith("artery:") || id.startsWith("vein:")){ const [kind, vid] = id.split(":"); const v = (kind === "artery" ? JM.vessels.arteries : JM.vessels.veins).find(x => x.id === vid);
       if (v){ const pts = v.points, k = Math.min(pts.length - 1, Math.round(pts.length*(vid === "LM" ? .5 : .35))), p = new T.Vector3(...pts[k]);
@@ -2151,12 +2210,27 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     if (lm){ let p; if (lm.kind === "point") p = lm.p; else if (lm.points && Array.isArray(lm.points)) p = lm.points[Math.floor(lm.points.length/2)]; else continue;
       anchors.push({ id, layer: L.id, text, p: new T.Vector3(...p), nrm: null, where: "lm" }); continue; }
     const vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(intNames.indexOf(id)));
-    if (vi){ const li = intNames.indexOf(id); const a = centroidAnchor(vi.geometry, vi.userData.labels, l => l === li); if (a) anchors.push({ id, layer: L.id, text, p: a.centroid, nrm: null, where: "valve" }); continue; }
+    if (vi){ const li = intNames.indexOf(id); const a = centroidAnchor(vi.geometry, vi.userData.labels, l => l === li); if (a) anchors.push({ id, layer: L.id, text, p: a.p, nrm: null, where: "valve" }); continue; }
     const ti = intNames.indexOf(id);
     if (ti > 0){ const a = centroidAnchor(HI.tissue.geometry, tl, l => l === ti); if (a) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "int" }); }
     const ei = extNames.indexOf(id);
     if (ei > 0){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => l === ei); if (a && a.count > 20) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
   }
+  /* T6.2-B: other places a name may point to when its own anchor is cut away or hidden in this view (Relevant only, for the view's listed names):
+     up to 10 well-spread vertices of the same structure (farthest-point sampling), or the points of a landmark path. */
+  const spread = (geom, labels, pred, k = 10) => { const P = geom.attributes.position, idx = [];
+    for (let i = 0; i < labels.length; i++) if (pred(labels[i])) idx.push(i);
+    if (!idx.length) return []; const pts = idx.filter((_, j) => j % Math.max(1, Math.floor(idx.length/400)) === 0).map(i => new T.Vector3(P.getX(i), P.getY(i), P.getZ(i)));
+    const out = [pts[0]], d = pts.map(p => p.distanceToSquared(pts[0]));
+    while (out.length < Math.min(k, pts.length)){ let b = 0; for (let j = 1; j < pts.length; j++) if (d[j] > d[b]) b = j; out.push(pts[b]); for (let j = 0; j < pts.length; j++) d[j] = Math.min(d[j], pts[j].distanceToSquared(pts[b])); }
+    return out; };
+  for (const a of anchors){
+    if (a.where === "ext"){ const ids = (a.layer === "chambers" ? extOf[a.id] || [] : [a.id]).map(n => extNames.indexOf(n)).filter(i => i > 0); a.cands = spread(HM.mesh.geometry, extLab, l => ids.includes(l)); }
+    else if (a.where === "int"){ const ti = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tl, l => l === ti); }
+    else if (a.where === "cav"){ const ci = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tc, l => l === ci); }
+    else if (a.where === "valve"){ const li = intNames.indexOf(a.id), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(li)); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => l === li); }
+    else if (a.where === "lm"){ const lm = JI.landmarks[a.id], ti = intNames.indexOf(a.id); a.cands = [...(Array.isArray(lm?.points) ? lm.points.map(p => new T.Vector3(...p)) : []), ...(ti > 0 ? spread(HI.tissue.geometry, tl, l => l === ti, 6) : [])]; }
+    a.home = a.p.clone(); }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
@@ -2164,16 +2238,22 @@ let labelsDirty = true, lastLabelCheck = 0;
 const ray = new T.Raycaster();
 function occluded(w, targets){ const d = cam.position.distanceTo(w); ray.set(cam.position, w.clone().sub(cam.position).normalize()); ray.far = d - .35;
   const hits = ray.intersectObjects(targets, false); return hits.some(h => !removed(h.point)); }
+const viewKey = () => st.mode === "cut" ? st.cut : st.mode === "xray" ? "seeThrough" : "external";
 function updateLabelVisibility(){
-  const m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
+  const centreW = centre, m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
   for (const a of anchors){ let show = a.layer !== "conduction" && !!st.layers[a.layer];
+    if (a.home && !a.p.equals(a.home)){ a.p.copy(a.home); a.w = toWorld(a.p); }
     if (show){ if (ext) show = a.where === "ext" || a.where === "vessel" || ((a.where === "lm") && a.layer === "conduction");
       else if (!cut) show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
     if (show && cut && removed(a.w)) show = false;
     /* All uses geometric visibility. Relevant applies its separate per-view list in the callout controller. */
+    const eligible = show;
     if (show && a.where === "vessel") show = a.nw.dot(cam.position.clone().sub(a.w).normalize()) > .12;   // vessels: the surface must face you
     if (show && occT.length && !(ext && (a.layer === "conduction" || a.where === "vessel"))) show = !occluded(a.w, occT);
+    if (!show && eligible && a.cands?.length && st.labelMode === "relevant" && (D.RELEVANT_LABELS[viewKey()] || []).includes(a.id)){   // try the nearest other parts of the structure (at most 6 rays; outer-surface points must face you)
+      const tries = a.cands.map(p => ({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 6);
+      for (const c of tries) if (!occT.length || !occluded(c.w, occT)){ a.p = c.p.clone(); a.w = c.w; show = true; break; } }
     a.vis = show; }
   if (cut){ const inner = new Set(anchors.filter(a => a.vis && a.where !== "ext").map(a => a.id)); for (const a of anchors) if (a.vis && a.where === "ext" && inner.has(a.id)) a.vis = false; }   // one label per structure
   labelsDirty = false; lastLabelCheck = performance.now(); }
@@ -2248,7 +2328,7 @@ function card(id, hit){
   if(id.startsWith('conduction:')){
     const tap=id.slice(11),key=CGRAPH.spec.display.pick.taps[tap],s=C.STRUCT[key];
     if(!s)return '<h2>'+esc(D.CONDUCTION_SHORT[tap]||tap)+'</h2><p>TODO(content)</p>';
-    return '<span class="eyebrow">'+esc(s.tag)+'</span><h2>'+esc(D.CONDUCTION_SHORT[tap]||s.name)+'</h2><p>'+s.anat+'</p><table class="kv">'+
+    return '<span class="eyebrow">'+esc(s.tag)+'</span><h2>'+esc(s.name||D.CONDUCTION_SHORT[tap])+'</h2><p>'+s.anat+'</p><table class="kv">'+
       s.phys.map(([k,v])=>'<tr><th>'+esc(k)+'</th><td>'+v+'</td></tr>').join('')+'</table><p class="small"><b>Blood supply.</b> '+esc(s.supply)+'</p>'+chips(s.sc);
   }
   if (id.startsWith("wall:")){ const w = id.slice(5), tr = C.TERR[w];
@@ -2372,11 +2452,11 @@ const cutSel = $(".selCut"); let og = null;
 for (const [k, c] of Object.entries(CUTS)){ if (!og || og.label !== c.group){ og = document.createElement("optgroup"); og.label = c.group; cutSel.appendChild(og); }
   const o = document.createElement("option"); o.value = k; o.textContent = c.name; og.appendChild(o); }
 cutSel.value = st.cut;
-cutSel.onchange = () => chooseCut(cutSel.value);
+cutSel.onchange = () => chooseCut(cutSel.value, "ui");
 $(".rngOff").oninput = e => { st.off = +e.target.value; applyCut(); };
 $(".bFlip").onclick = () => { st.flip *= -1; applyCut(); faceCut(); };
 $(".bFace").onclick = () => faceCut();
-$$(".segMode button").forEach(b => b.onclick = () => { const was = st.mode; st.mode = b.dataset.m; applyMode(); if (st.mode === "cut" && was !== "cut") chooseCut(st.cut); else if (was === "cut" && st.mode !== "cut") resetView(); });
+$$(".segMode button").forEach(b => b.onclick = () => { const was = st.mode; st.mode = b.dataset.m; if (st.mode !== "cut" && was !== st.mode) viewDefaults(st.mode === "xray" ? "seeThrough" : "external", true); applyMode(); if (st.mode === "cut" && was !== "cut") chooseCut(st.cut, "ui"); else if (was === "cut" && st.mode !== "cut") resetView(); });
 $$(".segCol button").forEach(b => b.onclick = () => { st.colour = b.dataset.c; $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x === b)); paint(st.colour); dirty(); });
 const layerBox = $(".layerList");
 layerBox.innerHTML = D.LAYERS.map(L => `<label><input type="checkbox" data-layer="${L.id}" ${st.layers[L.id] ? "checked" : ""}><span class="sw sw-${L.id}"></span>${esc(L.name)}</label>`).join("") +
@@ -2389,8 +2469,8 @@ $(".bNone").onclick = () => { for (const k in st.layers) st.layers[k] = false; s
 const tog = (sel, get, set) => { const b = $(sel); const sync = () => { b.setAttribute("aria-pressed", get()); b.querySelector(".st").textContent = get() ? "On" : "Off"; }; b.onclick = () => { set(!get()); sync(); applyMode(); }; sync(); };
 $('.bConduction').onclick=()=>{st.layers.conduction=!st.layers.conduction;syncLayers();};
 $('.bIsochrones').onclick=()=>{isochrones=!!D.UI_FLAGS.activationTimingMap&&!isochrones;syncActivation();dirty()};
-$('.bSeeThrough').onclick=()=>{if(st.mode==='cut')return;st.mode=st.mode==='xray'?'ext':'xray';applyMode()};
-function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
+$('.bSeeThrough').onclick=()=>{if(st.mode==='cut')return;st.mode=st.mode==='xray'?'ext':'xray';viewDefaults(st.mode==='xray'?'seeThrough':'external',true);applyMode()};
+function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;labelsDirty=true;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
 $$('[data-label-mode]').forEach(b=>b.onclick=()=>labelMode(b.dataset.labelMode));
 labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)});
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
@@ -2444,7 +2524,7 @@ window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== 
 conductionReady=true;
 paint(st.colour); applyMode(); resetView(); select(null, null);syncLayersUI();ecgStrip.draw(conduction.state.ms,true);
 $(".busy").hidden = true;
-window.EXPLORE_APP = { ready: true, st, CUTS, anchors, setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
+window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),
