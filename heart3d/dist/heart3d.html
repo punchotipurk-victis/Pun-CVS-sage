@@ -1585,6 +1585,17 @@ const EXPLORE_DATA = (() => {
      The leaflet ids stay in the phantom, the exports and the shaders. */
   const VALVE_GROUPS = { mitral_valve: ["MV_AML", "MV_PML"], tricuspid_valve: ["TV_septal", "TV_anterior", "TV_posterior"],
     aortic_valve: ["AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC"], pulmonary_valve: ["PV_cusps"] };
+  /* what a tap on one leaflet shows (callout + card line); the model's labels stay one per valve */
+  const LEAFLET = {
+    MV_AML: ["Mitral · anterior leaflet", "Anterior (aortic) leaflet: the larger, deeper leaflet, in fibrous continuity with the aortic valve (the aorto-mitral curtain). In HOCM its tip is pulled into the LVOT (systolic anterior motion). [teaching (verify)]"],
+    MV_PML: ["Mitral · posterior leaflet", "Posterior (mural) leaflet: shorter but longer along the annulus, with three scallops P1–P3; P2 is the commonest site of prolapse or flail. [teaching (verify)]"],
+    TV_septal: ["Tricuspid · septal leaflet", "Septal leaflet: hinged on the septum about 1 cm more apical than the mitral hinge (the normal offset; much more in Ebstein anomaly). The His bundle runs just below its attachment, near the membranous septum. [teaching (verify)]"],
+    TV_anterior: ["Tricuspid · anterior leaflet", "Anterior leaflet: the largest tricuspid leaflet; most of its chordae come from the anterior papillary muscle, which the moderator band joins. [teaching (verify)]"],
+    TV_posterior: ["Tricuspid · posterior leaflet", "Posterior (inferior) leaflet: the smallest, along the diaphragmatic wall of the RV. [teaching (verify)]"],
+    "AV_cusps.RCC": ["Aortic · right coronary cusp", "Right coronary cusp: the most anterior cusp; the right coronary artery arises from its sinus. [teaching (verify)]"],
+    "AV_cusps.LCC": ["Aortic · left coronary cusp", "Left coronary cusp: the left main coronary artery arises from its sinus. [teaching (verify)]"],
+    "AV_cusps.NCC": ["Aortic · non-coronary cusp", "Non-coronary cusp: posterior, facing the atrial septum; it sits above the membranous septum and the His bundle, so aortic-root disease can cause heart block. [teaching (verify)]"],
+    PV_cusps: ["Pulmonary valve cusps", "Three thin semilunar cusps (anterior, left, right) at the top of the RVOT. [teaching (verify)]"] };
   const VALVE_OF = Object.fromEntries(Object.entries(VALVE_GROUPS).flatMap(([g, ids]) => ids.map(id => [id, g])));
   /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–10 names (up to 20 where the view is explored with the level slider, e.g. 4C), including the essential vessels that can be seen in that view (vessels layer on in every view; coronary arteries still follow the Coronaries switch; the IVC has no surface of its own to label, and See-through hides great-vessel names).
      The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
@@ -1628,7 +1639,7 @@ const EXPLORE_DATA = (() => {
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
-  return { UI_FLAGS, VALVE_GROUPS, VALVE_OF, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  return { UI_FLAGS, VALVE_GROUPS, VALVE_OF, LEAFLET, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();
 </script>
 <script>/* T6.2 UI phase A: presentation only. No anatomical coordinates or teaching text. */
@@ -1957,7 +1968,16 @@ const capUniforms = capData && renderer.capabilities.isWebGL2 ? (() => {
   texture.internalFormat = "R8";
   texture.minFilter = texture.magFilter = T.NearestFilter;
   texture.needsUpdate = true;
+  /* T6.2-B: a colour copy of the label volume (premultiplied, alpha = "has tissue") with trilinear filtering, so tissue borders
+     on the cut face blend smoothly instead of showing the 0.2 cm voxel steps. Refilled when the palette changes. */
+  const rgba = new Uint8Array(nx * ny * nz * 4), colour = new T.Data3DTexture(rgba, nx, ny, nz);
+  colour.format = T.RGBAFormat; colour.minFilter = colour.magFilter = T.LinearFilter; colour.unpackAlignment = 1;
+  colour.userData.fill = pal => { for (let i = 0; i < labels.length; i++){ const l = labels[i];
+      if (l > 0 && l < intNames.length){ rgba[i*4] = pal[l*3]*255; rgba[i*4+1] = pal[l*3+1]*255; rgba[i*4+2] = pal[l*3+2]*255; rgba[i*4+3] = 255; } else rgba[i*4] = rgba[i*4+1] = rgba[i*4+2] = rgba[i*4+3] = 0; }
+    colour.needsUpdate = true; };
+  colour.userData.fill(capPalettes.real);
   return {
+    uCapColour: { value: colour },
     uCapLabels: { value: texture },
     uCapPalette: { value: capPalettes.real },
     uCapLo: { value: new T.Vector3(...capData.lo) },
@@ -1980,7 +2000,7 @@ function capMat(clipTo){
         vCapHeart = (uBodyToHeart * modelMatrix * vec4(transformed, 1.0)).xyz;`);
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>
-        uniform highp sampler3D uCapLabels;
+        uniform highp sampler3D uCapLabels, uCapColour;
         uniform vec3 uCapPalette[${intNames.length}];
         uniform vec3 uCapLo, uCapSize;
         uniform float uSys;
@@ -1995,8 +2015,8 @@ function capMat(clipTo){
         p.xy /= 1.0 - ${BEAT_SHAPE.radialSqueeze} * uSys * smoothstep(-1.0, 1.5, p.z);
         vec3 uvw = (p - uCapLo) / uCapSize;
         if (all(greaterThanEqual(uvw, vec3(0.0))) && all(lessThan(uvw, vec3(1.0)))) {
-          int label = int(texture(uCapLabels, uvw).r * 255.0 + 0.5);
-          if (label > 0 && label < ${intNames.length}) diffuseColor.rgb = uCapPalette[label];
+          vec4 c = texture(uCapColour, uvw);   // trilinear: smooth borders between tissues
+          if (c.a > 0.02) diffuseColor.rgb = c.rgb / c.a;
         }`);
   };
   mat.customProgramCacheKey = () => "cap-volume";
@@ -2062,7 +2082,7 @@ function paintGeom(g, labels, mode, smooth = 0){ const c = g.attributes.color.ar
   smoothColours(g, smooth); g.attributes.color.needsUpdate = true; }
 function paint(mode){ fatCream = !!st.layers.conduction; paintKey = mode + "|" + fatCream; paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
   HI.valves.children.forEach(m => paintGeom(m.geometry, m.userData.labels, mode));
-  if (capUniforms) capUniforms.uCapPalette.value = capPalettes[mode + (fatCream ? "|cream" : "")];
+  if (capUniforms){ const pal = capPalettes[mode + (fatCream ? "|cream" : "")]; if (capUniforms.uCapPalette.value !== pal){ capUniforms.uCapPalette.value = pal; capUniforms.uCapColour.value.userData.fill(pal); } }
   capGroups.forEach(g => g.cap.material.color.set(capInk[mode])); $(".legend").hidden = mode !== "labels"; }
 
 /* ---------- cut views (heart frame; n points into the kept half; the camera looks from the removed side) ----------
@@ -2241,6 +2261,9 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     const ei = extNames.indexOf(id);
     if (ei > 0){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => l === ei); if (a && a.count > 20) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
   }
+  /* one anchor per leaflet too: never listed in All / Relevant, it shows only when its leaflet is tapped (Explore) */
+  for (const [g, members] of Object.entries(D.VALVE_GROUPS)) for (const id of members){ const li = intNames.indexOf(id), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(li));
+    if (vi){ const a = centroidAnchor(vi.geometry, vi.userData.labels, l => l === li); if (a) anchors.push({ id, layer: "valves", text: D.LEAFLET[id]?.[0] || D.SHORT[id] || id, p: a.p, nrm: null, where: "valve", member: g }); } }
   /* T6.2-B: other places a name may point to when its own anchor is cut away or hidden in this view (Relevant only, for the view's listed names):
      up to 10 well-spread vertices of the same structure (farthest-point sampling), or the points of a landmark path. */
   const spread = (geom, labels, pred, k = 10) => { const P = geom.attributes.position, idx = [];
@@ -2272,6 +2295,7 @@ function updateLabelVisibility(){
     if (show){ if (ext) show = a.where === "ext" || a.where === "vessel" || ((a.where === "lm") && a.layer === "conduction");
       else if (!cut) show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
+    if (a.member && st.sel !== a.id) show = false;   // a leaflet name appears only for the tapped leaflet
     const eligible = show;   // layer and mode allow it; the geometry tests follow
     if (show && cut && removed(a.w)) show = false;
     /* All uses geometric visibility. Relevant applies its separate per-view list in the callout controller. */
@@ -2379,8 +2403,8 @@ function card(id, hit){
   if (cd && cd[0] === "struct"){ const s = C.STRUCT[cd[1]];
     return `<span class="eyebrow">${esc(s.tag)}</span><h2>${esc(s.name)}</h2><p>${s.anat}</p><table class="kv">${s.phys.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`).join("")}</table>
       <p class="small"><b>Blood supply.</b> ${esc(s.supply)}</p>${chips(s.sc, "Complications: run them in the pathology simulator")}`; }
-  if (cd && cd[0] === "valve"){ const n = SIM.VALVENOTE[cd[1]], rel = { lvot: ["hocm"], laa: ["af"] }[cd[1]] || [];
-    return `<span class="eyebrow">${cd[1] === "laa" || cd[1] === "lvot" ? "Chamber" : "Valve"}</span><h2>${esc(n.name)}</h2><p>${esc(n.note)}</p>${chips(rel)}`; }
+  if (cd && cd[0] === "valve"){ const n = SIM.VALVENOTE[cd[1]], rel = { lvot: ["hocm"], laa: ["af"] }[cd[1]] || [], lf = D.LEAFLET[id];
+    return `<span class="eyebrow">${cd[1] === "laa" || cd[1] === "lvot" ? "Chamber" : lf ? "Valve · you tapped one leaflet" : "Valve"}</span><h2>${esc(n.name)}${lf && id !== "PV_cusps" ? ` <small>— ${esc(lf[0].split(" · ")[1])}</small>` : ""}</h2>${lf ? `<p>${esc(lf[1])}</p>` : ""}<p>${esc(n.note)}</p>${chips(rel)}`; }
   const nt = D.NOTE[id];
   if (nt) return `<span class="eyebrow">${esc(nt[1])}</span><h2>${esc(nt[0])}</h2><p>${esc(nt[2])}</p>${id === "cti" ? chips(["flutter"]) : id === "cs_ostium" ? chips(["avb1"]) : id === "pulmonary_veins" ? chips(["af"]) : id === "central_fibrous_body" || id === "membranous_septum" ? chips(["chbV"]) : ""}`;
   return `<span class="eyebrow">Structure</span><h2>${esc(D.SHORT[id] || id)}</h2>`; }
@@ -2389,7 +2413,6 @@ function startCard(){ return `<span class="eyebrow">Start here</span><h2>Explore
   <p><b>External</b> shows the surface and the coronary arteries. <b>See-through</b> turns the wall to glass so the valves and the conduction system show inside. <b>Cut</b> opens the heart along a body plane (coronal, axial, sagittal) or a cardiac plane (4-, 2-, 3-chamber, short axis); move the slider to slide the cut through the heart.</p>
   <p><b>Label colours</b> paint the heart by function: blue/purple for the right heart that carries deoxygenated blood, red for the left heart and aorta that carry oxygenated blood.</p>`; }
 function select(id, hit){
-  id = D.VALVE_OF[id] || id;   // a tap on a leaflet opens its valve
   if(id!==st.sel)selectionHit=hit;else if(hit)selectionHit=hit;
   hit=hit||selectionHit;
   updateFocus(id,hit);

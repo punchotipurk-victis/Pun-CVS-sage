@@ -107,6 +107,17 @@ const EXPLORE_DATA = (() => {
      The leaflet ids stay in the phantom, the exports and the shaders. */
   const VALVE_GROUPS = { mitral_valve: ["MV_AML", "MV_PML"], tricuspid_valve: ["TV_septal", "TV_anterior", "TV_posterior"],
     aortic_valve: ["AV_cusps.RCC", "AV_cusps.LCC", "AV_cusps.NCC"], pulmonary_valve: ["PV_cusps"] };
+  /* what a tap on one leaflet shows (callout + card line); the model's labels stay one per valve */
+  const LEAFLET = {
+    MV_AML: ["Mitral · anterior leaflet", "Anterior (aortic) leaflet: the larger, deeper leaflet, in fibrous continuity with the aortic valve (the aorto-mitral curtain). In HOCM its tip is pulled into the LVOT (systolic anterior motion). [teaching (verify)]"],
+    MV_PML: ["Mitral · posterior leaflet", "Posterior (mural) leaflet: shorter but longer along the annulus, with three scallops P1–P3; P2 is the commonest site of prolapse or flail. [teaching (verify)]"],
+    TV_septal: ["Tricuspid · septal leaflet", "Septal leaflet: hinged on the septum about 1 cm more apical than the mitral hinge (the normal offset; much more in Ebstein anomaly). The His bundle runs just below its attachment, near the membranous septum. [teaching (verify)]"],
+    TV_anterior: ["Tricuspid · anterior leaflet", "Anterior leaflet: the largest tricuspid leaflet; most of its chordae come from the anterior papillary muscle, which the moderator band joins. [teaching (verify)]"],
+    TV_posterior: ["Tricuspid · posterior leaflet", "Posterior (inferior) leaflet: the smallest, along the diaphragmatic wall of the RV. [teaching (verify)]"],
+    "AV_cusps.RCC": ["Aortic · right coronary cusp", "Right coronary cusp: the most anterior cusp; the right coronary artery arises from its sinus. [teaching (verify)]"],
+    "AV_cusps.LCC": ["Aortic · left coronary cusp", "Left coronary cusp: the left main coronary artery arises from its sinus. [teaching (verify)]"],
+    "AV_cusps.NCC": ["Aortic · non-coronary cusp", "Non-coronary cusp: posterior, facing the atrial septum; it sits above the membranous septum and the His bundle, so aortic-root disease can cause heart block. [teaching (verify)]"],
+    PV_cusps: ["Pulmonary valve cusps", "Three thin semilunar cusps (anterior, left, right) at the top of the RVOT. [teaching (verify)]"] };
   const VALVE_OF = Object.fromEntries(Object.entries(VALVE_GROUPS).flatMap(([g, ids]) => ids.map(id => [id, g])));
   /* ---- Relevant labels per view (T6.2-B, Claude): what a student should find first in that view, 4–10 names (up to 20 where the view is explored with the level slider, e.g. 4C), including the essential vessels that can be seen in that view (vessels layer on in every view; coronary arteries still follow the Coronaries switch; the IVC has no surface of its own to label, and See-through hides great-vessel names).
      The cut view's "Find in this view" chips use the same list. Conduction parts use the "conduction:<tap id>" namespace.
@@ -150,5 +161,5 @@ const EXPLORE_DATA = (() => {
      into its members. Relevant shows only the AV node; the pathways belong to Advanced / the pathology page (AVNRT). */
   const LABEL_GROUPS = { avJunction: { text: "AV junction", anchor: "conduction:avn", modes: ["all"],
     members: ["conduction:avn", "conduction:avn_fast", "conduction:avn_slow", "conduction:his", "conduction:lbb"] } };
-  return { UI_FLAGS, VALVE_GROUPS, VALVE_OF, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
+  return { UI_FLAGS, VALVE_GROUPS, VALVE_OF, LEAFLET, RELEVANT_LABELS, VIEW_LAYERS, VIEW_CONDUCTION, LABEL_GROUPS, CONDUCTION_SHORT, PAL, LEGEND, LAYERS, SHORT, CARD, VESSEL_KEY, AHA_WALL, NOTE, ART_NAME };
 })();

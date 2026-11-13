@@ -141,7 +141,16 @@ const capUniforms = capData && renderer.capabilities.isWebGL2 ? (() => {
   texture.internalFormat = "R8";
   texture.minFilter = texture.magFilter = T.NearestFilter;
   texture.needsUpdate = true;
+  /* T6.2-B: a colour copy of the label volume (premultiplied, alpha = "has tissue") with trilinear filtering, so tissue borders
+     on the cut face blend smoothly instead of showing the 0.2 cm voxel steps. Refilled when the palette changes. */
+  const rgba = new Uint8Array(nx * ny * nz * 4), colour = new T.Data3DTexture(rgba, nx, ny, nz);
+  colour.format = T.RGBAFormat; colour.minFilter = colour.magFilter = T.LinearFilter; colour.unpackAlignment = 1;
+  colour.userData.fill = pal => { for (let i = 0; i < labels.length; i++){ const l = labels[i];
+      if (l > 0 && l < intNames.length){ rgba[i*4] = pal[l*3]*255; rgba[i*4+1] = pal[l*3+1]*255; rgba[i*4+2] = pal[l*3+2]*255; rgba[i*4+3] = 255; } else rgba[i*4] = rgba[i*4+1] = rgba[i*4+2] = rgba[i*4+3] = 0; }
+    colour.needsUpdate = true; };
+  colour.userData.fill(capPalettes.real);
   return {
+    uCapColour: { value: colour },
     uCapLabels: { value: texture },
     uCapPalette: { value: capPalettes.real },
     uCapLo: { value: new T.Vector3(...capData.lo) },
@@ -164,7 +173,7 @@ function capMat(clipTo){
         vCapHeart = (uBodyToHeart * modelMatrix * vec4(transformed, 1.0)).xyz;`);
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>
-        uniform highp sampler3D uCapLabels;
+        uniform highp sampler3D uCapLabels, uCapColour;
         uniform vec3 uCapPalette[${intNames.length}];
         uniform vec3 uCapLo, uCapSize;
         uniform float uSys;
@@ -179,8 +188,8 @@ function capMat(clipTo){
         p.xy /= 1.0 - ${BEAT_SHAPE.radialSqueeze} * uSys * smoothstep(-1.0, 1.5, p.z);
         vec3 uvw = (p - uCapLo) / uCapSize;
         if (all(greaterThanEqual(uvw, vec3(0.0))) && all(lessThan(uvw, vec3(1.0)))) {
-          int label = int(texture(uCapLabels, uvw).r * 255.0 + 0.5);
-          if (label > 0 && label < ${intNames.length}) diffuseColor.rgb = uCapPalette[label];
+          vec4 c = texture(uCapColour, uvw);   // trilinear: smooth borders between tissues
+          if (c.a > 0.02) diffuseColor.rgb = c.rgb / c.a;
         }`);
   };
   mat.customProgramCacheKey = () => "cap-volume";
@@ -246,7 +255,7 @@ function paintGeom(g, labels, mode, smooth = 0){ const c = g.attributes.color.ar
   smoothColours(g, smooth); g.attributes.color.needsUpdate = true; }
 function paint(mode){ fatCream = !!st.layers.conduction; paintKey = mode + "|" + fatCream; paintExt(mode); paintGeom(HI.tissue.geometry, HI.tissue.geometry.attributes.aLabel.array, mode, mode === "labels" ? 5 : 2);
   HI.valves.children.forEach(m => paintGeom(m.geometry, m.userData.labels, mode));
-  if (capUniforms) capUniforms.uCapPalette.value = capPalettes[mode + (fatCream ? "|cream" : "")];
+  if (capUniforms){ const pal = capPalettes[mode + (fatCream ? "|cream" : "")]; if (capUniforms.uCapPalette.value !== pal){ capUniforms.uCapPalette.value = pal; capUniforms.uCapColour.value.userData.fill(pal); } }
   capGroups.forEach(g => g.cap.material.color.set(capInk[mode])); $(".legend").hidden = mode !== "labels"; }
 
 /* ---------- cut views (heart frame; n points into the kept half; the camera looks from the removed side) ----------
@@ -425,6 +434,9 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     const ei = extNames.indexOf(id);
     if (ei > 0){ const a = centroidAnchor(HM.mesh.geometry, extLab, l => l === ei); if (a && a.count > 20) anchors.push({ id, layer: L.id, text, p: a.p, nrm: a.nrm, where: "ext" }); }
   }
+  /* one anchor per leaflet too: never listed in All / Relevant, it shows only when its leaflet is tapped (Explore) */
+  for (const [g, members] of Object.entries(D.VALVE_GROUPS)) for (const id of members){ const li = intNames.indexOf(id), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => m.userData.labels.includes(li));
+    if (vi){ const a = centroidAnchor(vi.geometry, vi.userData.labels, l => l === li); if (a) anchors.push({ id, layer: "valves", text: D.LEAFLET[id]?.[0] || D.SHORT[id] || id, p: a.p, nrm: null, where: "valve", member: g }); } }
   /* T6.2-B: other places a name may point to when its own anchor is cut away or hidden in this view (Relevant only, for the view's listed names):
      up to 10 well-spread vertices of the same structure (farthest-point sampling), or the points of a landmark path. */
   const spread = (geom, labels, pred, k = 10) => { const P = geom.attributes.position, idx = [];
@@ -456,6 +468,7 @@ function updateLabelVisibility(){
     if (show){ if (ext) show = a.where === "ext" || a.where === "vessel" || ((a.where === "lm") && a.layer === "conduction");
       else if (!cut) show = a.where !== "ext" && a.where !== "int" || a.layer === "landmarks"; }
     if (show && a.layer === "vessels" && a.where === "vessel" && !st.coronaries) show = false;
+    if (a.member && st.sel !== a.id) show = false;   // a leaflet name appears only for the tapped leaflet
     const eligible = show;   // layer and mode allow it; the geometry tests follow
     if (show && cut && removed(a.w)) show = false;
     /* All uses geometric visibility. Relevant applies its separate per-view list in the callout controller. */
@@ -563,8 +576,8 @@ function card(id, hit){
   if (cd && cd[0] === "struct"){ const s = C.STRUCT[cd[1]];
     return `<span class="eyebrow">${esc(s.tag)}</span><h2>${esc(s.name)}</h2><p>${s.anat}</p><table class="kv">${s.phys.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`).join("")}</table>
       <p class="small"><b>Blood supply.</b> ${esc(s.supply)}</p>${chips(s.sc, "Complications: run them in the pathology simulator")}`; }
-  if (cd && cd[0] === "valve"){ const n = SIM.VALVENOTE[cd[1]], rel = { lvot: ["hocm"], laa: ["af"] }[cd[1]] || [];
-    return `<span class="eyebrow">${cd[1] === "laa" || cd[1] === "lvot" ? "Chamber" : "Valve"}</span><h2>${esc(n.name)}</h2><p>${esc(n.note)}</p>${chips(rel)}`; }
+  if (cd && cd[0] === "valve"){ const n = SIM.VALVENOTE[cd[1]], rel = { lvot: ["hocm"], laa: ["af"] }[cd[1]] || [], lf = D.LEAFLET[id];
+    return `<span class="eyebrow">${cd[1] === "laa" || cd[1] === "lvot" ? "Chamber" : lf ? "Valve · you tapped one leaflet" : "Valve"}</span><h2>${esc(n.name)}${lf && id !== "PV_cusps" ? ` <small>— ${esc(lf[0].split(" · ")[1])}</small>` : ""}</h2>${lf ? `<p>${esc(lf[1])}</p>` : ""}<p>${esc(n.note)}</p>${chips(rel)}`; }
   const nt = D.NOTE[id];
   if (nt) return `<span class="eyebrow">${esc(nt[1])}</span><h2>${esc(nt[0])}</h2><p>${esc(nt[2])}</p>${id === "cti" ? chips(["flutter"]) : id === "cs_ostium" ? chips(["avb1"]) : id === "pulmonary_veins" ? chips(["af"]) : id === "central_fibrous_body" || id === "membranous_septum" ? chips(["chbV"]) : ""}`;
   return `<span class="eyebrow">Structure</span><h2>${esc(D.SHORT[id] || id)}</h2>`; }
@@ -573,7 +586,6 @@ function startCard(){ return `<span class="eyebrow">Start here</span><h2>Explore
   <p><b>External</b> shows the surface and the coronary arteries. <b>See-through</b> turns the wall to glass so the valves and the conduction system show inside. <b>Cut</b> opens the heart along a body plane (coronal, axial, sagittal) or a cardiac plane (4-, 2-, 3-chamber, short axis); move the slider to slide the cut through the heart.</p>
   <p><b>Label colours</b> paint the heart by function: blue/purple for the right heart that carries deoxygenated blood, red for the left heart and aorta that carry oxygenated blood.</p>`; }
 function select(id, hit){
-  id = D.VALVE_OF[id] || id;   // a tap on a leaflet opens its valve
   if(id!==st.sel)selectionHit=hit;else if(hit)selectionHit=hit;
   hit=hit||selectionHit;
   updateFocus(id,hit);

@@ -251,6 +251,8 @@ async def explore_checks(pg, fr, tag):
       out[k]={n:ids.length,shown:shown.length,chipsMatch:k==='external'||k==='seeThrough'||JSON.stringify(chips)===JSON.stringify(ids)}}
       EXPLORE_APP.labelMode(m0);EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();for(const k in L0)EXPLORE_APP.setLayer(k,L0[k]);EXPLORE_APP.setBeat(b0);return out})()""")
     check(all(4 <= v['n'] <= 20 and v['chipsMatch'] and v['shown'] >= min(3, v['n']) for v in rel.values()) and len(rel) == 9, f"[{tag}] Relevant sets: 4–20 per view, Find chips match, at least 3 shown per view", str(rel))
+    leaf = await fr.evaluate("(()=>{EXPLORE_APP.select('MV_AML',null);const c=document.querySelector('.panel h2').textContent;EXPLORE_APP.select(null,null);return [c,EXPLORE_DATA.RELEVANT_LABELS.valves.includes('MV_AML'),EXPLORE_DATA.RELEVANT_LABELS.valves.includes('mitral_valve')]})()")
+    check('anterior leaflet' in leaf[0].lower() and not leaf[1] and leaf[2], f"[{tag}] one name per valve on the model; a leaflet tap names the leaflet", str(leaf))
     lbl = await fr.evaluate("(()=>{const a=EXPLORE_APP.anchors,f=id=>a.find(x=>x.id===id&&x.where==='cav');return {LA:f('LA')?.home.toArray(),RV:f('RV_cavity')?.home.toArray()}})()")
     check(lbl['LA'] and lbl['RV'] and lbl['LA'][0] < 0 and lbl['RV'][0] > 2.5, f"[{tag}] chamber names point into their own cavity (exported label anchors)", str(lbl))
     # dissection views: a view card lists what to find, and its chips open cards
