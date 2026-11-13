@@ -585,8 +585,8 @@ async def ui_phase_a_checks(pg,fr):
     check(not initial['timingMapEnabled'] and await fr.locator('.bIsochrones').is_hidden() and
           not await fr.evaluate('EXPLORE_APP.activationState().isochrones'),
           'UI: Activation timing map is hidden and cannot be enabled with the shipped flag off')
-    check(initial['colours']=={'impulse':'ffffff','muscle':'ffc83d','after':'d9a441'},
-          'UI: white impulse, amber muscle wave and fading tint uniforms',str(initial['colours']))
+    check(initial['colours']=={'impulse':'ffffff','muscle':'ffc83d','after':'ffe9a8'},
+          'UI: white impulse, amber muscle wave and faint fading tint uniforms',str(initial['colours']))
     check(await fr.evaluate("[...document.querySelectorAll('.outside-legends .legend,.signalLegend')].every(e=>!e.closest('.viewer'))"),
           'UI: legends sit outside the canvas')
     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(true);EXPLORE_APP.seek(180)")
@@ -601,6 +601,12 @@ async def ui_phase_a_checks(pg,fr):
         labels=await fr.evaluate('EXPLORE_APP.visibleLabels()')
         check([x['id'] for x in labels]==['conduction:sa'] and await fr.evaluate("EXPLORE_APP.card()==='SA node'"),
               f'UI {name}: a real Explore tap opens one SA callout and card',str(labels))
+        tap=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),b:EXPLORE_APP.uiState().callouts}})()")
+        check(len(tap['b'])==1 and all(c['overHeart']==0 and c['box']['left']>=tap['v']['left'] and c['box']['right']<=tap['v']['right'] and
+              c['box']['top']>=tap['v']['top'] and c['box']['bottom']<=tap['v']['bottom'] for c in tap['b']),
+              f'UI {name}: the tapped callout sits inside the viewer and off the heart',str(tap['b']))
+        fill=await fr.evaluate('EXPLORE_APP.heartFill()')
+        check(fill['inside'] and 0.6<=fill['short']<=1.0,f'UI {name}: reset view frames the heart to fill the viewer',str(fill))
         async def capture(suffix):
             await fr.evaluate("EXPLORE_APP.render();document.querySelector('.model-stage').scrollIntoView({block:'center'})")
             if A.shots:
@@ -612,18 +618,38 @@ async def ui_phase_a_checks(pg,fr):
         await fr.evaluate("EXPLORE_APP.select('RA',null);EXPLORE_APP.render()")
         check((await fr.evaluate('EXPLORE_APP.uiState().focusVertices'))>0,f'UI {name}: anatomy selection highlights existing mesh vertices')
         await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.push('RA');EXPLORE_APP.labelMode('relevant');EXPLORE_APP.select(null,null);EXPLORE_APP.render()")
-        check([x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]==['RA'],f'UI {name}: Relevant reads the per-view list')
+        relevantIds=await fr.evaluate('EXPLORE_APP.labelListIds()') if width==400 else [x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]
+        check(relevantIds==['RA'],f'UI {name}: Relevant reads the per-view list',str(relevantIds))
         await fr.evaluate("EXPLORE_DATA.RELEVANT_LABELS.external.length=0;EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
         check(await fr.locator('.labelStatus').inner_text()=='No labels configured for this view. Tap a structure to explore.' and
               [x['id'] for x in await fr.evaluate('EXPLORE_APP.visibleLabels()')]==['conduction:sa'],
               f'UI {name}: Relevant preserves an unlisted tapped structure and explains an empty list')
         await capture('relevant')
         await fr.evaluate("EXPLORE_APP.labelMode('all');EXPLORE_APP.render()")
-        boxes=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),b:EXPLORE_APP.uiState().callouts.map(c=>c.box)}})()")
-        outside=all(b['right']<=boxes['v']['left']+1 or b['left']>=boxes['v']['right']-1 or b['top']>=boxes['v']['bottom']-1 for b in boxes['b'])
+        boxes=await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect();return {v:v.toJSON(),c:EXPLORE_APP.uiState().callouts}})()")
+        boxes['b']=[c['box'] for c in boxes['c']]
+        inside=all(b['left']>=boxes['v']['left'] and b['right']<=boxes['v']['right'] and b['top']>=boxes['v']['top'] and b['bottom']<=boxes['v']['bottom'] for b in boxes['b'])
+        offHeart=sum(c['overHeart']==0 for c in boxes['c'])
         overlap=any(a['left']<b['right'] and b['left']<a['right'] and a['top']<b['bottom'] and b['top']<a['bottom'] for i,a in enumerate(boxes['b']) for b in boxes['b'][i+1:])
-        check(outside and not overlap and (len(boxes['b'])==1 if width==400 else len(boxes['b'])>4),
-              f'UI {name}: callouts are outside the viewer and collision-free',str(len(boxes['b'])))
+        def cross(c1,c2):
+            def seg(c):
+                b=c['box'];x,y=c['anchor']['x'],c['anchor']['y'];return (x,y,min(b['right'],max(b['left'],x)),min(b['bottom'],max(b['top'],y)))
+            (a,b_,c_,d),(e,f,g,h)=seg(c1),seg(c2)
+            o=lambda px,py,qx,qy,rx,ry:(qx-px)*(ry-py)-(qy-py)*(rx-px)
+            return o(a,b_,c_,d,e,f)*o(a,b_,c_,d,g,h)<0 and o(e,f,g,h,a,b_)*o(e,f,g,h,c_,d)<0
+        crossings=sum(cross(a,b) for i,a in enumerate(boxes['c']) for b in boxes['c'][i+1:])
+        if width==400:
+            ids=await fr.evaluate('EXPLORE_APP.labelListIds()')
+            check(len(boxes['b'])==1 and len(ids)>4 and 'conduction:sa' in ids and inside and offHeart==1,
+                  f'UI {name}: All shows one callout in the viewer plus a tappable list of label names',f'{len(boxes["b"])} callouts, list {len(ids)}')
+            await fr.locator('.labelList .chip[data-id="conduction:his"]').click();await fr.evaluate('EXPLORE_APP.render()')
+            check(await fr.evaluate("EXPLORE_APP.card()")!='SA node' and [c['id'] for c in await fr.evaluate('EXPLORE_APP.uiState().callouts')]==['conduction:his'],
+                  f'UI {name}: tapping a name in the list shows its callout and card')
+            await fr.evaluate("EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
+        else:
+            check(len(boxes['b'])>4 and inside and not overlap and offHeart>=len(boxes['b'])-1 and crossings<=1,
+                  f'UI {name}: All callouts sit inside the viewer, off the heart, without overlaps or crossing lines',
+                  f"{len(boxes['b'])} callouts, {len(boxes['b'])-offHeart} over the heart, {crossings} crossings")
         layout=await fr.evaluate("(()=>{const p=document.querySelector('.panel').getBoundingClientRect(),s=document.querySelector('.model-stage').getBoundingClientRect();return {side:p.left>=s.right,below:p.top>=s.bottom}})()")
         check(layout['side'] if width>1700 else layout['below'],f'UI {name}: card uses the appropriate side/below placement',str(layout))
         await capture('all')
@@ -637,6 +663,8 @@ async def ui_phase_a_checks(pg,fr):
         await fr.evaluate('EXPLORE_APP.activationReady()')
         await fr.evaluate("EXPLORE_APP.seek(220);EXPLORE_APP.render()")
         await capture('wave')
+        await fr.evaluate("EXPLORE_APP.seek(700);EXPLORE_APP.render()")
+        await capture('diastole')
         check(await fr.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'UI {name}: no horizontal overflow')
     await pg.set_viewport_size({'width':1440,'height':900})
     await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null,null);EXPLORE_APP.labelMode('explore');EXPLORE_APP.conduction(false);EXPLORE_APP.resetView();EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
