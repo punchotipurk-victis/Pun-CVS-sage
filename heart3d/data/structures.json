@@ -1,6 +1,6 @@
 {
  "meta": {
-  "version": "0.4.0 (pilots + B1 + B2 valves; SAQs replace Quiz me; 14 Nov 2026)",
+  "version": "0.5.0 (pilots + B1 + B2 + B3 coronaries and veins; 14 Nov 2026)",
   "levels": [
    "student",
    "resident",
@@ -11,8 +11,6 @@
    "Priority audience: students and residents. Fellow pearls are optional and may be empty.",
    "scenario: existing id (CONTENT.SC / SIMC.EXTRA / SIMC.MIS) = Run in simulator; planned:<id> = greyed chip; null = no chip.",
    "Glance layer (14 Nov): `stats` + `quick` feed the desktop side panel; every long section has a one-line `summary` above its `detail`; every complication has a `hook`. Pearls start with a short hook before the first colon (shown bold).",
-   "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring).",
-   "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring).",
    "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring)."
   ]
  },
@@ -4243,6 +4241,2304 @@
    "review": {
     "status": "draft",
     "batch": "B2"
+   }
+  },
+  {
+   "id": "left_main",
+   "name": "Left main coronary artery (LM)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:LM"
+   ],
+   "aliases": [
+    "LM",
+    "LMCA",
+    "left main stem"
+   ],
+   "core": "A short trunk that carries the blood for most of the left ventricle before it splits into the LAD and LCx, so one lesion here threatens almost the whole LV.",
+   "stats": [
+    {
+     "value": "≈ 1 cm",
+     "label": "long (very variable)"
+    },
+    {
+     "value": "≥ 50 %",
+     "label": "stenosis = significant"
+    },
+    {
+     "value": "aVR",
+     "label": "ST↑ warning lead"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Leaves the **left aortic sinus**, runs between the **pulmonary trunk and the LAA**",
+     "focus": [
+      "artery:LM",
+      "aortic_root",
+      "PA_main",
+      "LAA"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "Splits into **LAD + LCx** (± ramus): most of the LV in a right-dominant heart",
+     "focus": [
+      "artery:LAD",
+      "artery:LCx"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**ST↑ in aVR** + diffuse ST↓ (≥ 6 leads) = global subendocardial ischaemia"
+    },
+    {
+     "icon": "danger",
+     "text": "Acute occlusion → **cardiogenic shock** or sudden death"
+    },
+    {
+     "icon": "key",
+     "text": "Significant LM disease → **revascularise** (CABG; PCI if anatomy simple)"
+    }
+   ],
+   "anatomy": {
+    "summary": "A short trunk from the left aortic sinus that passes behind the pulmonary trunk and splits under the LAA.",
+    "detail": "Arises from the left coronary (left aortic) sinus, just above the left coronary cusp. It runs to the left between the pulmonary trunk (in front) and the left atrial appendage (to the left) and divides in the left AV groove into the LAD and the LCx. In some hearts a third branch, the ramus intermedius, leaves between them (trifurcation) and runs over the lateral wall like a diagonal or obtuse marginal."
+   },
+   "function": {
+    "summary": "A single inflow for the left coronary system: all LAD and LCx flow passes through it.",
+    "detail": "Everything the LAD and LCx supply depends on this one segment. A stenosis here reduces flow to both territories at once, so ischaemia is global rather than regional. As in all LV arteries, flow happens mostly in diastole."
+   },
+   "supply": {
+    "summary": "Territory: LAD + LCx territories together (anterior, septal, lateral, and posterior if left-dominant).",
+    "detail": "Territory: the anterior wall, the anterior two thirds of the septum, the apex and the lateral wall; also the posterior wall and inferior septum in a left-dominant heart. Venous return: great cardiac vein and coronary sinus."
+   },
+   "relations": [
+    {
+     "with": "Pulmonary trunk",
+     "why": "The LM runs just behind it; an anomalous left coronary can be squeezed between the aorta and pulmonary trunk on exercise.",
+     "focus": [
+      "PA_main"
+     ]
+    },
+    {
+     "with": "Left atrial appendage",
+     "why": "The LM and proximal LCx lie under the LAA: a landmark for surgeons and for LAA occlusion devices.",
+     "focus": [
+      "LAA"
+     ]
+    },
+    {
+     "with": "Left coronary cusp",
+     "why": "Its ostium sits above this cusp, so a bulky calcified cusp or a TAVI valve can block it.",
+     "focus": [
+      "AV_cusps.LCC"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_av",
+      "text": "Ostium of the LM at about 4 o'clock on the aortic root (a good image is not always possible in adults)."
+     }
+    ],
+    "cut": [
+     {
+      "id": "valves",
+      "text": "Left coronary ostium above the left coronary cusp (turn coronaries on)."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "ST elevation in aVR (± V1) with ST depression in six or more leads: suggests LM or three-vessel disease, not specific."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Left main occlusion or critical stenosis",
+     "mechanism": "Flow to both the LAD and LCx territories falls at once, so most of the LV becomes ischaemic.",
+     "presentation": "Chest pain with hypotension or shock; ST elevation in aVR with widespread ST depression; often pulmonary oedema or cardiac arrest.",
+     "scenario": "miLM",
+     "hook": "ST↑ aVR + diffuse ST↓; shock"
+    },
+    {
+     "name": "Coronary obstruction during TAVI",
+     "mechanism": "The new valve pushes the native left cusp against a low LM ostium or a narrow sinus.",
+     "presentation": "Sudden hypotension and ST changes as the valve is deployed.",
+     "scenario": "planned:postTavi",
+     "hook": "Shock as the TAVI valve opens"
+    },
+    {
+     "name": "Anomalous left coronary from the right sinus",
+     "mechanism": "The LM arises from the wrong sinus and runs between the aorta and pulmonary trunk, which can compress it during exercise.",
+     "presentation": "Exertional syncope or chest pain, or sudden death in a young athlete; resting ECG often normal.",
+     "scenario": "planned:anomalousCoronary",
+     "hook": "Exertional syncope or sudden death, young"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "aVR is the 'roof' lead",
+      "text": "ST elevation in aVR with ST depression everywhere else means the inner layer of most of the LV is ischaemic, as in LM or three-vessel disease."
+     },
+     {
+      "hook": "One lesion, two arteries",
+      "text": "An LM lesion is treated as two-vessel disease at minimum, because both the LAD and LCx sit beyond it."
+     },
+     {
+      "hook": "Why shock is common",
+      "text": "The LM feeds most of the LV muscle, so an acute occlusion leaves too little working muscle to keep blood pressure up."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "LM stenosis ≥ 50 % → revascularise",
+      "text": "Significant LM disease improves with revascularisation. CABG is the default; PCI is a reasonable alternative when the rest of the anatomy is simple (low SYNTAX score)."
+     },
+     {
+      "hook": "Pressure damping at the ostium",
+      "text": "Ostial LM disease can damp or 'ventricularise' the catheter pressure on engagement: withdraw and reassess before injecting."
+     },
+     {
+      "hook": "Not every aVR elevation is LM",
+      "text": "The same pattern appears with three-vessel disease, severe aortic stenosis, or demand ischaemia from tachycardia or anaemia."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "IVUS for LM",
+      "text": "Intravascular imaging guides LM assessment and stent sizing; angiography often misjudges ostial and distal LM lesions."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "ST elevation in aVR with ST depression in I, II and V4–V6. What does it suggest, and why?",
+     "a": "Diffuse subendocardial ischaemia, as in left main or three-vessel disease. The ischaemic inner layer of most of the LV makes the ST vector point away from the apex and towards aVR.",
+     "keys": [
+      "LM or three-vessel disease",
+      "Diffuse subendocardial ischaemia",
+      "Vector points to aVR"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does a left main occlusion often present in shock?",
+     "a": "The LM carries the flow for both the LAD and LCx, so most of the LV becomes ischaemic at once and cannot keep cardiac output up.",
+     "keys": [
+      "Feeds LAD + LCx",
+      "Most of the LV ischaemic",
+      "Low cardiac output"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A 70-year-old with stable angina has a 70 % distal LM stenosis and diabetes with multivessel disease. Preferred revascularisation?",
+     "a": "CABG: significant LM disease with diabetes and complex multivessel anatomy has the best long-term outcome with surgery (LIMA to LAD). PCI is reserved for simple anatomy or high surgical risk.",
+     "keys": [
+      "Significant LM → revascularise",
+      "CABG preferred (diabetes, complex)",
+      "PCI if simple anatomy / high risk"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2024 chronic coronary syndromes guideline",
+    "ESC 2023 acute coronary syndromes guideline",
+    "Netter's Atlas of Human Anatomy (coronary arteries)"
+   ],
+   "verify": [
+    "LM length ≈ 1 cm (range)",
+    "'Most of the LV' wording for the LM territory in right dominance",
+    "PSAX-AV ostium position (about 4 o'clock)",
+    "LM stenosis threshold ≥ 50 %",
+    "Ramus intermedius frequency (not stated on the card)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "diagonal_branches",
+   "name": "Diagonal branches (D1, D2)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:D1",
+    "artery:D2"
+   ],
+   "aliases": [
+    "D1",
+    "D2",
+    "diagonals"
+   ],
+   "parts": [
+    {
+     "labelId": "artery:D1",
+     "name": "First diagonal (D1)",
+     "note": "The largest diagonal; it feeds the high lateral wall. Its occlusion is the classic high lateral MI (I, aVL)."
+    },
+    {
+     "labelId": "artery:D2",
+     "name": "Second diagonal (D2)",
+     "note": "Further down the LAD; supplies the mid anterolateral wall."
+    }
+   ],
+   "core": "Branches of the LAD that run diagonally over the anterolateral LV wall; a D1 occlusion causes a small but easily missed high lateral MI.",
+   "stats": [
+    {
+     "value": "I, aVL",
+     "label": "high lateral leads"
+    },
+    {
+     "value": "2 supplies",
+     "label": "anterolateral papillary"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Leave the **LAD** and run **diagonally** over the anterolateral wall",
+     "focus": [
+      "artery:D1",
+      "artery:D2",
+      "artery:LAD"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "Anterolateral wall + share of the **anterolateral papillary muscle**",
+     "focus": [
+      "papillary_muscles.ALPM"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "D1 occlusion → ST↑ **I, aVL** (± V2) with **reciprocal ST↓ in III**"
+    },
+    {
+     "icon": "key",
+     "text": "LAD–D1 **bifurcation** lesions are harder to stent"
+    }
+   ],
+   "anatomy": {
+    "summary": "Branches from the LAD that run diagonally over the anterolateral LV wall towards the obtuse margin.",
+    "detail": "Two or three diagonals usually leave the LAD on its left side and run over the anterolateral wall. D1 is the first and often the largest. They run on the epicardial surface, opposite in direction to the septal perforators, which dive into the septum."
+   },
+   "function": {
+    "summary": "Supply the anterolateral LV wall and help feed the anterolateral papillary muscle.",
+    "detail": "They extend the LAD territory sideways. Together with the obtuse marginals of the LCx they supply the anterolateral papillary muscle, which therefore has two sources."
+   },
+   "supply": {
+    "summary": "Territory: high lateral and anterolateral LV walls.",
+    "detail": "Territory: the anterolateral (high lateral) LV wall and part of the anterolateral papillary muscle. Venous return: tributaries of the great cardiac vein."
+   },
+   "relations": [
+    {
+     "with": "Anterolateral papillary muscle",
+     "why": "A dual supply (diagonals + obtuse marginals) is why this muscle rarely ruptures after MI.",
+     "focus": [
+      "papillary_muscles.ALPM"
+     ]
+    },
+    {
+     "with": "Obtuse marginals",
+     "why": "Share the lateral wall with the LCx; their territories meet and vary between people.",
+     "focus": [
+      "artery:OM1"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_pap",
+      "text": "Anterolateral segments at mid-ventricle."
+     },
+     {
+      "id": "a4c",
+      "text": "Lateral wall (shared with the LCx)."
+     }
+    ],
+    "cut": [
+     {
+      "id": "sax",
+      "text": "Anterolateral LV wall and the anterolateral papillary muscle."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "I and aVL (high lateral); sometimes V2, with ST depression in III and aVF."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "High lateral STEMI (D1 occlusion)",
+     "mechanism": "Occlusion of D1 infarcts the high lateral wall, which only I and aVL face directly.",
+     "presentation": "ST elevation in I and aVL, often subtle, with clear reciprocal ST depression in III; sometimes ST elevation in V2 as well.",
+     "scenario": null,
+     "hook": "Subtle ST↑ I, aVL; clear ST↓ in III"
+    },
+    {
+     "name": "Side-branch closure during LAD stenting",
+     "mechanism": "A stent across the LAD shifts plaque or the carina into the D1 ostium (plaque shift).",
+     "presentation": "Chest pain and lateral ST change during or after PCI; a small troponin rise.",
+     "scenario": null,
+     "hook": "Pain after LAD stent, D1 'pinched'"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Diagonal vs septal",
+      "text": "Diagonals run over the surface of the anterolateral wall; septals dive into the septum. Both come from the LAD."
+     },
+     {
+      "hook": "Look at III first",
+      "text": "In a small high lateral MI, the ST depression in III is often easier to see than the ST elevation in aVL."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "South African flag pattern",
+      "text": "ST↑ in I, aVL and V2 with ST↓ in III is a D1 (or proximal LAD) occlusion, a STEMI that is easily missed."
+     },
+     {
+      "hook": "Bifurcation lesions",
+      "text": "LAD–D1 lesions are classified by which limbs are diseased (Medina). Usually stent the main branch and only treat the side branch if needed (provisional strategy)."
+     },
+     {
+      "hook": "Why the anterolateral muscle survives",
+      "text": "Its double supply (diagonals + OMs) makes rupture rare; the posteromedial muscle with one supply is the one that tears."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "ST elevation in I and aVL with ST depression in III. Which wall and which artery?",
+     "a": "The high lateral wall: usually the first diagonal (or a proximal LAD / OM). III shows the mirror image.",
+     "keys": [
+      "High lateral wall",
+      "First diagonal (D1)",
+      "III is reciprocal"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why is papillary muscle rupture after MI almost always the posteromedial muscle?",
+     "a": "The anterolateral muscle has two supplies (LAD diagonals and LCx marginals); the posteromedial muscle usually has one (the PDA), so a single occlusion can infarct it completely.",
+     "keys": [
+      "Anterolateral: dual supply",
+      "Posteromedial: single (PDA)",
+      "Single occlusion → whole muscle"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "European Bifurcation Club consensus (provisional strategy)",
+    "AHA 17-segment model (2002)"
+   ],
+   "verify": [
+    "'South African flag' sign description (ST↑ I, aVL, V2; ST↓ III)",
+    "Number of diagonals (two or three)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "artery_lcx",
+   "name": "Left circumflex artery (LCx)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:LCx"
+   ],
+   "aliases": [
+    "LCx",
+    "circumflex",
+    "Cx"
+   ],
+   "parts": [
+    {
+     "labelId": null,
+     "name": "Proximal LCx",
+     "note": "Under the LAA, from the left main to the first obtuse marginal."
+    },
+    {
+     "labelId": null,
+     "name": "Distal LCx",
+     "note": "Along the left AV groove towards the crux; gives the PDA in a left-dominant heart (about 1 in 10)."
+    }
+   ],
+   "core": "The artery in the left AV groove that feeds the lateral and posterior LV walls; its infarcts are the most often 'ECG-silent'.",
+   "stats": [
+    {
+     "value": "≈ 10 %",
+     "label": "left-dominant"
+    },
+    {
+     "value": "V7–V9",
+     "label": "posterior leads"
+    },
+    {
+     "value": "≈ 40 %",
+     "label": "give the SA nodal artery"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Runs in the **left AV groove** beside the mitral annulus, under the LAA",
+     "focus": [
+      "artery:LCx",
+      "mitral_valve",
+      "LAA"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**Lateral** and **posterior** LV walls via the obtuse marginals",
+     "focus": [
+      "artery:OM1",
+      "artery:OM2"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "Often **silent** on the 12-lead; posterior MI = **ST↓ V1–V3 with tall R** → record V7–V9"
+    },
+    {
+     "icon": "danger",
+     "text": "Close to the **mitral annulus**: can be injured in mitral surgery",
+     "focus": [
+      "mitral_valve"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Left-dominant**: the LCx gives the PDA and the AV nodal artery",
+     "focus": [
+      "artery:PDA",
+      "artery:AVN"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "From the left main, round the left AV groove under the LAA towards the back of the heart.",
+    "detail": "Arises from the left main and curves to the left and back in the left AV groove, under the left atrial appendage and next to the mitral annulus. The great cardiac vein (becoming the coronary sinus) runs with it. Branches: obtuse marginals over the lateral wall, atrial branches, and in about 40 % the SA nodal artery. In a left-dominant heart it reaches the crux and gives the PDA and the AV nodal artery."
+   },
+   "function": {
+    "summary": "Supplies the lateral and posterior LV walls, part of the LA, and sometimes the SA or AV node.",
+    "detail": "Its territory faces left and backwards, away from most precordial electrodes. That geometry, not its size, explains why LCx occlusions are so often missed on the standard ECG."
+   },
+   "supply": {
+    "summary": "Territory: lateral and posterolateral LV wall (+ inferior wall and septum if left-dominant).",
+    "detail": "Territory: the lateral and posterolateral LV wall, part of the anterolateral papillary muscle, the LA; in left dominance also the inferior wall, inferior septum and posteromedial papillary muscle. Venous return: great cardiac vein and coronary sinus."
+   },
+   "relations": [
+    {
+     "with": "Mitral annulus",
+     "why": "Lies a few millimetres away: mitral repair or replacement sutures and coronary-sinus annuloplasty devices can kink or compress it.",
+     "focus": [
+      "mitral_valve"
+     ]
+    },
+    {
+     "with": "Great cardiac vein / coronary sinus",
+     "why": "Runs alongside in the same groove; the vein crosses over the artery.",
+     "focus": [
+      "vein:GCV",
+      "coronary_sinus"
+     ]
+    },
+    {
+     "with": "Left atrial appendage",
+     "why": "The proximal LCx lies under the LAA ostium (watch during LAA occlusion).",
+     "focus": [
+      "LAA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "a4c",
+      "text": "Lateral wall (anterolateral segments)."
+     },
+     {
+      "id": "psax_pap",
+      "text": "Inferolateral and anterolateral segments."
+     },
+     {
+      "id": "plax",
+      "text": "Inferolateral (posterior) wall: the lower wall in this view."
+     }
+    ],
+    "cut": [
+     {
+      "id": "valves",
+      "text": "Left AV groove next to the mitral annulus (turn coronaries on)."
+     },
+     {
+      "id": "sax",
+      "text": "Lateral and inferolateral LV wall."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Lateral leads I, aVL, V5–V6; posterior wall seen only as a mirror image in V1–V3 (ST↓, tall R) or directly in V7–V9."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Lateral STEMI",
+     "mechanism": "Occlusion of the LCx or an obtuse marginal infarcts the lateral wall.",
+     "presentation": "ST elevation in I, aVL, V5–V6, often small.",
+     "scenario": "miLat",
+     "hook": "ST↑ I, aVL, V5–V6, often small"
+    },
+    {
+     "name": "Posterior MI",
+     "mechanism": "Occlusion of the distal LCx (or a large OM) infarcts the posterior (inferolateral) wall, which no standard lead faces.",
+     "presentation": "ST depression with upright T and a tall R in V1–V3; ST elevation in V7–V9 confirms a STEMI equivalent.",
+     "scenario": "miPost",
+     "hook": "ST↓ V1–V3 + tall R → do V7–V9"
+    },
+    {
+     "name": "Missed occlusion MI",
+     "mechanism": "A complete LCx occlusion produces no ST elevation in the standard leads.",
+     "presentation": "Ongoing chest pain, rising troponin, 'non-diagnostic' ECG; regional wall-motion loss on echo.",
+     "scenario": null,
+     "hook": "Ongoing pain, 'normal' ECG, wall-motion loss"
+    },
+    {
+     "name": "LCx injury in mitral surgery",
+     "mechanism": "Annular sutures or a ring placed close to the artery kink or occlude it.",
+     "presentation": "New lateral ischaemia or arrhythmia after mitral repair or replacement.",
+     "scenario": null,
+     "hook": "Lateral ischaemia after mitral repair"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "The electrically silent artery",
+      "text": "Its territory faces left and back, away from V1–V6, so a full occlusion can look normal on the 12-lead."
+     },
+     {
+      "hook": "Tall R + ST↓ in V1–V2",
+      "text": "Flip the ECG over: ST depression and tall R in V1–V2 are the mirror image of a posterior MI. Record V7–V9."
+     },
+     {
+      "hook": "Dominance",
+      "text": "The artery that gives the PDA is the dominant one: RCA in most people, LCx in about 1 in 10."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Pain + normal ECG = still think OMI",
+      "text": "Persistent ischaemic pain despite medical therapy needs urgent angiography (within 2 h) even without ST elevation; many of these are LCx occlusions."
+     },
+     {
+      "hook": "Left-dominant LCx occlusion",
+      "text": "Can cause inferior + posterior + lateral MI and AV block, because it then feeds the PDA and AV nodal artery."
+     },
+     {
+      "hook": "Echo before ECG",
+      "text": "An echo showing new lateral or inferolateral hypokinesis in ongoing pain supports an occlusion the ECG cannot show."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "LCx and CS devices",
+      "text": "Percutaneous mitral annuloplasty through the coronary sinus can compress the LCx where the vein crosses over it; check the anatomy on CT first."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Chest pain; ST depression with a tall R wave in V1–V3. What is the likely diagnosis, and what extra leads will you record?",
+     "a": "Posterior MI, usually from the LCx (or RCA). Record V7–V9: ST elevation there confirms it.",
+     "keys": [
+      "Posterior MI",
+      "Mirror image in V1–V3",
+      "V7–V9"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why is the LCx called 'electrically silent'?",
+     "a": "Its territory (lateral and posterior wall) faces left and back, away from the standard precordial leads, so an occlusion may show little or no ST elevation.",
+     "keys": [
+      "Lateral/posterior territory",
+      "Faces away from V1–V6",
+      "Little ST elevation"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Ongoing ischaemic pain for 40 minutes, nondiagnostic ECG, new inferolateral hypokinesis on echo. Management?",
+     "a": "Treat as a possible occlusion MI (often LCx): immediate invasive strategy (angiography within 2 hours) for refractory pain, plus standard antiplatelet and anticoagulant therapy.",
+     "keys": [
+      "Possible LCx occlusion",
+      "Immediate angiography (< 2 h)",
+      "Echo wall motion supports it"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "Fourth universal definition of MI (2018)",
+    "Netter's Atlas of Human Anatomy (coronary arteries)"
+   ],
+   "verify": [
+    "Left dominance ≈ 10 %",
+    "LCx gives the SA nodal artery in ≈ 40 %",
+    "PLAX lower wall = inferolateral segment"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "obtuse_marginals",
+   "name": "Obtuse marginal branches (OM1, OM2)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:OM1",
+    "artery:OM2"
+   ],
+   "aliases": [
+    "OM",
+    "OM1",
+    "OM2",
+    "marginals"
+   ],
+   "parts": [
+    {
+     "labelId": "artery:OM1",
+     "name": "First obtuse marginal (OM1)",
+     "note": "Usually the largest LCx branch; often a bigger artery than the LCx beyond it."
+    },
+    {
+     "labelId": "artery:OM2",
+     "name": "Second obtuse marginal (OM2)",
+     "note": "Further along the LCx; supplies the posterolateral wall."
+    }
+   ],
+   "core": "Branches of the LCx that run down the rounded (obtuse) left margin of the heart and feed the lateral LV wall.",
+   "stats": [
+    {
+     "value": "V5–V6, I, aVL",
+     "label": "lateral leads"
+    },
+    {
+     "value": "Obtuse",
+     "label": "= left margin"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Run down the **obtuse (left) margin** of the heart from the LCx",
+     "focus": [
+      "artery:OM1",
+      "artery:OM2",
+      "artery:LCx"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**Lateral** LV wall + share of the **anterolateral papillary muscle**",
+     "focus": [
+      "papillary_muscles.ALPM"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "Occlusion → **lateral STEMI**: ST↑ I, aVL, V5–V6 (often small)"
+    },
+    {
+     "icon": "key",
+     "text": "A large OM is often the **culprit in 'NSTEMI'** that is really an occlusion"
+    }
+   ],
+   "anatomy": {
+    "summary": "Branches of the LCx that run down the left (obtuse) margin of the heart towards the apex.",
+    "detail": "The heart's left border is rounded, the 'obtuse' margin, as opposed to the sharp 'acute' right margin. The obtuse marginals leave the LCx in the AV groove and run down this border. Their number and size vary, and they share the lateral wall with the diagonals."
+   },
+   "function": {
+    "summary": "The main supply to the lateral LV wall.",
+    "detail": "They carry most of the LCx flow to the lateral wall and help supply the anterolateral papillary muscle."
+   },
+   "supply": {
+    "summary": "Territory: lateral and posterolateral LV wall.",
+    "detail": "Territory: the lateral and posterolateral LV wall and part of the anterolateral papillary muscle. Venous return: the left marginal vein into the great cardiac vein."
+   },
+   "relations": [
+    {
+     "with": "Diagonal branches",
+     "why": "Share the lateral wall, so the culprit for a lateral MI can be either.",
+     "focus": [
+      "artery:D1"
+     ]
+    },
+    {
+     "with": "Left marginal vein",
+     "why": "Runs with them; one of the preferred veins for a CRT LV lead (lateral wall)."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "a4c",
+      "text": "Lateral wall."
+     },
+     {
+      "id": "psax_pap",
+      "text": "Anterolateral and inferolateral segments."
+     }
+    ],
+    "cut": [
+     {
+      "id": "sax",
+      "text": "Lateral LV wall."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "I, aVL, V5–V6."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Lateral STEMI",
+     "mechanism": "Occlusion of an OM infarcts the lateral wall.",
+     "presentation": "Small ST elevation in I, aVL, V5–V6 with reciprocal ST depression inferiorly; easily labelled NSTEMI.",
+     "scenario": "miLat",
+     "hook": "Small ST↑ I, aVL, V5–V6"
+    },
+    {
+     "name": "Ischaemic mitral regurgitation",
+     "mechanism": "Lateral and inferolateral scar pulls the papillary muscles outwards and tethers the posterior leaflet.",
+     "presentation": "A new or worsening MR murmur after a lateral or inferolateral MI; heart failure.",
+     "scenario": null,
+     "hook": "New MR after lateral MI"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Obtuse vs acute margin",
+      "text": "The left border of the heart is rounded (obtuse): LCx marginals. The right border is sharp (acute): the RCA's acute marginal."
+     },
+     {
+      "hook": "Lateral leads are few",
+      "text": "Only I, aVL, V5 and V6 look at the lateral wall, so lateral infarcts often show only small ST changes."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "OM as a hidden culprit",
+      "text": "In NSTEMI with a total occlusion at angiography, the culprit is most often the LCx or an OM."
+     },
+     {
+      "hook": "Lateral wall for CRT",
+      "text": "CRT works best when the LV lead sits over the lateral wall, which is why the lateral marginal vein is the target."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What does 'obtuse marginal' mean, and which wall does an OM supply?",
+     "a": "The left border of the heart is rounded (obtuse); the OMs run down it from the LCx and supply the lateral LV wall.",
+     "keys": [
+      "Obtuse = rounded left border",
+      "From the LCx",
+      "Lateral wall"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why can a lateral wall infarct be mislabelled as NSTEMI?",
+     "a": "Few leads face the lateral wall (I, aVL, V5–V6) and the ST elevation is often small or below the criteria, so a total occlusion may not meet STEMI criteria.",
+     "keys": [
+      "Few leads face it",
+      "Small ST elevation",
+      "May be a total occlusion"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "AHA 17-segment model (2002)"
+   ],
+   "verify": [
+    "OM1 often larger than the LCx beyond it (wording)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "artery_rca",
+   "name": "Right coronary artery (RCA)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:RCA",
+    "artery:CB",
+    "artery:RVB1",
+    "artery:RVB2",
+    "artery:AM",
+    "artery:PLB"
+   ],
+   "aliases": [
+    "RCA",
+    "right coronary"
+   ],
+   "parts": [
+    {
+     "labelId": "artery:CB",
+     "name": "Conus branch",
+     "note": "The first branch, to the RV outflow tract; a common collateral to the LAD (circle of Vieussens). Has its own ostium in some people."
+    },
+    {
+     "labelId": "artery:RVB1",
+     "name": "RV branch",
+     "note": "Feed the RV free wall; a proximal RCA occlusion above them causes RV infarction."
+    },
+    {
+     "labelId": "artery:RVB2",
+     "name": "RV branch",
+     "note": "Feed the RV free wall; a proximal RCA occlusion above them causes RV infarction."
+    },
+    {
+     "labelId": "artery:AM",
+     "name": "Acute marginal",
+     "note": "Runs along the sharp (acute) lower right border of the heart to the RV free wall."
+    },
+    {
+     "labelId": "artery:PLB",
+     "name": "Right posterolateral branch",
+     "note": "Beyond the crux in a right-dominant heart; supplies the inferolateral LV wall."
+    }
+   ],
+   "core": "The artery of the right AV groove: it feeds the RV, the inferior LV wall in most people, and usually both the SA and AV nodes, so its occlusions cause infarcts with rhythm problems.",
+   "stats": [
+    {
+     "value": "II, III, aVF",
+     "label": "ST leads (III > II)"
+    },
+    {
+     "value": "≈ 80–85 %",
+     "label": "give the PDA"
+    },
+    {
+     "value": "V4R",
+     "label": "RV involvement"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "From the **right aortic sinus** round the **right AV groove** to the **crux**",
+     "focus": [
+      "artery:RCA",
+      "tricuspid_valve"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**RV**, **inferior LV** (via PDA), **SA node** (≈ 60 %), **AV node** (≈ 85 %)",
+     "focus": [
+      "artery:PDA",
+      "artery:SAN",
+      "artery:AVN"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "Inferior STEMI: ST↑ **III > II**, ST↓ in I and aVL"
+    },
+    {
+     "icon": "danger",
+     "text": "**Proximal** occlusion takes the RV branches → **RV infarct**: no nitrates",
+     "focus": [
+      "artery:RVB1",
+      "RV_free_wall"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "Inferior MI + **bradycardia/AV block** = nodal ischaemia + vagal reflex",
+     "focus": [
+      "artery:AVN"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "From the right aortic sinus, between the pulmonary trunk and the RA appendage, down the right AV groove to the crux.",
+    "detail": "Arises from the right coronary (right aortic) sinus and runs forwards and right between the pulmonary trunk and the RA appendage into the right AV groove, beside the tricuspid annulus. Proximal: conus branch, SA nodal artery (about 60 %) and RV branches. Mid: the acute marginal along the sharp lower right border. Distal: at the crux, in a right-dominant heart, it makes a U-turn, gives the AV nodal artery, the PDA and the posterolateral branches."
+   },
+   "function": {
+    "summary": "Supplies the RV, the inferior LV and, in most people, the SA and AV nodes.",
+    "detail": "Because the RV runs at low pressure, RV branches get flow in systole and diastole. The nodal branches explain why RCA infarcts so often cause sinus bradycardia and AV block."
+   },
+   "supply": {
+    "summary": "Territory: RV, inferior LV wall and inferior septum (if right-dominant), SA and AV nodes.",
+    "detail": "Territory: the RV free wall, the inferior LV wall, the inferior third of the septum and the posteromedial papillary muscle (via the PDA), the SA node (about 60 %), the AV node (about 80–90 %). Venous return: small cardiac vein and anterior cardiac veins (straight into the RA)."
+   },
+   "relations": [
+    {
+     "with": "Tricuspid annulus",
+     "why": "The RCA lies right next to it in the AV groove: tricuspid surgery and some ablation lines (CTI) pass close to it.",
+     "focus": [
+      "tricuspid_valve",
+      "cti"
+     ]
+    },
+    {
+     "with": "Right coronary cusp",
+     "why": "Its ostium sits above this cusp; the right cusp is the anterior one.",
+     "focus": [
+      "AV_cusps.RCC"
+     ]
+    },
+    {
+     "with": "Small cardiac vein",
+     "why": "Runs with it in the right AV groove.",
+     "focus": [
+      "vein:SCV"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_av",
+      "text": "Origin of the RCA at about 10–11 o'clock on the aortic root."
+     },
+     {
+      "id": "a4c",
+      "text": "RV free wall (TAPSE) and inferoseptum."
+     },
+     {
+      "id": "psax_pap",
+      "text": "Inferior and inferoseptal segments, RV free wall."
+     }
+    ],
+    "cut": [
+     {
+      "id": "valves",
+      "text": "Right AV groove beside the tricuspid annulus (turn coronaries on)."
+     },
+     {
+      "id": "sax",
+      "text": "Inferior LV wall and RV free wall."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "II, III, aVF (III > II suggests RCA); V4R for RV involvement; V1 ST elevation in RV infarction."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Inferior STEMI",
+     "mechanism": "Occlusion of the mid or distal RCA infarcts the inferior LV wall (via the PDA).",
+     "presentation": "ST elevation in II, III, aVF with III > II and reciprocal ST depression in I and aVL.",
+     "scenario": "miInf",
+     "hook": "ST↑ III > II, ST↓ in aVL"
+    },
+    {
+     "name": "RV infarction",
+     "mechanism": "Proximal occlusion, above the RV branches, stops the RV free wall from pumping; the LV loses its preload.",
+     "presentation": "Inferior STEMI with hypotension, raised JVP and clear lungs; ST elevation in V4R; collapse after nitrates.",
+     "scenario": "miInf",
+     "hook": "Hypotension + clear lungs + ST↑ V4R"
+    },
+    {
+     "name": "Sinus bradycardia and AV block",
+     "mechanism": "Ischaemia of the SA or AV nodal artery plus the vagal Bezold–Jarisch reflex from the inferior wall.",
+     "presentation": "Sinus bradycardia, first-degree block, Wenckebach or complete block with a narrow escape; usually transient.",
+     "scenario": "chbJ",
+     "hook": "Narrow-escape block, usually transient"
+    },
+    {
+     "name": "Posteromedial papillary muscle rupture",
+     "mechanism": "The PDA is usually its only supply; infarction makes it tear, typically 2–7 days after MI.",
+     "presentation": "Sudden pulmonary oedema and shock with a new (sometimes soft) murmur of severe MR.",
+     "scenario": "planned:papRupture",
+     "hook": "Day 2–7: flash oedema, severe MR"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "III > II = RCA",
+      "text": "The RCA's inferior territory points more to the right, towards III. In an LCx inferior MI, II ≥ III and I/aVL are often isoelectric or up."
+     },
+     {
+      "hook": "Right-sided leads",
+      "text": "In every inferior STEMI record V4R: ST elevation of 1 mm or more means the RV is involved."
+     },
+     {
+      "hook": "Why inferior MI is slow",
+      "text": "The RCA usually feeds both nodes, and the inferior wall triggers a vagal reflex, so bradycardia and AV block are common and often respond to atropine."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "RV infarct: fluids, not nitrates",
+      "text": "Preload-dependent: stop nitrates and diuretics, give careful fluid, keep AV synchrony, reperfuse quickly."
+     },
+     {
+      "hook": "Nodal block in inferior MI",
+      "text": "Usually a narrow escape at 40–60 bpm that resolves within days after reperfusion; permanent pacing is rarely needed."
+     },
+     {
+      "hook": "Conus collateral",
+      "text": "The conus branch often supplies collaterals to an occluded LAD, which can protect the anterior wall."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Ostium of the conus",
+      "text": "When the conus branch has its own ostium, a 'missing' RVOT supply on the RCA angiogram is not an occlusion: inject the right sinus separately."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Inferior STEMI with ST elevation in III greater than II and ST depression in aVL. Which artery, and which extra lead must you record?",
+     "a": "The RCA. Record V4R to look for RV involvement (proximal occlusion).",
+     "keys": [
+      "RCA",
+      "III > II, ST↓ aVL",
+      "V4R"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does an inferior MI often cause bradycardia?",
+     "a": "The RCA usually supplies the SA and AV nodes, and inferior wall ischaemia triggers a vagal reflex (Bezold–Jarisch).",
+     "keys": [
+      "RCA feeds the nodes",
+      "Nodal ischaemia",
+      "Vagal reflex"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Inferior STEMI with complete heart block, narrow escape at 50 bpm, BP 100/60. What level is the block, and what is the likely course?",
+     "a": "AV nodal block from AV nodal artery ischaemia and vagal tone; the escape is junctional. It usually resolves within days after reperfusion; atropine or temporary pacing if unstable, permanent pacing rarely needed.",
+     "keys": [
+      "Nodal level, narrow escape",
+      "Reperfuse",
+      "Usually transient",
+      "Pace only if unstable/persistent"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "ESC 2021 pacing guideline",
+    "Netter's Atlas of Human Anatomy (coronary arteries)"
+   ],
+   "verify": [
+    "Right dominance ≈ 80–85 % (card) vs ranges quoted (70–90 %)",
+    "SA nodal artery from RCA ≈ 60 %",
+    "AV nodal artery from RCA ≈ 80–90 %",
+    "PSAX-AV RCA origin about 10–11 o'clock",
+    "Narrow escape rate 40–60 bpm"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "artery_pda",
+   "name": "Posterior descending artery (PDA)",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:PDA"
+   ],
+   "aliases": [
+    "PDA",
+    "posterior interventricular artery",
+    "inferior interventricular artery"
+   ],
+   "core": "The artery in the inferior interventricular groove: it feeds the inferior wall, the inferior septum and the posteromedial papillary muscle, and its origin defines coronary dominance.",
+   "stats": [
+    {
+     "value": "Dominance",
+     "label": "= who gives the PDA"
+    },
+    {
+     "value": "1 supply",
+     "label": "posteromedial papillary"
+    },
+    {
+     "value": "Inferior ⅓",
+     "label": "of the septum"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Runs in the **inferior interventricular groove** from the crux towards the apex",
+     "focus": [
+      "artery:PDA",
+      "vein:MCV"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "The artery that gives the PDA is **dominant**: RCA in most, LCx ≈ 10 %",
+     "focus": [
+      "artery:RCA",
+      "artery:LCx"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**Inferior wall**, **inferior septum** and the **posteromedial papillary muscle**",
+     "focus": [
+      "papillary_muscles.PMPM",
+      "IVS"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Single supply → **papillary muscle rupture** → acute severe MR",
+     "focus": [
+      "papillary_muscles.PMPM"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "From the crux (usually the RCA) down the inferior interventricular groove beside the middle cardiac vein.",
+    "detail": "At the crux, where the AV and interventricular grooves meet on the inferior surface, the dominant artery turns and runs down the inferior (posterior) interventricular groove towards the apex. The middle cardiac vein runs beside it. It gives inferior septal perforators to the lower part of the septum."
+   },
+   "function": {
+    "summary": "Supplies the inferior wall, the inferior third of the septum and the posteromedial papillary muscle.",
+    "detail": "Its septal branches meet those of the LAD inside the septum, a common collateral route when one of them is blocked."
+   },
+   "supply": {
+    "summary": "Territory: inferior LV wall, inferior septum, posteromedial papillary muscle.",
+    "detail": "Territory: the inferior (diaphragmatic) LV wall, the inferior third of the septum and the posteromedial papillary muscle. Venous return: the middle cardiac vein into the coronary sinus."
+   },
+   "relations": [
+    {
+     "with": "Middle cardiac vein",
+     "why": "Runs with it in the same groove.",
+     "focus": [
+      "vein:MCV"
+     ]
+    },
+    {
+     "with": "Posteromedial papillary muscle",
+     "why": "Usually its only supply, so a PDA infarct can rupture it.",
+     "focus": [
+      "papillary_muscles.PMPM"
+     ]
+    },
+    {
+     "with": "Inferior septum",
+     "why": "An inferior MI can rupture the basal inferior septum (VSR), which has a worse prognosis than an apical one.",
+     "focus": [
+      "IVS"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_pap",
+      "text": "Inferior and inferoseptal segments; posteromedial papillary muscle."
+     },
+     {
+      "id": "a4c",
+      "text": "Inferoseptum (the septum in this view)."
+     }
+    ],
+    "cut": [
+     {
+      "id": "sax",
+      "text": "Inferior wall and the posteromedial papillary muscle."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "II, III, aVF."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Inferior STEMI",
+     "mechanism": "Occlusion of the PDA or the artery that feeds it infarcts the inferior wall.",
+     "presentation": "ST elevation in II, III, aVF with reciprocal changes in I and aVL.",
+     "scenario": "miInf",
+     "hook": "ST↑ II, III, aVF"
+    },
+    {
+     "name": "Posteromedial papillary muscle rupture",
+     "mechanism": "The muscle depends on one artery; infarction weakens it until it tears.",
+     "presentation": "Days 2–7 after an inferior MI: sudden breathlessness, pulmonary oedema, shock; a flail mitral leaflet on echo. The murmur can be soft or absent.",
+     "scenario": "planned:papRupture",
+     "hook": "Day 2–7: flash oedema, soft or no murmur"
+    },
+    {
+     "name": "Inferior ventricular septal rupture",
+     "mechanism": "Necrosis of the basal inferior septum tears.",
+     "presentation": "New harsh holosystolic murmur, shock, step-up in O₂ saturation in the RV; worse prognosis than anterior VSR.",
+     "scenario": "planned:vsr",
+     "hook": "New harsh murmur + shock after inferior MI"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Dominance is about the PDA",
+      "text": "'Right-dominant' does not mean the RCA is bigger: it means the RCA gives the PDA."
+     },
+     {
+      "hook": "Why the posteromedial muscle tears",
+      "text": "It has one artery (the PDA); the anterolateral muscle has two (LAD + LCx)."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Soft murmur, severe MR",
+      "text": "In acute papillary muscle rupture the LA is small and stiff, so pressures equalise fast and the murmur can be short or silent. Echo urgently in post-MI pulmonary oedema."
+     },
+     {
+      "hook": "Left-dominant inferior MI",
+      "text": "If the LCx gives the PDA, an LCx occlusion can cause inferior, posterior and lateral MI together."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What defines coronary dominance?",
+     "a": "The artery that gives the posterior descending artery (PDA): the RCA in most people, the LCx in about 1 in 10, both in a co-dominant heart.",
+     "keys": [
+      "Origin of the PDA",
+      "RCA in most",
+      "LCx ≈ 10 %"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why is the posteromedial papillary muscle more likely to rupture than the anterolateral one?",
+     "a": "It is usually supplied only by the PDA, so a single occlusion can infarct it; the anterolateral muscle has a dual supply.",
+     "keys": [
+      "Single supply (PDA)",
+      "Anterolateral: dual",
+      "Infarct → rupture"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Day 4 after inferior MI: sudden pulmonary oedema and hypotension, no loud murmur. Most important test and likely diagnosis?",
+     "a": "Urgent echo: acute severe MR from posteromedial papillary muscle rupture (flail leaflet); the murmur can be soft because the LA pressure rises fast. Needs surgery.",
+     "keys": [
+      "Urgent echo",
+      "Papillary muscle rupture",
+      "Soft murmur possible",
+      "Surgery"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "Netter's Atlas of Human Anatomy (coronary arteries)"
+   ],
+   "verify": [
+    "Papillary rupture timing 2–7 days",
+    "Inferior VSR worse prognosis than anterior",
+    "Left dominance ≈ 10 %"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "sa_nodal_artery",
+   "name": "Sinuatrial nodal artery",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:SAN"
+   ],
+   "aliases": [
+    "SA nodal artery",
+    "sinus node artery",
+    "SAN artery"
+   ],
+   "core": "A small atrial branch that runs to the SA node at the SVC–RA junction; it explains why sinus node dysfunction can follow an RCA or LCx occlusion or atrial surgery.",
+   "stats": [
+    {
+     "value": "≈ 60 %",
+     "label": "from the RCA"
+    },
+    {
+     "value": "≈ 40 %",
+     "label": "from the LCx"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Runs over the atria to the **SVC–RA junction**, around the **SA node**",
+     "focus": [
+      "artery:SAN",
+      "conduction:sa",
+      "SVC"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "From the **proximal RCA** (≈ 60 %) or the **LCx** (≈ 40 %)",
+     "focus": [
+      "artery:RCA",
+      "artery:LCx"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Occlusion or surgical injury → **sinus bradycardia, pauses, AF**"
+    },
+    {
+     "icon": "key",
+     "text": "LCx-origin artery crosses the **LA roof**: at risk in some mitral approaches",
+     "focus": [
+      "LA"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A thin atrial branch, usually from the proximal RCA, that circles the SVC–RA junction to the SA node.",
+    "detail": "Usually the first or second branch of the proximal RCA; in the rest it comes from the proximal LCx and crosses the roof of the left atrium. It runs to the junction of the SVC and RA and often passes through the SA node, which is built around it. Small atrial branches leave it on the way."
+   },
+   "function": {
+    "summary": "Feeds the SA node and nearby atrial muscle.",
+    "detail": "The SA node lies just under the epicardium at the top of the crista terminalis, wrapped round this artery. Its blood supply keeps the pacemaker cells working."
+   },
+   "supply": {
+    "summary": "Territory: SA node, crista terminalis region, parts of both atria.",
+    "detail": "Territory: the SA node, the region of the crista terminalis and parts of the RA and LA walls."
+   },
+   "relations": [
+    {
+     "with": "SA node",
+     "why": "The node is arranged around the artery; injury or occlusion stops or slows the pacemaker.",
+     "focus": [
+      "conduction:sa"
+     ]
+    },
+    {
+     "with": "Superior vena cava",
+     "why": "Surgery or ablation near the SVC–RA junction can injure the artery or the node itself.",
+     "focus": [
+      "SVC"
+     ]
+    },
+    {
+     "with": "Left atrial roof",
+     "why": "An LCx-origin artery crosses here: superior transseptal or extended atriotomy incisions can cut it.",
+     "focus": [
+      "LA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "id": "raOpen",
+      "text": "The SA node region at the top of the crista terminalis (artery runs on the outside)."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign; ischaemia shows as sinus bradycardia, sinus pauses or atrial arrhythmias."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Sinus node dysfunction after MI",
+     "mechanism": "Proximal RCA (or LCx) occlusion takes out the SA nodal artery; the node becomes ischaemic.",
+     "presentation": "Sinus bradycardia or pauses, sometimes AF, in inferior MI; usually recovers.",
+     "scenario": "sinusBrady",
+     "hook": "Sinus brady/pauses in proximal RCA MI"
+    },
+    {
+     "name": "Side-branch loss during RCA stenting",
+     "mechanism": "A stent across the origin closes the SA nodal artery.",
+     "presentation": "New sinus bradycardia, sinus arrest or AF during or after PCI.",
+     "scenario": "sinusArrest",
+     "hook": "New sinus arrest or AF after RCA stent"
+    },
+    {
+     "name": "Sinus node injury in cardiac surgery",
+     "mechanism": "Atrial incisions or cannulation near the SVC–RA junction damage the artery or the node.",
+     "presentation": "Junctional rhythm or sinus node dysfunction after surgery; may need a pacemaker.",
+     "scenario": null,
+     "hook": "Junctional rhythm after atrial surgery"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Two possible sources",
+      "text": "The SA node is fed by the RCA in about 60 % and the LCx in about 40 %, independent of dominance."
+     },
+     {
+      "hook": "Brady in MI",
+      "text": "Sinus bradycardia in an inferior MI can be vagal or direct SA nodal ischaemia."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "New AF after RCA PCI",
+      "text": "Loss of the SA nodal or atrial branches can cause atrial ischaemia, AF or sinus arrest."
+     },
+     {
+      "hook": "Dominance ≠ SA supply",
+      "text": "The SA nodal artery's origin does not follow dominance; the AV nodal artery does."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Which arteries supply the SA node, and roughly how often?",
+     "a": "The SA nodal artery: from the RCA in about 60 % and the LCx in about 40 %.",
+     "keys": [
+      "RCA ≈ 60 %",
+      "LCx ≈ 40 %"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "After RCA PCI the patient develops sinus arrest with a junctional escape. Explain the mechanism.",
+     "a": "The stent closed the SA nodal branch at its origin; the ischaemic SA node fails and a junctional pacemaker takes over.",
+     "keys": [
+      "SA nodal branch closed",
+      "SA node ischaemia",
+      "Junctional escape"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (coronary arteries)",
+    "ESC 2021 pacing guideline"
+   ],
+   "verify": [
+    "SA nodal artery RCA ≈ 60 % / LCx ≈ 40 %",
+    "SA node built round the artery (classic description)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "av_nodal_artery",
+   "name": "AV nodal artery",
+   "category": "Coronary artery",
+   "layer": "vessels",
+   "labelIds": [
+    "artery:AVN"
+   ],
+   "aliases": [
+    "AV nodal artery",
+    "AVN artery"
+   ],
+   "core": "A small branch from the U-turn of the dominant artery at the crux that runs up to the AV node; it is why inferior MI causes nodal block that usually recovers.",
+   "stats": [
+    {
+     "value": "≈ 80–90 %",
+     "label": "from the RCA"
+    },
+    {
+     "value": "Dual",
+     "label": "His bundle supply"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Leaves the **crux** (U-turn of the dominant artery) and runs up to **Koch's triangle**",
+     "focus": [
+      "artery:AVN",
+      "koch_triangle",
+      "conduction:avn"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "Feeds the **AV node** and proximal His; the **LAD septals** also feed the His",
+     "focus": [
+      "conduction:avn",
+      "conduction:his",
+      "artery:S1"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "Inferior MI → **nodal block**: Wenckebach, narrow escape, usually transient"
+    },
+    {
+     "icon": "key",
+     "text": "Anterior MI block is **infranodal**: wide escape, often permanent",
+     "focus": [
+      "artery:LAD"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "From the crux, where the dominant artery makes a U-turn, upwards into the septum to the AV node.",
+    "detail": "At the crux the dominant artery (the RCA in about 80–90 %) loops in an inverted U. From the top of the loop the AV nodal artery runs upwards into the base of the atrial septum to the AV node at the apex of Koch's triangle."
+   },
+   "function": {
+    "summary": "The main blood supply of the AV node.",
+    "detail": "The compact AV node depends mainly on this artery. The His bundle and the start of the bundle branches also receive septal branches of the LAD, so they have two supplies."
+   },
+   "supply": {
+    "summary": "Territory: AV node and proximal His bundle.",
+    "detail": "Territory: the AV node, the proximal His bundle and the nearby base of the atrial septum."
+   },
+   "relations": [
+    {
+     "with": "Koch's triangle",
+     "why": "The AV node at its apex is the target of this artery.",
+     "focus": [
+      "koch_triangle"
+     ]
+    },
+    {
+     "with": "LAD septal perforators",
+     "why": "Give the His bundle a second supply, so infranodal tissue survives an inferior MI.",
+     "focus": [
+      "artery:S1"
+     ]
+    },
+    {
+     "with": "Coronary sinus ostium",
+     "why": "Lies near the crux and the base of Koch's triangle; slow-pathway ablation works in the same area.",
+     "focus": [
+      "cs_ostium"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "id": "raOpen",
+      "text": "Koch's triangle: the AV node at its apex (the artery reaches it from below)."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Ischaemia shows as PR prolongation, Wenckebach or complete block with a narrow junctional escape."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "AV block in inferior MI",
+     "mechanism": "Ischaemia of the AV node (plus vagal tone) slows or blocks conduction above the His bundle.",
+     "presentation": "First-degree block, Wenckebach or complete block with a narrow escape at 40–60 bpm; atropine often helps; usually resolves.",
+     "scenario": "wenck",
+     "hook": "Wenckebach, narrow escape, recovers"
+    },
+    {
+     "name": "Complete heart block at the node",
+     "mechanism": "Severe nodal ischaemia blocks all impulses; the junction below takes over.",
+     "presentation": "Narrow-complex escape at 40–60 bpm, usually haemodynamically tolerated.",
+     "scenario": "chbJ",
+     "hook": "Narrow escape 40–60 bpm"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Where the block is",
+      "text": "Inferior MI: AV node (narrow escape, transient). Anterior MI: bundle branches (wide escape, dangerous)."
+     },
+     {
+      "hook": "Follows dominance",
+      "text": "The AV nodal artery comes from the dominant artery, the RCA in most people."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Atropine works at the node",
+      "text": "Atropine removes vagal tone at the AV node, so it helps nodal block in inferior MI but not infranodal block."
+     },
+     {
+      "hook": "Pacing threshold",
+      "text": "Temporary pacing only for unstable or persistent block; most nodal blocks recover after reperfusion."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is AV block in an inferior MI usually narrow-complex and temporary?",
+     "a": "Ischaemia of the RCA's AV nodal branch puts the block in the AV node; the His bundle below keeps its dual supply and gives a narrow escape, and the node recovers with reperfusion and less vagal tone.",
+     "keys": [
+      "Nodal level (AVN artery)",
+      "His has dual supply",
+      "Narrow escape, recovers"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Compare AV block in inferior vs anterior MI: site, escape and need for pacing.",
+     "a": "Inferior: nodal block, narrow escape 40–60 bpm, atropine-responsive, usually transient. Anterior: infranodal (septal) block, wide escape, unstable, often needs pacing and may be permanent.",
+     "keys": [
+      "Inferior: nodal, narrow, transient",
+      "Anterior: infranodal, wide",
+      "Anterior: pacing likely"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2021 pacing guideline",
+    "ESC 2023 acute coronary syndromes guideline",
+    "Netter's Atlas of Human Anatomy (coronary arteries)"
+   ],
+   "verify": [
+    "AV nodal artery from RCA ≈ 80–90 %",
+    "His bundle dual supply (AVN artery + LAD first septal)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "coronary_sinus",
+   "name": "Coronary sinus",
+   "category": "Cardiac vein",
+   "layer": "vessels",
+   "labelIds": [
+    "coronary_sinus",
+    "cs_ostium"
+   ],
+   "aliases": [
+    "CS"
+   ],
+   "parts": [
+    {
+     "labelId": "cs_ostium",
+     "name": "Coronary sinus ostium",
+     "note": "Opens into the RA between the IVC and the tricuspid valve, guarded by the Thebesian valve; forms the base of Koch's triangle."
+    }
+   ],
+   "core": "The large vein in the posterior AV groove that collects most cardiac venous blood and empties it into the RA; it is also a doorway for CRT leads and EP catheters.",
+   "stats": [
+    {
+     "value": "≈ 3–5 cm",
+     "label": "long"
+    },
+    {
+     "value": "Most",
+     "label": "cardiac venous return"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Runs in the **posterior left AV groove** and opens into the **RA** near the tricuspid valve",
+     "focus": [
+      "coronary_sinus",
+      "cs_ostium"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Collects the **great, middle and small cardiac veins**",
+     "focus": [
+      "vein:GCV",
+      "vein:MCV",
+      "vein:SCV"
+     ]
+    },
+    {
+     "icon": "echo",
+     "text": "**Dilated CS** behind the LA in PLAX → think **persistent left SVC**"
+    },
+    {
+     "icon": "key",
+     "text": "Route for the **CRT LV lead**, EP catheters and retrograde cardioplegia"
+    },
+    {
+     "icon": "where",
+     "text": "Its ostium forms the **base of Koch's triangle**",
+     "focus": [
+      "koch_triangle",
+      "cs_ostium"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A short wide vein in the posterior left AV groove, from the GCV to its ostium in the RA.",
+    "detail": "It begins where the great cardiac vein ends (near the oblique vein of Marshall and the valve of Vieussens) and runs in the posterior part of the left AV groove, below the LA and above the LV. It ends at an ostium in the RA between the IVC and the tricuspid valve, partly guarded by the Thebesian valve. The middle and small cardiac veins join it close to the ostium."
+   },
+   "function": {
+    "summary": "Drains most of the venous blood of the heart muscle into the RA.",
+    "detail": "Collects venous blood from the LAD and LCx territories (great cardiac vein) and from the inferior wall and RV (middle and small cardiac veins). The rest drains through anterior cardiac veins and tiny Thebesian veins straight into the chambers."
+   },
+   "supply": {
+    "summary": "Drains: LV (anterior, lateral, inferior), septum and part of the RV.",
+    "detail": "Drains: the great cardiac vein (anterior and lateral LV), the posterior LV vein, the middle cardiac vein (inferior wall, septum) and the small cardiac vein (right AV groove)."
+   },
+   "relations": [
+    {
+     "with": "Koch's triangle",
+     "why": "Its ostium forms the base; the AV node lies at the apex and the slow pathway near the ostium.",
+     "focus": [
+      "koch_triangle",
+      "conduction:avn_slow"
+     ]
+    },
+    {
+     "with": "Mitral annulus and LCx",
+     "why": "Runs close to both: CS-based mitral devices can compress the LCx.",
+     "focus": [
+      "mitral_valve",
+      "artery:LCx"
+     ]
+    },
+    {
+     "with": "Left atrium",
+     "why": "Lies under its floor; an unroofed CS opens into the LA (an atrial-level shunt).",
+     "focus": [
+      "LA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "plax",
+      "text": "Small round vessel in the AV groove behind the mitral annulus, next to the descending aorta; dilated with a persistent left SVC."
+     },
+     {
+      "id": "a4c",
+      "text": "Tilt the probe back: the CS runs along the floor of the LA into the RA."
+     }
+    ],
+    "cut": [
+     {
+      "id": "a4c",
+      "text": "In the posterior AV groove under the LA."
+     },
+     {
+      "id": "raOpen",
+      "text": "The CS ostium below the fossa ovalis, at the base of Koch's triangle."
+     },
+     {
+      "id": "valves",
+      "text": "Behind the mitral annulus in the left AV groove."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign. EP studies use a CS catheter to record LA and LV activity."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Persistent left superior vena cava",
+     "mechanism": "An embryonic left cardinal vein persists and drains into the CS, which enlarges.",
+     "presentation": "Usually no symptoms; dilated CS on echo; a left-arm bubble study fills the CS before the RA; complicates left-sided device implants.",
+     "scenario": "planned:persistentLSVC",
+     "hook": "Dilated CS; left-arm bubbles fill CS first"
+    },
+    {
+     "name": "Unroofed coronary sinus",
+     "mechanism": "Part of the wall between the CS and the LA is missing, so blood shunts from the LA into the CS and RA.",
+     "presentation": "Signs of an atrial-level left-to-right shunt (RV dilatation) with no defect in the fossa; often with a persistent left SVC.",
+     "scenario": "planned:asd",
+     "hook": "Atrial shunt with an intact fossa"
+    },
+    {
+     "name": "CS injury during CRT lead placement",
+     "mechanism": "Dissection or perforation of the CS by the sheath or contrast injection.",
+     "presentation": "Contrast staining on venogram; rarely pericardial effusion or tamponade.",
+     "scenario": "tamp",
+     "hook": "Contrast staining, rare tamponade"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Where the heart's veins go",
+      "text": "Most cardiac veins drain into the CS, which opens into the RA next to the tricuspid valve."
+     },
+     {
+      "hook": "Dilated CS on echo",
+      "text": "The commonest cause is a persistent left SVC; raised RA pressure is the other."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "CRT target",
+      "text": "The LV lead goes through the CS into a lateral or posterolateral branch, to pace the late-activating lateral wall."
+     },
+     {
+      "hook": "Bubble study from the left arm",
+      "text": "Bubbles appearing in the CS before the RA prove a persistent left SVC."
+     },
+     {
+      "hook": "CS catheter in EP",
+      "text": "A catheter in the CS records the LA and LV from the AV groove and is the reference for mapping left-sided pathways."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Slow pathway near the CS",
+      "text": "Slow-pathway ablation for AVNRT targets the area between the CS ostium and the tricuspid annulus, well below the compact AV node."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Where does the coronary sinus run and where does it open?",
+     "a": "In the posterior left AV groove under the LA; it opens into the RA between the IVC and the tricuspid valve.",
+     "keys": [
+      "Posterior AV groove",
+      "Opens into the RA",
+      "Between IVC and tricuspid valve"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "A dilated coronary sinus is seen behind the LA on PLAX. What is the commonest cause, and how do you confirm it?",
+     "a": "Persistent left SVC. Inject agitated saline into a left arm vein: bubbles fill the CS before the RA.",
+     "keys": [
+      "Persistent left SVC",
+      "Left-arm bubble study",
+      "CS before RA"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why does a CRT LV lead go through the coronary sinus, and which branch is the target?",
+     "a": "It reaches the LV epicardium without entering the LV cavity. The target is a lateral or posterolateral vein, over the latest-activating lateral wall.",
+     "keys": [
+      "Epicardial LV access",
+      "Avoids the LV cavity",
+      "Lateral/posterolateral branch"
+     ]
+    }
+   ],
+   "sources": [
+    "ASE 2015 chamber quantification",
+    "ESC 2021 pacing guideline (CRT)",
+    "Netter's Atlas of Human Anatomy (cardiac veins)"
+   ],
+   "verify": [
+    "CS length ≈ 3–5 cm",
+    "'Most' cardiac venous return (≈ 60–70 % often quoted)",
+    "PLAX position next to the descending aorta",
+    "cs_ostium tap id now belongs to this card (B5 must not reuse it)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "great_cardiac_vein",
+   "name": "Great cardiac vein",
+   "category": "Cardiac vein",
+   "layer": "vessels",
+   "labelIds": [
+    "vein:GCV"
+   ],
+   "aliases": [
+    "GCV",
+    "anterior interventricular vein"
+   ],
+   "core": "The vein that runs up beside the LAD and then round the left AV groove with the LCx to become the coronary sinus; it drains the LAD and LCx territories.",
+   "stats": [
+    {
+     "value": "LAD → LCx",
+     "label": "runs beside both"
+    },
+    {
+     "value": "Vieussens",
+     "label": "valve at the CS"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Starts near the apex beside the **LAD**, then turns into the **left AV groove** with the **LCx**",
+     "focus": [
+      "vein:GCV",
+      "artery:LAD",
+      "artery:LCx"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Drains the **anterior** and **lateral** LV into the **coronary sinus**",
+     "focus": [
+      "coronary_sinus"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "EP route: **LV summit** arrhythmias can be mapped from inside it"
+    },
+    {
+     "icon": "key",
+     "text": "Its lateral tributaries are **CRT** lead targets"
+    }
+   ],
+   "anatomy": {
+    "summary": "Begins at the apex as the anterior interventricular vein beside the LAD and continues round the left AV groove into the CS.",
+    "detail": "It starts near the apex, runs up the anterior interventricular groove beside the LAD (as the anterior interventricular vein), then turns left into the AV groove and runs with the LCx. Where the oblique vein of Marshall joins it, at the valve of Vieussens, it becomes the coronary sinus. On the way it receives the left marginal and other lateral veins."
+   },
+   "function": {
+    "summary": "Drains the territories of the LAD and LCx.",
+    "detail": "Carries the venous blood of the anterior wall, the anterior septum and the lateral wall to the coronary sinus."
+   },
+   "supply": {
+    "summary": "Drains: anterior and lateral LV, anterior septum.",
+    "detail": "Drains: the anterior and anterolateral LV, the anterior septum (septal veins) and, through the left marginal vein, the lateral wall."
+   },
+   "relations": [
+    {
+     "with": "LAD",
+     "why": "Runs with it in the anterior groove.",
+     "focus": [
+      "artery:LAD"
+     ]
+    },
+    {
+     "with": "LCx",
+     "why": "Runs with it in the left AV groove and crosses over it, which matters for CS-based devices.",
+     "focus": [
+      "artery:LCx"
+     ]
+    },
+    {
+     "with": "Coronary sinus",
+     "why": "Becomes the CS at the valve of Vieussens.",
+     "focus": [
+      "coronary_sinus"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "id": "valves",
+      "text": "In the left AV groove next to the LCx (turn coronaries on)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Ventricular arrhythmias from the LV summit",
+     "mechanism": "The LV summit, the top of the LV near the GCV, can be a source of PVCs or VT that is hard to reach from inside the LV.",
+     "presentation": "PVCs with an inferior axis and right-bundle or early transition pattern; mapped and sometimes ablated from the GCV.",
+     "scenario": "pvc",
+     "hook": "PVCs reached through the GCV"
+    },
+    {
+     "name": "Compression of the LCx by a CS device",
+     "mechanism": "Where the vein crosses the LCx, a device placed in the GCV/CS can squeeze the artery.",
+     "presentation": "Lateral ischaemia after percutaneous mitral annuloplasty.",
+     "scenario": null,
+     "hook": "Lateral ischaemia after CS device"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Veins follow arteries",
+      "text": "The GCV runs with the LAD then the LCx; the middle cardiac vein with the PDA; the small cardiac vein with the RCA."
+     },
+     {
+      "hook": "Where it becomes the CS",
+      "text": "At the valve of Vieussens, where the vein of Marshall joins."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "CRT lead targets",
+      "text": "The LV lead aims at lateral or posterolateral tributaries of the GCV/CS, not the anterior vein (late activation is lateral)."
+     },
+     {
+      "hook": "Arrhythmias near the top of the LV",
+      "text": "PVCs from the LV summit may need mapping inside the GCV."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Vein of Marshall",
+      "text": "The oblique vein of Marshall joins the GCV at the start of the CS; ethanol infusion into it is used as an adjunct in persistent AF ablation."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Which arteries does the great cardiac vein run beside, and where does it end?",
+     "a": "Beside the LAD in the anterior groove, then the LCx in the left AV groove; it ends by becoming the coronary sinus.",
+     "keys": [
+      "LAD then LCx",
+      "Left AV groove",
+      "Becomes the coronary sinus"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why is a CRT LV lead placed in a lateral rather than the anterior interventricular vein?",
+     "a": "In LBBB the lateral wall activates last; pacing there resynchronises the LV best. The anterior vein lies over the septum and anterior wall, which activate earlier.",
+     "keys": [
+      "Lateral wall activates last",
+      "Resynchronises best",
+      "Anterior vein over septum"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (cardiac veins)",
+    "ESC 2021 pacing guideline (CRT)"
+   ],
+   "verify": [
+    "Valve of Vieussens / vein of Marshall as the GCV–CS boundary",
+    "LV summit PVC description"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
+   }
+  },
+  {
+   "id": "middle_small_cardiac_veins",
+   "name": "Middle and small cardiac veins",
+   "category": "Cardiac vein",
+   "layer": "vessels",
+   "labelIds": [
+    "vein:MCV",
+    "vein:SCV"
+   ],
+   "aliases": [
+    "MCV",
+    "SCV",
+    "posterior interventricular vein"
+   ],
+   "parts": [
+    {
+     "labelId": "vein:MCV",
+     "name": "Middle cardiac vein",
+     "note": "Runs with the PDA in the inferior interventricular groove and joins the CS near its ostium."
+    },
+    {
+     "labelId": "vein:SCV",
+     "name": "Small cardiac vein",
+     "note": "Runs with the RCA in the right AV groove and joins the CS (or opens straight into the RA)."
+    }
+   ],
+   "core": "Two veins on the inferior and right side of the heart: the middle cardiac vein beside the PDA and the small cardiac vein beside the RCA, both ending at the coronary sinus.",
+   "stats": [
+    {
+     "value": "MCV + PDA",
+     "label": "inferior groove"
+    },
+    {
+     "value": "SCV + RCA",
+     "label": "right AV groove"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "**MCV**: inferior interventricular groove with the **PDA**",
+     "focus": [
+      "vein:MCV",
+      "artery:PDA"
+     ]
+    },
+    {
+     "icon": "where",
+     "text": "**SCV**: right AV groove with the **RCA**",
+     "focus": [
+      "vein:SCV",
+      "artery:RCA"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Drain the **inferior wall**, **inferior septum** and part of the **RV** into the CS",
+     "focus": [
+      "coronary_sinus"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Posteroseptal pathways** may need ablation inside the MCV or a CS diverticulum"
+    }
+   ],
+   "anatomy": {
+    "summary": "The MCV runs up the inferior interventricular groove; the SCV runs round the right AV groove; both join the CS near its ostium.",
+    "detail": "The middle cardiac vein starts near the apex and runs up the inferior interventricular groove with the PDA to join the coronary sinus just before its ostium. The small cardiac vein runs in the right AV groove with the RCA and the acute marginal and joins the CS (or sometimes opens directly into the RA)."
+   },
+   "function": {
+    "summary": "Drain the inferior LV wall, the inferior septum and part of the RV.",
+    "detail": "They carry blood from the territory of the PDA and the RCA back to the coronary sinus."
+   },
+   "supply": {
+    "summary": "Drain: inferior LV wall, inferior septum (MCV); right AV groove and RV (SCV).",
+    "detail": "Drain: the inferior LV wall and inferior third of the septum (middle cardiac vein); the RV and the right AV groove (small cardiac vein)."
+   },
+   "relations": [
+    {
+     "with": "PDA",
+     "why": "The MCV runs beside it in the same groove.",
+     "focus": [
+      "artery:PDA"
+     ]
+    },
+    {
+     "with": "RCA",
+     "why": "The SCV runs beside it; ablation inside the SCV or MCV can injure the nearby artery.",
+     "focus": [
+      "artery:RCA"
+     ]
+    },
+    {
+     "with": "Coronary sinus ostium",
+     "why": "Both join close to the ostium, near the posteroseptal region.",
+     "focus": [
+      "cs_ostium"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "id": "sax",
+      "text": "Inferior groove beside the PDA (turn coronaries on)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Posteroseptal accessory pathway",
+     "mechanism": "Some accessory pathways cross near the CS ostium, inside the MCV or a CS diverticulum.",
+     "presentation": "WPW pattern with a posteroseptal delta-wave axis (negative delta in II, III, aVF); ablation may need to be done inside the MCV.",
+     "scenario": "wpw",
+     "hook": "WPW, ablation inside the MCV"
+    },
+    {
+     "name": "Suboptimal CRT lead position",
+     "mechanism": "An LV lead placed in the MCV paces the inferior septum, not the late lateral wall.",
+     "presentation": "Poor response to CRT (no improvement in EF or symptoms).",
+     "scenario": null,
+     "hook": "Poor CRT response"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Match each vein to its artery",
+      "text": "MCV with the PDA, SCV with the RCA, GCV with the LAD and LCx."
+     },
+     {
+      "hook": "Both end at the CS",
+      "text": "They join the coronary sinus close to where it opens into the RA."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Posteroseptal WPW",
+      "text": "Negative delta waves in the inferior leads suggest a posteroseptal pathway, which may lie in the MCV or a CS diverticulum."
+     },
+     {
+      "hook": "Artery next door",
+      "text": "Energy delivered inside the MCV or SCV can injure the adjacent PDA or RCA; check with angiography first."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Which artery does the middle cardiac vein run with, and which with the small cardiac vein?",
+     "a": "Middle cardiac vein: the PDA in the inferior interventricular groove. Small cardiac vein: the RCA in the right AV groove.",
+     "keys": [
+      "MCV + PDA",
+      "SCV + RCA"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why is an LV lead in the middle cardiac vein a poor CRT position?",
+     "a": "It paces the inferior septum and inferior wall, close to the earlier-activating septum, instead of the late-activating lateral wall, so resynchronisation is weak.",
+     "keys": [
+      "Inferior/septal position",
+      "Not the late lateral wall",
+      "Weak resynchronisation"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (cardiac veins)",
+    "ESC 2021 pacing guideline (CRT)"
+   ],
+   "verify": [
+    "SCV sometimes opens directly into the RA",
+    "Posteroseptal pathway delta-wave axis (negative in II, III, aVF)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B3"
    }
   }
  ]
