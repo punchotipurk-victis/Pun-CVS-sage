@@ -11,7 +11,7 @@ const T = window.THREE, D = EXPLORE_DATA, C = CONTENT, SIM = SIMC;
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const host = $(".viewer"), labelLayer = $(".labels"), panel = $(".panel");
-let callouts=null, selectionHit=null, cardsPanel=null, cardView=null;const virtualLabels=new Map();
+let callouts=null, selectionHit=null, cardsPanel=null, cardsDeep=null, cardView=null;const virtualLabels=new Map();
 function getData(k){ try { if (window[k]) return window[k]; } catch (e) {} try { if (window.parent && window.parent !== window && window.parent[k]) return window.parent[k]; } catch (e) {} return null; }
 const JM = getData("PUN_HEART_MESH"), JI = getData("PUN_HEART_INTERIOR");
 if (!T || !JM || !JI || !CGRAPH.spec){ host.innerHTML = '<p class="fallback">The refined 3D heart opens from the Pun CVS Lab site (its data is stored in the site page). Open the site and choose 3D Heart.</p>'; window.EXPLORE_APP = { ready: false, error: "no data" }; return; }
@@ -371,10 +371,15 @@ function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; i
   conduction.enable(st.layers.conduction);
   syncActivation();
   $('.bConduction').setAttribute('aria-pressed',st.layers.conduction);$('.bConduction .st').textContent=st.layers.conduction?'On':'Off';
-  $('.conduction-panel').classList.toggle('enabled',st.layers.conduction);
+  syncECGVisibility();
   if (cut) applyCut(); else { plane.set(new T.Vector3(0, 0, 1), 1e5); plane2.copy(plane); }
   $$(".segMode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === (xr?"ext":m))); $(".cutctl").hidden = !cut; $(".bFace").disabled = !cut;
-  if(cardsPanel){const key=viewKey();if(key!==cardView){cardView=key;select(null,null)}}
+  if(cardsPanel){const key=viewKey();if(key!==cardView){cardView=key;
+    // A view changes how we see a structure, not what we are studying. Keep the
+    // card DOM (answers, folds and scroll); discard only the old surface hit.
+    selectionHit=null;marker.visible=false;clearHighlight();updateFocus(st.sel,null);
+    if(!st.sel){cardsPanel.render(null);window.__lastCard=panel.querySelector('h2')?.textContent||''}
+  }}
   labelsDirty = true; dirty(); }
 function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(st.flip), pH = C0.c.clone().addScaledVector(C0.n, st.off);
   const nW = toWorldDir(nH), pW = toWorld(pH); plane.setFromNormalAndCoplanarPoint(nW, pW);
@@ -385,7 +390,7 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
 /* Default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" enables the layer and dims its All labels).
-   Conduction follows its default only on a student's own view change (it starts the beat and the ECG strip). */
+   Conduction follows its default only on a student's own view change. Beat independently controls ECG visibility. */
 function viewDefaults(view, withConduction){ const V = D.VIEW_LAYERS[view]; if (!V) return;
   for (const [k, v] of Object.entries(V)) if (k !== "conduction" || withConduction) st.layers[k] = v !== "off";
   syncLayersUI(); if (withConduction) syncLayers(); }
@@ -394,8 +399,9 @@ function chooseCut(k, fromUser){ st.cut = k; st.coronaries=false; st.off = 0; st
   applyMode(); tgt.copy(C0.at ? toWorld(C0.at) : centre); dist = fitDist()*(C0.zoom || 1); faceCut(); if (fromUser !== false) showView(k); }
 /* "Find in this view" = the view's Relevant labels (EXPLORE_DATA.RELEVANT_LABELS) */
 const findName = id => id.startsWith("conduction:") ? D.CONDUCTION_SHORT[id.slice(11)] || id : D.SHORT[id] || id;
-function showView(k){ const C0 = CUTS[k], find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
-  if (cardsPanel) { cardsPanel.render(null); window.__lastCard=C0.name; dirty(); return; }
+function showView(k){ const C0 = CUTS[k];
+  if (cardsPanel) { if(!st.sel){cardsPanel.render(null);window.__lastCard=C0.name} dirty(); return; }
+  const find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
   panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
     (find.length ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${find.map(id => `<button class="chip" data-find="${esc(id)}">${esc(findName(id))}</button>`).join("")}</div>` : "");
   panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const id = b.dataset.find; if (id.startsWith("conduction:")){ if (!st.layers.conduction){ st.layers.conduction = true; syncLayers(); } conduction.select(id.slice(11)); } else select(id, null); }); window.__lastCard = C0.name; dirty(); }
@@ -610,6 +616,7 @@ function select(id, hit){
   updateFocus(id,hit);
   if(!id?.startsWith("conduction:")&&conduction.state.selected){conduction.state.selected=null;conduction.update(conduction.state.ms)} st.sel = id;
   if (!cardsPanel?.render(id)) { panel.innerHTML = card(id, hit); panel.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (!goSim(b.dataset.go)) b.classList.add("nogo"); }); }
+  cardsDeep?.render(id);
   if (hit && hit.point){ marker.position.copy(hit.point); marker.visible = true; } else marker.visible = false;
   window.__lastCard = panel.querySelector("h2") ? panel.querySelector("h2").textContent : ""; dirty(); }
 
@@ -628,7 +635,15 @@ const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,cli
   onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
 Object.assign(window.CONDUCTION_VIEW,conduction);
 ecg.LEGACY_TA=ECG.LEGACY_TIMING.TA_AVN;
-const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction});
+const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction,enabled:()=>st.beat});
+function syncECGVisibility(){const root=$('.conduction-panel'),changed=root.hidden===st.beat;
+  root.hidden=!st.beat;root.classList.toggle('enabled',st.beat);ecgStrip.draw(conduction.state.ms,changed&&st.beat);
+}
+function setBeat(on,t){st.beat=!!on;
+  if(t!=null){st.t=t;beatU.uSys.value=sysCurve(t);HI.setPhase(t)}
+  $('.bBeat').setAttribute('aria-pressed',st.beat);$('.bBeat .st').textContent=st.beat?'On':'Off';
+  syncECGVisibility();dirty();
+}
 const decodeBytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const activationMeshes=[
   {positions:HM.mesh.geometry.attributes.position.array,names:JM.labelNames,walls:JM.wallNames,labels:HM.attr.label,wall:HM.attr.wall},
@@ -667,16 +682,92 @@ const focusRecords=[{mesh:HM.mesh,kind:'outer',labels:HM.attr.label},
   ...HM.vessels.children.map(mesh=>({mesh,kind:'vessel'}))];
 for(const record of focusRecords)record.mesh.geometry.setAttribute('aFocus',new T.BufferAttribute(new Float32Array(record.mesh.geometry.attributes.position.count),1));
 for(const mat of [extMat,tisMat,valMat,artMat,veinMat])EXPLORE_UI.focusMaterial(mat);
-function updateFocus(id,hit){
-  for(const record of focusRecords){const attr=record.mesh.geometry.attributes.aFocus,mask=attr.array;
-    if(!id||id.startsWith('conduction:'))mask.fill(0);
-    else if(record.kind==='vessel')mask.fill(id===(record.mesh.userData.kind==='artery'?'artery:':'vein:')+record.mesh.userData.id?1:0);
-    else{const names=record.kind==='outer'?extNames:intNames,labels=new Set((record.kind==='outer'?(extOf[id]||[id]):(D.VALVE_GROUPS[id]||[id])).map(n=>names.indexOf(n)).filter(i=>i>0)),cavity=intNames.indexOf(id);
-      for(let i=0;i<mask.length;i++)mask[i]=id.startsWith('wall:')?(record.kind==='outer'&&D.AHA_WALL(extAha[i])===id.slice(5)?1:0):
-        labels.has(record.labels[i])||cavity>0&&record.cavity?.[i]===cavity?1:0;
-    }attr.needsUpdate=true;
-  }
+for(const [id,group] of [['koch_triangle',koch],['cti',cti]])group.traverse(mesh=>{if(mesh.isMesh){
+  mesh.geometry.setAttribute('aFocus',new T.BufferAttribute(new Float32Array(mesh.geometry.attributes.position.count),1));focusRecords.push({mesh,kind:'landmark',id})}});
+for(const mat of [kochMat,ctiMat])EXPLORE_UI.focusMaterial(mat);
+/* Reuse the wiring's selection interpolant; upload masks only on UI events.
+   The wiring clock, geometry, selected tap and picker are unchanged. */
+const conductionFocusActive={value:0},conductionFocusMeshes=conduction.group.children.filter(m=>m.geometry?.attributes.aFlags),
+  conductionFocus=new T.BufferAttribute(new Float32Array(conductionFocusMeshes[0].geometry.attributes.position.count),1);
+const conductionFocusMaterials=[];
+for(const mesh of conductionFocusMeshes){mesh.geometry.setAttribute('aCardFocus',conductionFocus);
+  const mat=mesh.material,prev=mat.onBeforeCompile,key=mat.customProgramCacheKey;
+  const compile=shader=>{prev(shader);shader.uniforms.uCardFocusActive=conductionFocusActive;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute float aCardFocus;uniform float uCardFocusActive;')
+      .replace('transformed=aCenter+','vSelected=mix(vSelected,aCardFocus,uCardFocusActive);transformed=aCenter+');};
+  conductionFocusMaterials.push({mat,prev,key,compile});
 }
+let conductionFocusShader=false;
+function useConductionFocus(enabled){if(enabled===conductionFocusShader)return;conductionFocusShader=enabled;
+  // Keep the original shader and bindings during ordinary playback. Three.js
+  // caches both variants, so returning from a highlight reuses the old program.
+  for(const {mat,prev,key,compile} of conductionFocusMaterials){mat.onBeforeCompile=enabled?compile:prev;mat.customProgramCacheKey=enabled?()=>key.call(mat)+'-card-focus':key;mat.needsUpdate=true}
+}
+let hoverIds=[];
+function conductionTap(id){if(id.startsWith('conduction:'))return id.slice(11);
+  if(intNames.includes(id)||extNames.includes(id))return null;
+  return H3CARDS.byTap(id)?.card.labelIds.find(k=>k.startsWith('conduction:'))?.slice(11)||null;
+}
+const landmarkFocusCache=new Map();
+function pointLandmarkMask(id){
+  const lm=JI.landmarks[id];if(lm?.kind!=='point'||!lm.p||intNames.includes(id)||conductionTap(id))return null;
+  if(!landmarkFocusCache.has(id)){
+    const P=HI.tissue.geometry.attributes.position,L=HI.tissue.geometry.attributes.aLabel.array,p=new T.Vector3(...lm.p),v=new T.Vector3();
+    let nearest=0,d=Infinity;for(let i=0;i<P.count;i++){const q=v.fromBufferAttribute(P,i).distanceToSquared(p);if(q<d){d=q;nearest=i}}
+    // Highlight existing tissue only. Use the export's footprint when present;
+    // otherwise a small presentation target around the exported point. This
+    // creates no anatomy and never labels an adjacent tissue class.
+    const mask=new Uint8Array(P.count),radius=lm.r||.35;
+    for(let i=0;i<P.count;i++)if(L[i]===L[nearest]&&v.fromBufferAttribute(P,i).distanceToSquared(p)<=d+radius*radius)mask[i]=1;
+    landmarkFocusCache.set(id,mask);
+  }
+  return landmarkFocusCache.get(id);
+}
+function focusMatcher(record,ids){
+  if(record.kind==='landmark')return ()=>ids.includes(record.id);
+  if(record.kind==='vessel')return ()=>ids.includes((record.mesh.userData.kind==='artery'?'artery:':'vein:')+record.mesh.userData.id);
+  const names=record.kind==='outer'?extNames:intNames,
+    labels=new Set(ids.flatMap(id=>record.kind==='outer'?(extOf[id]||[id]):(D.VALVE_GROUPS[id]||[id])).map(n=>names.indexOf(n)).filter(i=>i>0)),
+    cavities=new Set(ids.map(id=>intNames.indexOf(id)).filter(i=>i>0)),walls=new Set(ids.filter(id=>id.startsWith('wall:')).map(id=>id.slice(5))),
+    points=record.kind==='tissue'?ids.map(pointLandmarkMask).filter(Boolean):[];
+  return i=>labels.has(record.labels[i])||!!record.cavity&&cavities.has(record.cavity[i])||walls.size>0&&record.kind==='outer'&&walls.has(D.AHA_WALL(extAha[i]))||points.some(mask=>mask[i]);
+}
+function updateFocus(value,hit,temporary=false){
+  const ids=Array.isArray(value)?value:value?[value]:[];
+  if(!temporary)hoverIds=[];
+  for(const record of focusRecords){const attr=record.mesh.geometry.attributes.aFocus,mask=attr.array,match=focusMatcher(record,ids);
+    if(!ids.length)mask.fill(0);else for(let i=0;i<mask.length;i++)mask[i]=match(i)?1:0;
+    attr.needsUpdate=true;
+  }
+  const taps=new Set(ids.map(conductionTap).filter(Boolean));conductionFocus.array.fill(0);
+  for(const part of conduction.parts)if(!part.illustrative&&taps.has(part.id))conductionFocus.array.fill(1,part.offset,part.offset+part.count);
+  conductionFocus.needsUpdate=true;
+  conductionFocusActive.value=temporary||ids.some(id=>!id.startsWith('conduction:')&&conductionTap(id))?1:0;
+  useConductionFocus(conductionFocusActive.value>0);
+}
+function meshShown(mesh){for(let m=mesh;m;m=m.parent)if(!m.visible)return false;return true}
+function highlight(ids){
+  world.updateMatrixWorld(true);updateLabelVisibility();
+  const targets=st.mode==='cut'?[HI.tissue,...HI.valves.children.filter(m=>m.visible)]:st.mode==='ext'?[HM.mesh]:[];
+  const pointVisible=(p,mesh)=>{const w=deform(p).applyMatrix4(mesh?.matrixWorld||world.matrixWorld),v=w.clone().project(cam);
+    return !removed(w)&&v.z>-1&&v.z<1&&Math.abs(v.x)<=1&&Math.abs(v.y)<=1&&(!targets.length||mesh?.material.depthTest===false||!occluded(w,targets))};
+  const visible=id=>{
+    for(const record of focusRecords){if(!meshShown(record.mesh))continue;const match=focusMatcher(record,[id]),P=record.mesh.geometry.attributes.position,indices=[];
+      for(let i=0;i<P.count;i++)if(match(i))indices.push(i);
+      const stride=Math.max(1,Math.floor(indices.length/24));for(let j=0;j<indices.length;j+=stride)if(pointVisible(new T.Vector3().fromBufferAttribute(P,indices[j]),record.mesh))return true;
+    }
+    const tap=conductionTap(id);if(!tap||!conduction.state.enabled||condHidden.has(tap))return false;
+    return conduction.parts.some(p=>p.id===tap&&!p.illustrative&&p.pair.some(meshShown)&&p.pair[0].geometry.attributes.aFlags.array[p.offset*4+3]>.5&&
+      (p.samples||[p.anchor]).some(p=>pointVisible(p,null)));
+  };
+  const next=[...new Set(Array.isArray(ids)?ids.filter(id=>typeof id==='string'):[])].filter(visible);
+  if(!next.length){clearHighlight();return []}
+  hoverIds=next;updateFocus(next,null,true);dirty();return [...hoverIds];
+}
+function clearHighlight(){if(!hoverIds.length)return;hoverIds=[];updateFocus(st.sel,selectionHit);dirty()}
+function highlightState(){return {ids:[...hoverIds],conductionShader:conductionFocusShader,conductionVertices:conductionFocus.array.reduce((n,x)=>n+(x>.5),0),
+  landmarks:focusRecords.filter(r=>r.kind==='landmark'&&r.mesh.geometry.attributes.aFocus.array.some(x=>x>.5)).map(r=>r.id),
+  vertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((n,x)=>n+(x>.5),0),0)};}
 let avJunctionExpanded=false;
 const avJunctionLabel=document.createElement('button');avJunctionLabel.type='button';avJunctionLabel.className='lab lab-conduction';avJunctionLabel.dataset.id='group:avJunction';avJunctionLabel.hidden=true;avJunctionLabel.setAttribute('aria-expanded','false');labelLayer.appendChild(avJunctionLabel);
 function pickLabel(el){if(el.dataset.id==='group:avJunction'){avJunctionExpanded=true;avJunctionLabel.setAttribute('aria-expanded','true');callouts?.invalidate();dirty();return}
@@ -753,7 +844,7 @@ function labelMode(value){if(!['explore','relevant','all'].includes(value))throw
 $$('[data-label-mode]').forEach(b=>b.onclick=()=>labelMode(b.dataset.labelMode));
 labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;pickLabel(el)});
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
-tog(".bBeat", () => st.beat, v => { st.beat = v; if (!v){ beatU.uSys.value = 0; HI.setPhase(0); } kick(); });
+tog(".bBeat", () => st.beat, v => setBeat(v,v?undefined:0));
 $$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
 $(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
@@ -804,14 +895,17 @@ document.addEventListener("visibilitychange", kick);
 window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== "lab") return; if (typeof d.visible === "boolean"){ shown = d.visible; kick(); } });
 
 /* ---------- start ---------- */
+const selectCard=id=>{if(id.startsWith('conduction:')){if(!st.layers.conduction){st.layers.conduction=true;syncLayers()}conduction.select(id.slice(11))}else select(id,null)};
 cardsPanel=H3PANEL.create({root:$('.x3-panel'),content:panel,workspace:$('.model-workspace'),
-  select:id=>{if(id.startsWith('conduction:')){if(!st.layers.conduction){st.layers.conduction=true;syncLayers()}conduction.select(id.slice(11))}else select(id,null)},
-  relevant:()=>D.RELEVANT_LABELS[viewKey()]||[],name:findName,goSim,resize:resizeViewer});
+  select:selectCard,
+  relevant:()=>D.RELEVANT_LABELS[viewKey()]||[],name:findName,goSim,resize:resizeViewer,onLevel:()=>cardsDeep?.levelChanged(),onMore:()=>cardsDeep?.scroll()});
+cardsDeep=H3DEEP.create({root:$('.x3-deep'),select:selectCard,goSim,
+  cut:id=>{window.EXPLORE_APP.setMode('cut');window.EXPLORE_APP.setCut(id);host.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'})},onLevel:()=>cardsPanel.render(st.sel)});
 conductionReady=true;
 paint(st.colour); applyMode(); resetView(); select(null, null);syncLayersUI();ecgStrip.draw(conduction.state.ms,true);
 $(".busy").hidden = true;
 condLive = true; refreshCond = () => conduction.refreshVisibility(); refreshCond();
-window.EXPLORE_APP = { ready: true, st, CUTS, anchors, panel:()=>cardsPanel.state(), viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
+window.EXPLORE_APP = { ready: true, st, CUTS, anchors, highlight, clearHighlight, highlightState, panel:()=>cardsPanel.state(), viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),
@@ -844,8 +938,8 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, panel:()=>cardsPanel.stat
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },
-  setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
-  render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); conduction.placeLabels(); if(st.layers.conduction)ecgStrip.draw(conduction.state.ms,true); },
+  setView, resetView, setBeat,
+  render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); conduction.placeLabels(); ecgStrip.draw(conduction.state.ms,true); },
   visibleLabels: () => callouts.visible(), labelListIds: () => callouts.listIds(),
   heartFill: () => { const p = silhouette(), r = host.getBoundingClientRect(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let i = 0; i < p.length; i += 2){ x0 = Math.min(x0, p[i]); x1 = Math.max(x1, p[i]); y0 = Math.min(y0, p[i+1]); y1 = Math.max(y1, p[i+1]); }

@@ -30,6 +30,8 @@ ap.add_argument("--quick", action="store_true", help="only 6 scenarios")
 ap.add_argument("--b6", action="store_true", help="run the conduction picking/performance regression three times")
 ap.add_argument("--redesign", action="store_true", help="run only the T6.2-C acceptance checks")
 ap.add_argument("--cards", action="store_true", help="run only the T7.1a+b card acceptance checks")
+ap.add_argument("--cards-deep", action="store_true", help="run only the T7.1c+d deep-dive and model-link checks")
+ap.add_argument("--study", action="store_true", help="run view-persistence and Beat-controlled ECG regressions")
 ap.add_argument("--activation-audit", help="write tissue map audit JSON independently of screenshots"); A = ap.parse_args()
 fails = []
 def check(ok, msg, extra=""):
@@ -251,7 +253,7 @@ async def explore_checks(pg, fr, tag):
     await fr.evaluate("for (const k of ['valves','conduction']) EXPLORE_APP.setLayer(k, true)")
     # T6.2-B: Relevant label sets (4–20 per view, essential vessels and conduction included) drive the "Find in this view" chips; most of them show in Relevant mode
     rel = await fr.evaluate("""(()=>{const out={},L0={...EXPLORE_APP.st.layers},b0=EXPLORE_APP.st.beat,m0=EXPLORE_APP.st.labelMode;for(const [k,ids] of Object.entries(EXPLORE_DATA.RELEVANT_LABELS)){if(!ids.length)continue;
-      EXPLORE_APP.setBeat(false,0);if(k==='external'||k==='seeThrough'){EXPLORE_APP.setMode(k==='external'?'ext':'xray');EXPLORE_APP.setView('Front')}else{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(k)}
+      EXPLORE_APP.select(null);EXPLORE_APP.setBeat(false,0);if(k==='external'||k==='seeThrough'){EXPLORE_APP.setMode(k==='external'?'ext':'xray');EXPLORE_APP.setView('Front')}else{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(k)}
       EXPLORE_APP.viewDefaults(k);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render();EXPLORE_APP.render();
       const shown=EXPLORE_APP.visibleLabels().map(x=>x.id).filter(id=>ids.includes(id)),chips=[...document.querySelectorAll('.panel [data-select]')].map(b=>b.dataset.select);
       out[k]={n:ids.length,shown:shown.length,chipsMatch:k==='external'||k==='seeThrough'||JSON.stringify(chips)===JSON.stringify(ids)}}
@@ -459,7 +461,7 @@ async def conduction_view_checks(pg, fr):
     blocked=await fr.evaluate("({rings:EXPLORE_APP.conductionState().rings,rb:CONDUCTION_VIEW.timing().v.RB1,bb:CONDUCTION_VIEW.timing().a.BB1})")
     check(set(blocked['rings'])=={'RBB','BACH'} and blocked['rb']==float('inf') and blocked['bb']==float('inf'),
           "explicit blocks change graph timing and draw red shape markers",str(blocked))
-    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal',avDelay:82,blocks:[]});EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+    await fr.evaluate("EXPLORE_APP.setMode({atrial:'sinus',ventricular:'normal',avDelay:82,blocks:[]});EXPLORE_APP.setBeat(true);EXPLORE_APP.seek(100);EXPLORE_APP.render()")
     check(await fr.evaluate("document.querySelector('[data-phase=PR]').classList.contains('on') && CONDUCTION_VIEW.parts.find(p=>p.nodeId==='AVN').pair[0].material.userData.wave.uPulse.value>0"),
           "AV delay pulses the node and highlights the PR chip on the shared clock")
     await fr.evaluate("EXPLORE_APP.seek(40);EXPLORE_APP.render()")
@@ -874,7 +876,7 @@ async def cards_checks(pg, fr):
             if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_desktop_part.png'))
     await fr.evaluate("EXPLORE_APP.select('av_node')")
     if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_desktop_open.png'))
-    await fr.locator('[data-level="resident"]').click()
+    await fr.locator('.panel [data-level="resident"]').click()
     await pg.reload();fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP?.ready',timeout=180000)
     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('av_node')")
     check(await fr.evaluate("EXPLORE_APP.panel().level==='resident' && document.querySelector('[data-level=resident]').getAttribute('aria-pressed')==='true'"),'CARDS: Resident preference survives reload')
@@ -887,7 +889,7 @@ async def cards_checks(pg, fr):
     check(await fr.locator('.x3-soon').count()>0 and await fr.evaluate("[...document.querySelectorAll('.x3-soon')].every(e=>e.tagName==='SPAN'&&!e.hasAttribute('data-go')&&e.title==='Coming with the Pathology simulator')"),'CARDS: planned scenarios are non-clickable with the agreed tooltip')
     empty=await fr.evaluate("H3CARDS.all.find(c=>!c.pearls.fellow?.length).labelIds[0]")
     await fr.evaluate('id=>EXPLORE_APP.select(id)',empty)
-    check(await fr.locator('[data-level=fellow]').is_disabled() and await fr.locator('[data-level=fellow]').get_attribute('title')=='Fellow pearls coming later','CARDS: empty Fellow level is disabled')
+    check(await fr.locator('.panel [data-level=fellow]').is_disabled() and await fr.locator('.panel [data-level=fellow]').get_attribute('title')=='Fellow pearls coming later','CARDS: empty Fellow level is disabled')
     await fr.evaluate("EXPLORE_APP.select('av_node')")
     await fr.locator('.x3-run').first.click();await pg.wait_for_function("location.hash.startsWith('#pathology/')")
     check(await pg.evaluate("location.hash==='#pathology/avb1'"),'CARDS: real scenario chip opens the existing pathology deep link')
@@ -932,9 +934,9 @@ async def cards_checks(pg, fr):
       return {missing,storage};
     })()""")
     check(failsoft['missing'] and failsoft['storage'],'CARDS: missing JSON falls back to old cards; blocked storage remains usable',str(failsoft))
-    await fr.evaluate("EXPLORE_APP.select('av_node');EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('raOpen')")
+    await fr.evaluate("EXPLORE_APP.select(null);EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('raOpen')")
     empty=await fr.evaluate("(()=>{const ids=[...document.querySelectorAll('.panel [data-select]')].map(e=>e.dataset.select);return !EXPLORE_APP.panel().cardId&&document.querySelector('.panel h2').textContent==='Tap a structure'&&JSON.stringify(ids)===JSON.stringify(EXPLORE_DATA.RELEVANT_LABELS.raOpen)})()")
-    check(empty,'CARDS: view change resets selection and shows that view’s Relevant chips')
+    check(empty,'CARDS: with no selection, view changes update the Relevant chips')
     await pg.set_viewport_size({'width':1440,'height':900})
     await fr.evaluate("H3CARDS.setLevel('student');EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1})")
     standalone=os.path.abspath(os.path.join(os.path.dirname(__file__),'../dist/heart3d-standalone.html'))
@@ -944,6 +946,158 @@ async def cards_checks(pg, fr):
         loaded=await sp.evaluate("(()=>{EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('MV_PML');return H3CARDS.all.length===55&&EXPLORE_APP.panel().cardId==='mitral_valve'&&!!EXPLORE_APP.panel().partName})()")
         check(loaded,'CARDS: standalone build loads the model, all cards and leaflet part without a parent')
         await sp.close()
+
+
+async def cards_deep_checks(pg, fr):
+    """T7.1 session 2; inspect the actual render masks as well as UI state."""
+    await pg.set_viewport_size({'width':1280,'height':800})
+    await pg.evaluate("location.hash='#heart3d'")
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('raOpen');EXPLORE_APP.conduction(true);EXPLORE_APP.setLayer('landmarks',true);EXPLORE_APP.labelMode('explore');EXPLORE_APP.select('av_node');EXPLORE_APP.render()")
+    deep=fr.locator('.x3-deep')
+    before=await fr.evaluate("({selection:EXPLORE_APP.st.sel,card:EXPLORE_APP.card(),callouts:EXPLORE_APP.visibleLabels().map(l=>[l.id,l.text]),camera:EXPLORE_APP.camState(),conduction:CONDUCTION_VIEW.state.selected,focus:EXPLORE_APP.highlightState()})")
+    bite=fr.locator('.panel .x3-bite[data-focus]').first
+    await bite.hover();await fr.evaluate('EXPLORE_APP.render()')
+    during=await fr.evaluate("({selection:EXPLORE_APP.st.sel,card:EXPLORE_APP.card(),callouts:EXPLORE_APP.visibleLabels().map(l=>[l.id,l.text]),camera:EXPLORE_APP.camState(),conduction:CONDUCTION_VIEW.state.selected,focus:EXPLORE_APP.highlightState()})")
+    check(set(during['focus']['ids'])=={'koch_triangle','av_node'} and 'koch_triangle' in during['focus']['landmarks'] and during['focus']['conductionVertices']>0,'DEEP: AV-node where bite highlights Koch’s triangle and the AV node',str(during['focus']))
+    check(all(before[k]==during[k] for k in ['selection','card','callouts','camera','conduction']),'DEEP: hover preserves selection, callout, camera and conduction selection')
+    if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_hover_koch_avnode.png'))
+    await fr.locator('.x3-panel h2').hover();await fr.evaluate('EXPLORE_APP.render()')
+    after=await fr.evaluate('EXPLORE_APP.highlightState()')
+    check(not after['ids'] and after['vertices']==before['focus']['vertices'] and after['conductionVertices']==before['focus']['conductionVertices'],'DEEP: leaving the bite restores only the selection highlight',str(after))
+    for key in ('anatomy','function','supply'):
+        check(await deep.locator(f'[data-detail={key}]>summary span').inner_text()!='' and await deep.locator(f'[data-detail={key}]').evaluate('e=>!e.open'),'DEEP: '+key+' summary stays visible while detail starts folded')
+    await deep.locator('[data-detail=anatomy]>summary').click()
+    check(await deep.locator('[data-detail=anatomy] .x3-deep-detail').is_visible(),'DEEP: anatomy detail opens on click')
+    await deep.locator('[data-complication="0"]>summary').click()
+    flow=deep.locator('[data-complication="0"] .x3-deep-flow')
+    check(await flow.is_visible() and await flow.locator('div').count()==2,'DEEP: complication opens Mechanism → What you see flow')
+    if A.shots:
+        await deep.evaluate("e=>e.scrollIntoView({block:'start'})")
+        await pg.screenshot(path=shot('cards_deep_sections.png'))
+        await deep.locator('.x3-deep-complications').evaluate("e=>e.scrollIntoView({block:'start'})")
+        await pg.screenshot(path=shot('cards_deep_complication_context.png'))
+        await flow.screenshot(path=shot('cards_deep_complication_flow.png'))
+    await deep.locator('[data-level=resident]').click()
+    check(await fr.locator('.panel [data-level=resident]').get_attribute('aria-pressed')=='true' and await deep.locator('.x3-deep-pearl').count()==await fr.evaluate("H3CARDS.byTap('av_node').card.pearls.resident.length"),'DEEP: level switch syncs with glance and displays all pearls')
+    await fr.locator('.panel [data-level=student]').click()
+    check(await deep.locator('[data-level=student]').get_attribute('aria-pressed')=='true','DEEP: glance level switch syncs back to deep dive')
+    saq=deep.locator('.x3-deep-saq').first
+    await saq.locator('textarea').fill('Draft answer')
+    await saq.locator('.x3-deep-check').click()
+    await saq.locator('input').nth(0).check();await saq.locator('input').nth(1).check()
+    check(await deep.locator('.x3-deep-saq').count()==await fr.evaluate("H3CARDS.byTap('av_node').card.saq.length") and (await saq.locator('output').inner_text()).startswith('2 / '),'DEEP: all SAQs render, Check reveals keys, and ticks update the count')
+    await fr.evaluate("EXPLORE_APP.select('MV_PML')")
+    check(await deep.locator('.x3-deep-answer:not([hidden])').count()==0 and all(not v for v in await deep.locator('textarea').evaluate_all('es=>es.map(e=>e.value)')),'DEEP: changing structure resets all written answers and marks')
+    await deep.locator('[data-detail=anatomy]>summary').click()
+    await deep.locator('[data-select=MV_AML]').click()
+    check('anterior' in (await fr.evaluate('EXPLORE_APP.panel().partName')).lower(),'DEEP: a leaflet chip selects its parent card and the named part')
+    await fr.evaluate("EXPLORE_APP.setMode('xray');EXPLORE_APP.setCoronaries(true);EXPLORE_APP.select('MV_PML');EXPLORE_APP.render()")
+    results=await fr.evaluate("(()=>{const out={};for(const id of ['MV_PML','artery:LAD','conduction:his','fossa_ovalis','cs_ostium']){const ids=EXPLORE_APP.highlight([id]);out[id]={ids,vertices:EXPLORE_APP.highlightState().vertices+EXPLORE_APP.highlightState().conductionVertices}}EXPLORE_APP.clearHighlight();return out})()")
+    check(all(r['ids'] and r['vertices']>0 for r in results.values()),'DEEP: visible valve, vessel, conduction and exported point-landmark IDs can be highlighted',str(results))
+    await fr.evaluate("EXPLORE_APP.select('artery:LM')")
+    await deep.locator('[data-detail=neighbours]>summary').click()
+    neighbour=deep.locator('.x3-deep-neighbour[data-focus]').first
+    await neighbour.hover()
+    neighbour_state=await fr.evaluate("({ids:EXPLORE_APP.highlightState().ids,selection:EXPLORE_APP.st.sel})")
+    check(neighbour_state['ids']==['PA_main'] and neighbour_state['selection']=='artery:LM','DEEP: a neighbour row highlights its focus without selecting it',str(neighbour_state))
+    await deep.locator('.x3-deep-head h2').hover()
+    await fr.evaluate("EXPLORE_APP.select('av_node');EXPLORE_APP.conduction(false)")
+    await deep.locator('[data-detail=anatomy]>summary').click()
+    await deep.locator('[data-select="conduction:avn"]').click()
+    check(await fr.evaluate("EXPLORE_APP.conductionState().enabled&&EXPLORE_APP.panel().partName==='Compact node'"),'DEEP: conduction part chips use the same selection path as model taps')
+    invisible=await fr.evaluate("(()=>{EXPLORE_APP.setMode('ext');EXPLORE_APP.conduction(false);const before=EXPLORE_APP.camState(),ids=EXPLORE_APP.highlight(['conduction:his','not-a-tap']);return {ids,still:JSON.stringify(before)===JSON.stringify(EXPLORE_APP.camState())}})()")
+    check(not invisible['ids'] and invisible['still'],'DEEP: unavailable/unknown IDs do nothing and never move the camera')
+    check(not await fr.evaluate('EXPLORE_APP.highlightState().conductionShader'),'DEEP: inactive highlights restore the original conduction shader')
+    await fr.evaluate("EXPLORE_APP.select('coronary_sinus')")
+    check(await deep.locator('[data-detail=supply]>summary>b').inner_text()=='Drainage','DEEP: a vein labels its supply section Drainage')
+    await fr.evaluate("EXPLORE_APP.select('RA')")
+    await deep.locator('[data-cut=raOpen]').click()
+    check(await fr.evaluate("EXPLORE_APP.st.mode==='cut'&&EXPLORE_APP.st.cut==='raOpen'&&EXPLORE_APP.panel().cardId==='right_atrium'") and await deep.is_visible(),'DEEP: RA cut tile switches to raOpen while retaining the RA card')
+    await fr.evaluate("EXPLORE_APP.select('av_node')")
+    await fr.locator('.panel .x3-more').click()
+    await pg.wait_for_timeout(500)
+    check(await deep.evaluate('e=>e.getBoundingClientRect().top<innerHeight') and await deep.locator('h2').evaluate('e=>document.activeElement===e'),'DEEP: Deep dive button scrolls and moves keyboard focus to the full card')
+    # Plain text is escaped in expanded details as well as glance bites.
+    safe=await fr.evaluate("(()=>{const c=H3CARDS.byTap('av_node').card,old=c.anatomy.detail;c.anatomy.detail='<img src=x onerror=alert(1)> **bold**';EXPLORE_APP.select('av_node');const p=document.querySelector('.x3-deep [data-detail=anatomy] .x3-deep-detail p'),ok=!p.querySelector('img')&&p.querySelector('b').textContent==='bold'&&p.textContent.includes('<img');c.anatomy.detail=old;EXPLORE_APP.select('av_node');return ok})()")
+    check(safe,'DEEP: expanded teaching text is escaped before bold markup is applied')
+    await pg.set_viewport_size({'width':400,'height':800})
+    await fr.evaluate("EXPLORE_APP.select('MV_PML')")
+    mobile=await fr.evaluate("(()=>{const d=document.querySelector('.x3-deep'),p=document.querySelector('.x3-panel'),r=d.getBoundingClientRect(),b=p.getBoundingClientRect();return {joined:Math.abs(r.top-b.bottom)<3,folded:!d.querySelector('[data-detail=anatomy]').open&&!d.querySelector('[data-detail=complications]').open,pearls:d.querySelector('[data-detail=pearls]').open,glance:getComputedStyle(p.querySelector('[data-section=pearls]')).display==='none',width:document.documentElement.scrollWidth<=innerWidth}})()")
+    check(all(mobile.values()),'DEEP: phone merges glance with folded sections and open pearls, without sideways scroll',str(mobile))
+    if A.shots:
+        await fr.locator('.x3-panel').evaluate("e=>e.scrollIntoView({block:'start'})");await pg.screenshot(path=shot('cards_phone_combined_top.png'))
+        await deep.locator('[data-detail=pearls]').evaluate("e=>e.scrollIntoView({block:'start'})");await pg.screenshot(path=shot('cards_phone_combined_sections.png'))
+    # Touch long-press is tested with pointer events: no tap or synthetic selection.
+    await fr.evaluate("EXPLORE_APP.setMode('xray');EXPLORE_APP.conduction(true);EXPLORE_APP.setLayer('landmarks',true);EXPLORE_APP.select('av_node');EXPLORE_APP.render()")
+    target=fr.locator('.panel .x3-bite[data-focus]').first
+    early=await target.evaluate("e=>{e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',clientX:20,clientY:20}));return EXPLORE_APP.highlightState().ids}")
+    await pg.wait_for_timeout(450)
+    late=await fr.evaluate('EXPLORE_APP.highlightState().ids')
+    await target.dispatch_event('pointerup',{'pointerType':'touch'})
+    released=await fr.evaluate('EXPLORE_APP.highlightState().ids')
+    check(not early and late and not released,'DEEP: 400 ms touch hold highlights temporarily and release clears it',str({'early':early,'late':late,'released':released}))
+    await target.dispatch_event('pointerdown',{'pointerType':'touch','clientX':20,'clientY':20})
+    await target.dispatch_event('pointermove',{'pointerType':'touch','clientX':20,'clientY':50})
+    await pg.wait_for_timeout(450)
+    check(not await fr.evaluate('EXPLORE_APP.highlightState().ids'),'DEEP: touch movement cancels the long-press so scrolling remains free')
+    await target.dispatch_event('pointercancel',{'pointerType':'touch'})
+    await pg.set_viewport_size({'width':1440,'height':900})
+    await fr.evaluate("EXPLORE_APP.clearHighlight();H3CARDS.setLevel('student');EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null);EXPLORE_APP.labelMode('explore');EXPLORE_APP.conduction(false);EXPLORE_APP.resetView();EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1})")
+
+
+async def study_checks(pg, fr):
+    """B7/B8: study one structure across views; ECG follows Beat, not wiring."""
+    await pg.set_viewport_size({'width':1280,'height':800})
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('lvOpen');EXPLORE_APP.select('LA')")
+    await fr.evaluate("""(()=>{const p=document.querySelector('.panel'),d=document.querySelector('.x3-deep');
+      d.querySelector('[data-detail=anatomy]').open=true;d.querySelector('[data-detail=complications]').open=true;d.querySelector('[data-complication="0"]').open=true;
+      p.querySelector('textarea').value='Sidebar notes';d.querySelector('textarea').value='Deep notes';
+      p.querySelector('.x3-check').click();d.querySelector('.x3-deep-check').click();
+      p.querySelector('.x3-answer input').click();d.querySelector('.x3-deep-answer input').click();p.scrollTop=50;
+      window.__study={p:p.firstElementChild,d:d.firstElementChild,scroll:p.scrollTop};})()""")
+    def preserved_js():
+        return """(()=>{const p=document.querySelector('.panel'),d=document.querySelector('.x3-deep');return {
+          selected:EXPLORE_APP.st.sel==='LA'&&EXPLORE_APP.panel().cardId==='left_atrium',
+          sameDOM:p.firstElementChild===__study.p&&d.firstElementChild===__study.d,
+          answers:p.querySelector('textarea')?.value==='Sidebar notes'&&d.querySelector('textarea')?.value==='Deep notes',
+          marks:p.querySelectorAll('.x3-answer input:checked').length===1&&d.querySelectorAll('.x3-deep-answer input:checked').length===1,
+          folds:!!d.querySelector('[data-detail=anatomy]')?.open&&!!d.querySelector('[data-complication="0"]')?.open,
+          scroll:p.scrollTop===__study.scroll}})()"""
+    await fr.locator('.selCut').select_option('a4c')
+    state=await fr.evaluate(preserved_js())
+    check(all(state.values()),'STUDY B7: cut dropdown preserves LA card, DOM, notes, marks, open sections and panel scroll',str(state))
+    # Continue other checks even on the unfixed page, where the card was cleared.
+    if state['selected']:
+        for cut in await fr.evaluate('Object.keys(EXPLORE_APP.CUTS)'):
+            await fr.evaluate('id=>EXPLORE_APP.setCut(id)',cut)
+            s=await fr.evaluate(preserved_js())
+            check(all(s.values()),'STUDY B7: '+cut+' preserves the study state',str(s) if not all(s.values()) else '')
+        await fr.locator('.segMode [data-m=ext]').click();await fr.locator('.bSeeThrough').click()
+        check(all((await fr.evaluate(preserved_js())).values()),'STUDY B7: External and See-through also preserve the study state')
+        tile=fr.locator('.x3-deep [data-cut=a4c]')
+        await tile.click()
+        check(all((await fr.evaluate(preserved_js())).values()),'STUDY B7: a deep-dive cut tile retains the card and answers')
+        if A.shots:
+            await fr.locator('.model-workspace').screenshot(path=shot('study_LA_retained_a4c.png'))
+    await fr.evaluate("EXPLORE_APP.select('MV_PML');EXPLORE_APP.setCut('valves')")
+    check(await fr.evaluate("EXPLORE_APP.panel().cardId==='mitral_valve'&&EXPLORE_APP.panel().partName==='Posterior leaflet'"),'STUDY B7: leaflet name and parent card survive cut changes')
+    await fr.evaluate("EXPLORE_APP.select('RA')")
+    check(await fr.locator('.panel textarea').input_value()=='' and await fr.locator('.x3-deep textarea').first.input_value()=='','STUDY B7: selecting a different structure still resets answers')
+    for beat,con in [(True,False),(True,True),(False,True),(False,False)]:
+        await fr.evaluate("([beat,con])=>{EXPLORE_APP.setBeat(beat);EXPLORE_APP.conduction(con);EXPLORE_APP.seek(2000);EXPLORE_APP.render()}",[beat,con])
+        visible=await fr.locator('.conduction-panel').is_visible()
+        check(visible==beat,f'STUDY B8: Beat {beat}, Conduction {con}: ECG visible = {beat}',str(visible))
+    await fr.evaluate("EXPLORE_APP.setBeat(true);EXPLORE_APP.conduction(false);EXPLORE_APP.seek(100);EXPLORE_APP.render()")
+    clock=await fr.locator('.clockRead').inner_text()
+    await fr.evaluate("EXPLORE_APP.seek(220);EXPLORE_APP.render()")
+    check(await fr.locator('.clockRead').inner_text()!=clock,'STUDY B8: ECG clock and strip update with conduction hidden')
+    await fr.locator('.bBeat').click()
+    check(await fr.locator('.conduction-panel').is_hidden(),'STUDY B8: actual Beat Off button hides the ECG')
+    await fr.locator('.bBeat').click()
+    check(await fr.locator('.conduction-panel').is_visible(),'STUDY B8: actual Beat On button shows the ECG without enabling wiring')
+    if A.shots and await fr.locator('.conduction-panel').is_visible():
+        await fr.locator('.conduction-panel').screenshot(path=shot('study_ecg_beat_on_conduction_off.png'))
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.select(null);EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1})")
 
 
 async def main():
@@ -977,10 +1131,14 @@ async def main():
         pg.on("pageerror", lambda e: errs.append("page: " + str(e)))
         pg.on("console", lambda m: m.type == "error" and errs.append("console: " + m.text))
         await pg.goto(url); await pg.wait_for_timeout(600)
-        if A.b6 or A.redesign or A.cards:
+        if A.b6 or A.redesign or A.cards or A.cards_deep or A.study:
             await pg.evaluate("location.hash='#heart3d'"); await pg.wait_for_timeout(700)
             fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP',timeout=180000)
-            if A.cards:
+            if A.study:
+                await study_checks(pg,fr)
+            elif A.cards_deep:
+                await cards_deep_checks(pg,fr)
+            elif A.cards:
                 await cards_checks(pg,fr)
             elif A.redesign:
                 await redesign_checks(pg,fr)
@@ -1017,6 +1175,8 @@ async def main():
             await review_checks(pg,await lab_frame(pg,"heart3d"))
             await activation_checks(pg,await lab_frame(pg,"heart3d"))
             await cards_checks(pg,await lab_frame(pg,"heart3d"))
+            await cards_deep_checks(pg,await lab_frame(pg,"heart3d"))
+            await study_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
             await pg.evaluate("location.hash = '#pathology/flutter'"); await pg.wait_for_timeout(2000)

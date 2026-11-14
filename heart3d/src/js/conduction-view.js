@@ -460,7 +460,7 @@ const PHASE_TEXT={base:'Diastole: cells at rest, baseline flat; ventricles filli
   HOCM:'Thick septum depolarises first → deep narrow Q, huge voltage',
   WIDE:'Slow muscle-to-muscle spread → wide QRS',WPW:'Pre-excitation through the accessory pathway → delta wave',
   ST:'Plateau (phase 2): ventricles ejecting, aortic valve open',T:'Ventricles repolarise → T wave; aortic valve closes (S2)'};
-function strip({root,engine,getContext,view}){
+function strip({root,engine,getContext,view,enabled=()=>view.state.enabled}){
   const plot=root.querySelector('.conECG'),select=root.querySelector('select'),leads=Object.keys(engine.LEADS);
   for(const lead of leads){const option=document.createElement('option');option.value=option.textContent=lead;select.appendChild(option)}select.value='II';
   const q=selector=>root.querySelector(selector),phaseNodes=Array.from(root.querySelectorAll('[data-phase]'));
@@ -469,7 +469,7 @@ function strip({root,engine,getContext,view}){
   let key='',cells=[],cache=null,animationKey='',plotVisible=false,sleeping=true;
   const sleep=()=>{if(!sleeping)for(const cell of cells)for(const animation of cell.animations)animation.pause();sleeping=true;animationKey='';};
   new IntersectionObserver(entries=>{plotVisible=entries[0].isIntersecting;
-    if(plotVisible&&view.state.enabled)draw(view.now(),true);else sleep();
+    if(plotVisible&&enabled())draw(view.now(),true);else sleep();
   }).observe(plot);
   const themeChanged=()=>{cache=null;draw(view.state.ms,true)};
   const observer=new MutationObserver(themeChanged);
@@ -478,7 +478,7 @@ function strip({root,engine,getContext,view}){
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeChanged);
   select.onchange=()=>{cache=null;draw(view.state.ms,true)};
   function draw(ms,force=false){
-    if(!view.state.enabled||(!plotVisible&&!force)){sleep();return}
+    if(!enabled()||(!plotVisible&&!force)){sleep();return}
     const width=plot.clientWidth,height=plot.clientHeight;if(!width||!height)return;
     const narrow=matchMedia('(max-width:520px)').matches,ratio=Math.min(devicePixelRatio||1,2);
     const displayed=narrow?[select.value]:['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
