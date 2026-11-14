@@ -2833,9 +2833,15 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
   playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m)return m;const cut=!!cutView();if(cut)updateLabelVisibility();
     if(cut&&D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=host.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
     const occ=cut?[HI.tissue,...HI.valves.children.filter(v=>v.visible)]:[],pts=[at,...conduction.parts.filter(p=>p.id===id&&!p.illustrative&&!p.cap).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&(!cut||!occluded(w,occ))});
-    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if((cut&&['avn','his','lbb'].includes(id)?[[-6,0],[0,-6],[0,0],[0,6],[6,0]]:[[0,0]]).every(([dx,dy])=>{rayAt(x+dx,y+dy);return conduction.pick(x+dx,y+dy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}   // a point where a tap selects this part
-    if(cut&&['avn','his','lbb'].includes(id))for(const p of [new T.Vector3(...m.point),...pts]){const [cx,cy]=scr(p);for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2){const x=cx+dx,y=cy+dy;
-      if([[-6,0],[0,-6],[0,0],[0,6],[6,0]].every(([ox,oy])=>{rayAt(x+ox,y+oy);return conduction.pick(x+ox,y+oy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}}
+    // Prefer a point whose neighbours also select this part (±6 px in the cut junction, ±2 px elsewhere), so a
+    // real pointer event that lands a pixel off the projected point cannot flip to a neighbour (B6). Fall back to
+    // any exact point when the part is too thin on screen for that margin (e.g. the LBB trunk on a phone).
+    const cross=n=>[[-n,0],[0,-n],[0,0],[0,n],[n,0]],picks=(x,y,offsets)=>offsets.every(([dx,dy])=>{rayAt(x+dx,y+dy);return conduction.pick(x+dx,y+dy,ray.ray)?.id===id});
+    const margin=cross(cut&&['avn','his','lbb'].includes(id)?6:2);
+    for(const p of pts){const [x,y]=scr(p);if(picks(x,y,margin))return {...m,x,y,visible:true,point:p.toArray()};}   // a point where a tap selects this part
+    for(const p of [new T.Vector3(...m.point),...pts]){const [cx,cy]=scr(p);for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2){const x=cx+dx,y=cy+dy;
+      if(picks(x,y,margin))return {...m,x,y,visible:true,point:p.toArray()};}}
+    for(const p of pts){const [x,y]=scr(p);if(picks(x,y,[[0,0]]))return {...m,x,y,visible:true,point:p.toArray()};}
     const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
