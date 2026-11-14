@@ -954,7 +954,7 @@
      },
      {
       "hook": "Tamponade on echo",
-      "text": "In tamponade, RA collapse lasting more than a third of the cycle is sensitive; RV diastolic collapse is more specific."
+      "text": "In tamponade, brief RA collapse is sensitive but not specific; RA collapse lasting more than a third of the cycle is both sensitive and highly specific. RV diastolic collapse is also specific."
      },
      {
       "hook": "Kussmaul sign",
@@ -1298,7 +1298,7 @@
    ],
    "anatomy": {
     "summary": "Posterior chamber receiving four pulmonary veins, with the LAA off its front-left side.",
-    "detail": "The most posterior chamber, lying directly in front of the oesophagus and the descending aorta, above the left main bronchus. The four pulmonary veins (two from each side) enter its smooth back wall; the trabeculated left atrial appendage arises from its front-left side. Its septal wall faces the RA across the fossa ovalis; it empties through the mitral valve into the LV."
+    "detail": "The most posterior chamber, lying directly in front of the oesophagus and the descending aorta, below the tracheal bifurcation and the left main bronchus. The four pulmonary veins (two from each side) enter its smooth back wall; the trabeculated left atrial appendage arises from its front-left side. Its septal wall faces the RA across the fossa ovalis; it empties through the mitral valve into the LV."
    },
    "function": {
     "summary": "Reservoir, conduit and booster pump; the atrial kick adds about a fifth to a third of filling.",
@@ -1413,7 +1413,7 @@
      },
      {
       "hook": "TOE before cardioversion",
-      "text": "Before cardioversion of AF lasting 48 h or more without 3 weeks of anticoagulation, TOE excludes LA/LAA thrombus (the oesophagus lies right behind the LA)."
+      "text": "Before cardioversion of AF lasting 24 h or more (ESC 2024; 48 h in ACC/AHA 2023) without 3 weeks of anticoagulation, TOE excludes LA/LAA thrombus (the oesophagus lies right behind the LA)."
      },
      {
       "hook": "Oedema with a normal LV",
@@ -1459,7 +1459,8 @@
    "verify": [
     "Atrial kick 20–33% of filling",
     "LA volume index cut-off 34 mL/m²",
-    "Pulmonary oedema threshold 18–25 mmHg"
+    "Pulmonary oedema threshold 18–25 mmHg",
+    "Cardioversion cut-off: 24 h (ESC 2024) vs 48 h (ACC/AHA 2023); staff to choose"
    ],
    "review": {
     "status": "draft",
@@ -1755,7 +1756,7 @@
     },
     {
      "icon": "echo",
-     "text": "**TOE** before cardioversion if AF ≥ 48 h without anticoagulation"
+     "text": "**TOE** before cardioversion if AF ≥ 24 h (ESC 2024) without anticoagulation"
     }
    ],
    "anatomy": {
@@ -1833,7 +1834,7 @@
     "resident": [
      {
       "hook": "TOE before cardioversion",
-      "text": "AF lasting 48 h or more (or unknown) without 3 weeks of anticoagulation: TOE to exclude LAA thrombus before cardioversion, and anticoagulate for at least 4 weeks after."
+      "text": "AF lasting 24 h or more (ESC 2024; 48 h in ACC/AHA 2023) or of unknown duration without 3 weeks of anticoagulation: TOE to exclude LAA thrombus before cardioversion, and anticoagulate for at least 4 weeks after."
      },
      {
       "hook": "DOAC or warfarin?",
@@ -1873,7 +1874,8 @@
     "ASE/SCA TOE guidelines (teaching)"
    ],
    "verify": [
-    "~90% of LA thrombi in non-valvular AF in the LAA"
+    "~90% of LA thrombi in non-valvular AF in the LAA",
+    "Cardioversion cut-off: 24 h (ESC 2024) vs 48 h (ACC/AHA 2023); staff to choose"
    ],
    "review": {
     "status": "draft",
@@ -2115,7 +2117,7 @@
     },
     {
      "icon": "danger",
-     "text": "Red flags → think **ARVC** (epsilon wave, T inversion beyond V3)"
+     "text": "Red flags → think **ARVC** (epsilon wave, T inversion V1–V3 or beyond)"
     }
    ],
    "anatomy": {
@@ -2208,7 +2210,7 @@
      },
      {
       "hook": "Red flags against 'idiopathic'",
-      "text": "T inversion beyond V1–V3 in an adult, epsilon wave, a dilated RV, family history of sudden death. Think ARVC."
+      "text": "T inversion in V1–V3 or beyond in an adult, epsilon wave, a dilated RV, family history of sudden death. Think ARVC."
      }
     ],
     "fellow": []
@@ -2227,9 +2229,9 @@
     {
      "level": "resident",
      "q": "Name two findings that make 'RVOT ectopy' not benign and suggest ARVC.",
-     "a": "Any two: T inversion beyond V1–V3 in an adult, an epsilon wave, a dilated or poorly moving RV, a family history of sudden death, polymorphic or exercise VT with syncope.",
+     "a": "Any two: T inversion in V1–V3 or beyond in an adult, an epsilon wave, a dilated or poorly moving RV, a family history of sudden death, polymorphic or exercise VT with syncope.",
      "keys": [
-      "T inversion beyond V3",
+      "T inversion V1–V3 or beyond",
       "Epsilon wave",
       "RV dilatation",
       "Family history of sudden death"
@@ -2559,7 +2561,7 @@
     "fellow": [
      {
       "hook": "Transseptal puncture site",
-      "text": "The transseptal puncture site is chosen for the procedure: lower and more posterior for pulmonary vein isolation and mitral edge-to-edge repair, adapted for LAA occlusion."
+      "text": "The puncture site depends on the procedure: superior and posterior for mitral edge-to-edge repair (about 4–4.5 cm above the annulus, a little lower for functional MR), posterior and mid-fossa for pulmonary vein isolation, posterior and mid-to-inferior for LAA occlusion."
      }
     ]
    },
@@ -2896,12 +2898,12 @@
     {
      "labelId": "TV_annulus",
      "name": "Tricuspid annulus",
-     "note": "The fibrous ring of the valve; at the septum it sits about 1 cm closer to the apex than the mitral ring. It dilates with the RV in functional TR."
+     "note": "The fibrous ring of the valve; at the septum it sits closer to the apex than the mitral ring (up to about 1 cm in an adult). It dilates with the RV in functional TR."
     }
    ],
    "anatomy": {
     "summary": "Three leaflets on a large, flexible ring, held by the RV papillary muscles, including the anterior one reached by the moderator band.",
-    "detail": "The largest valve ring in the heart, between RA and RV. Anterior, posterior and septal leaflets take chordae from the anterior, posterior and small septal papillary muscles, and some straight from the septum. The septal hinge is normally a few millimetres closer to the apex than the mitral hinge. The ring has little fibrous support along the free wall, so it dilates mostly there."
+    "detail": "The largest valve ring in the heart, between RA and RV. Anterior, posterior and septal leaflets take chordae from the anterior, posterior and small septal papillary muscles, and some straight from the septum. The septal hinge is normally closer to the apex than the mitral hinge, by up to about 1 cm in an adult (≤ 8 mm/m²); more suggests Ebstein anomaly. The ring has little fibrous support along the free wall, so it dilates mostly there."
    },
    "function": {
     "summary": "Opens in diastole at low pressure and closes at the start of systole (tricuspid part of S1).",
@@ -3073,7 +3075,8 @@
    "verify": [
     "Papillary muscle supply of the TV",
     "TR velocity 2.8 m/s threshold",
-    "Ring dilation threshold for concomitant repair (≥ 40 mm or > 21 mm/m²)"
+    "Ring dilation threshold for concomitant repair (≥ 40 mm or > 21 mm/m²)",
+    "Smallest TV leaflet: posterior (card) vs septal (several echo references)"
    ],
    "review": {
     "status": "draft",
@@ -6616,7 +6619,7 @@
     },
     {
      "icon": "echo",
-     "text": "Measure in **PLAX** at the annulus, sinuses, STJ and ascending aorta"
+     "text": "PLAX: **annulus in mid-systole**; sinuses, STJ, ascending aorta in **end-diastole**"
     },
     {
      "icon": "key",
@@ -6669,7 +6672,7 @@
    "seenOn": {
     "echo": [
      {
-      "text": "Root at the sinuses, STJ and proximal ascending aorta; measure in end-diastole.",
+      "text": "Root at the sinuses, STJ and proximal ascending aorta; measure these in end-diastole (the annulus in mid-systole).",
       "id": "plax"
      },
      {
@@ -6752,7 +6755,7 @@
     "fellow": [
      {
       "hook": "Measure by convention",
-      "text": "Echo measures the root leading edge to leading edge in end-diastole; CT measures inner to inner. Compare like with like over time."
+      "text": "Echo measures the sinuses, STJ and ascending aorta leading edge to leading edge in end-diastole (the annulus in mid-systole); CT measures inner to inner. Compare like with like over time."
      }
     ]
    },
@@ -8972,7 +8975,7 @@
    "stats": [
     {
      "value": "60–100/min",
-     "label": "intrinsic rate"
+     "label": "resting sinus rate"
     },
     {
      "value": "≈ 60 %",
