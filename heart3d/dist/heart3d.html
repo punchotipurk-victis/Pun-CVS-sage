@@ -1435,7 +1435,7 @@ const PHASE_TEXT={base:'Diastole: cells at rest, baseline flat; ventricles filli
   HOCM:'Thick septum depolarises first → deep narrow Q, huge voltage',
   WIDE:'Slow muscle-to-muscle spread → wide QRS',WPW:'Pre-excitation through the accessory pathway → delta wave',
   ST:'Plateau (phase 2): ventricles ejecting, aortic valve open',T:'Ventricles repolarise → T wave; aortic valve closes (S2)'};
-function strip({root,engine,getContext,view}){
+function strip({root,engine,getContext,view,enabled=()=>view.state.enabled}){
   const plot=root.querySelector('.conECG'),select=root.querySelector('select'),leads=Object.keys(engine.LEADS);
   for(const lead of leads){const option=document.createElement('option');option.value=option.textContent=lead;select.appendChild(option)}select.value='II';
   const q=selector=>root.querySelector(selector),phaseNodes=Array.from(root.querySelectorAll('[data-phase]'));
@@ -1444,7 +1444,7 @@ function strip({root,engine,getContext,view}){
   let key='',cells=[],cache=null,animationKey='',plotVisible=false,sleeping=true;
   const sleep=()=>{if(!sleeping)for(const cell of cells)for(const animation of cell.animations)animation.pause();sleeping=true;animationKey='';};
   new IntersectionObserver(entries=>{plotVisible=entries[0].isIntersecting;
-    if(plotVisible&&view.state.enabled)draw(view.now(),true);else sleep();
+    if(plotVisible&&enabled())draw(view.now(),true);else sleep();
   }).observe(plot);
   const themeChanged=()=>{cache=null;draw(view.state.ms,true)};
   const observer=new MutationObserver(themeChanged);
@@ -1453,7 +1453,7 @@ function strip({root,engine,getContext,view}){
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeChanged);
   select.onchange=()=>{cache=null;draw(view.state.ms,true)};
   function draw(ms,force=false){
-    if(!view.state.enabled||(!plotVisible&&!force)){sleep();return}
+    if(!enabled()||(!plotVisible&&!force)){sleep();return}
     const width=plot.clientWidth,height=plot.clientHeight;if(!width||!height)return;
     const narrow=matchMedia('(max-width:520px)').matches,ratio=Math.min(devicePixelRatio||1,2);
     const displayed=narrow?[select.value]:['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
@@ -2638,10 +2638,15 @@ function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; i
   conduction.enable(st.layers.conduction);
   syncActivation();
   $('.bConduction').setAttribute('aria-pressed',st.layers.conduction);$('.bConduction .st').textContent=st.layers.conduction?'On':'Off';
-  $('.conduction-panel').classList.toggle('enabled',st.layers.conduction);
+  syncECGVisibility();
   if (cut) applyCut(); else { plane.set(new T.Vector3(0, 0, 1), 1e5); plane2.copy(plane); }
   $$(".segMode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === (xr?"ext":m))); $(".cutctl").hidden = !cut; $(".bFace").disabled = !cut;
-  if(cardsPanel){const key=viewKey();if(key!==cardView){cardView=key;select(null,null)}}
+  if(cardsPanel){const key=viewKey();if(key!==cardView){cardView=key;
+    // A view changes how we see a structure, not what we are studying. Keep the
+    // card DOM (answers, folds and scroll); discard only the old surface hit.
+    selectionHit=null;marker.visible=false;clearHighlight();updateFocus(st.sel,null);
+    if(!st.sel){cardsPanel.render(null);window.__lastCard=panel.querySelector('h2')?.textContent||''}
+  }}
   labelsDirty = true; dirty(); }
 function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(st.flip), pH = C0.c.clone().addScaledVector(C0.n, st.off);
   const nW = toWorldDir(nH), pW = toWorld(pH); plane.setFromNormalAndCoplanarPoint(nW, pW);
@@ -2652,7 +2657,7 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
 /* Default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" enables the layer and dims its All labels).
-   Conduction follows its default only on a student's own view change (it starts the beat and the ECG strip). */
+   Conduction follows its default only on a student's own view change. Beat independently controls ECG visibility. */
 function viewDefaults(view, withConduction){ const V = D.VIEW_LAYERS[view]; if (!V) return;
   for (const [k, v] of Object.entries(V)) if (k !== "conduction" || withConduction) st.layers[k] = v !== "off";
   syncLayersUI(); if (withConduction) syncLayers(); }
@@ -2661,8 +2666,9 @@ function chooseCut(k, fromUser){ st.cut = k; st.coronaries=false; st.off = 0; st
   applyMode(); tgt.copy(C0.at ? toWorld(C0.at) : centre); dist = fitDist()*(C0.zoom || 1); faceCut(); if (fromUser !== false) showView(k); }
 /* "Find in this view" = the view's Relevant labels (EXPLORE_DATA.RELEVANT_LABELS) */
 const findName = id => id.startsWith("conduction:") ? D.CONDUCTION_SHORT[id.slice(11)] || id : D.SHORT[id] || id;
-function showView(k){ const C0 = CUTS[k], find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
-  if (cardsPanel) { cardsPanel.render(null); cardsDeep?.render(null); window.__lastCard=C0.name; dirty(); return; }
+function showView(k){ const C0 = CUTS[k];
+  if (cardsPanel) { if(!st.sel){cardsPanel.render(null);window.__lastCard=C0.name} dirty(); return; }
+  const find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
   panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
     (find.length ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${find.map(id => `<button class="chip" data-find="${esc(id)}">${esc(findName(id))}</button>`).join("")}</div>` : "");
   panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const id = b.dataset.find; if (id.startsWith("conduction:")){ if (!st.layers.conduction){ st.layers.conduction = true; syncLayers(); } conduction.select(id.slice(11)); } else select(id, null); }); window.__lastCard = C0.name; dirty(); }
@@ -2896,7 +2902,15 @@ const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,cli
   onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
 Object.assign(window.CONDUCTION_VIEW,conduction);
 ecg.LEGACY_TA=ECG.LEGACY_TIMING.TA_AVN;
-const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction});
+const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction,enabled:()=>st.beat});
+function syncECGVisibility(){const root=$('.conduction-panel'),changed=root.hidden===st.beat;
+  root.hidden=!st.beat;root.classList.toggle('enabled',st.beat);ecgStrip.draw(conduction.state.ms,changed&&st.beat);
+}
+function setBeat(on,t){st.beat=!!on;
+  if(t!=null){st.t=t;beatU.uSys.value=sysCurve(t);HI.setPhase(t)}
+  $('.bBeat').setAttribute('aria-pressed',st.beat);$('.bBeat .st').textContent=st.beat?'On':'Off';
+  syncECGVisibility();dirty();
+}
 const decodeBytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const activationMeshes=[
   {positions:HM.mesh.geometry.attributes.position.array,names:JM.labelNames,walls:JM.wallNames,labels:HM.attr.label,wall:HM.attr.wall},
@@ -3097,7 +3111,7 @@ function labelMode(value){if(!['explore','relevant','all'].includes(value))throw
 $$('[data-label-mode]').forEach(b=>b.onclick=()=>labelMode(b.dataset.labelMode));
 labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;pickLabel(el)});
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
-tog(".bBeat", () => st.beat, v => { st.beat = v; if (!v){ beatU.uSys.value = 0; HI.setPhase(0); } kick(); });
+tog(".bBeat", () => st.beat, v => setBeat(v,v?undefined:0));
 $$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
 $(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
@@ -3191,8 +3205,8 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, highlight, clearHighlight
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
   setColour(c){ st.colour = c; paint(c); $$(".segCol button").forEach(x => x.setAttribute("aria-pressed", x.dataset.c === c)); dirty(); }, setLayer(k, on){ st.layers[k] = on; syncLayers(); },
-  setView, resetView, setBeat(on, t){ st.beat = on; if (t != null){ st.t = t; beatU.uSys.value = sysCurve(t); HI.setPhase(t); } dirty(); },
-  render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); conduction.placeLabels(); if(st.layers.conduction)ecgStrip.draw(conduction.state.ms,true); },
+  setView, resetView, setBeat,
+  render(){ size(); updateLabelVisibility(); renderer.render(scene, cam); placeLabels(); conduction.placeLabels(); ecgStrip.draw(conduction.state.ms,true); },
   visibleLabels: () => callouts.visible(), labelListIds: () => callouts.listIds(),
   heartFill: () => { const p = silhouette(), r = host.getBoundingClientRect(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let i = 0; i < p.length; i += 2){ x0 = Math.min(x0, p[i]); x1 = Math.max(x1, p[i]); y0 = Math.min(y0, p[i+1]); y1 = Math.max(y1, p[i+1]); }
