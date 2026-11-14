@@ -1006,6 +1006,7 @@ async def cards_deep_checks(pg, fr):
     check(await fr.evaluate("EXPLORE_APP.conductionState().enabled&&EXPLORE_APP.panel().partName==='Compact node'"),'DEEP: conduction part chips use the same selection path as model taps')
     invisible=await fr.evaluate("(()=>{EXPLORE_APP.setMode('ext');EXPLORE_APP.conduction(false);const before=EXPLORE_APP.camState(),ids=EXPLORE_APP.highlight(['conduction:his','not-a-tap']);return {ids,still:JSON.stringify(before)===JSON.stringify(EXPLORE_APP.camState())}})()")
     check(not invisible['ids'] and invisible['still'],'DEEP: unavailable/unknown IDs do nothing and never move the camera')
+    check(not await fr.evaluate('EXPLORE_APP.highlightState().conductionShader'),'DEEP: inactive highlights restore the original conduction shader')
     await fr.evaluate("EXPLORE_APP.select('coronary_sinus')")
     check(await deep.locator('[data-detail=supply]>summary>b').inner_text()=='Drainage','DEEP: a vein labels its supply section Drainage')
     await fr.evaluate("EXPLORE_APP.select('RA')")

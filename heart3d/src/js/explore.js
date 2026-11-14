@@ -675,12 +675,19 @@ for(const mat of [kochMat,ctiMat])EXPLORE_UI.focusMaterial(mat);
    The wiring clock, geometry, selected tap and picker are unchanged. */
 const conductionFocusActive={value:0},conductionFocusMeshes=conduction.group.children.filter(m=>m.geometry?.attributes.aFlags),
   conductionFocus=new T.BufferAttribute(new Float32Array(conductionFocusMeshes[0].geometry.attributes.position.count),1);
+const conductionFocusMaterials=[];
 for(const mesh of conductionFocusMeshes){mesh.geometry.setAttribute('aCardFocus',conductionFocus);
-  const mat=mesh.material,prev=mat.onBeforeCompile,key=mat.customProgramCacheKey();
-  mat.onBeforeCompile=shader=>{prev(shader);shader.uniforms.uCardFocusActive=conductionFocusActive;
+  const mat=mesh.material,prev=mat.onBeforeCompile,key=mat.customProgramCacheKey;
+  const compile=shader=>{prev(shader);shader.uniforms.uCardFocusActive=conductionFocusActive;
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute float aCardFocus;uniform float uCardFocusActive;')
       .replace('transformed=aCenter+','vSelected=mix(vSelected,aCardFocus,uCardFocusActive);transformed=aCenter+');};
-  mat.customProgramCacheKey=()=>key+'-card-focus';
+  conductionFocusMaterials.push({mat,prev,key,compile});
+}
+let conductionFocusShader=false;
+function useConductionFocus(enabled){if(enabled===conductionFocusShader)return;conductionFocusShader=enabled;
+  // Keep the original shader and bindings during ordinary playback. Three.js
+  // caches both variants, so returning from a highlight reuses the old program.
+  for(const {mat,prev,key,compile} of conductionFocusMaterials){mat.onBeforeCompile=enabled?compile:prev;mat.customProgramCacheKey=enabled?()=>key.call(mat)+'-card-focus':key;mat.needsUpdate=true}
 }
 let hoverIds=[];
 function conductionTap(id){if(id.startsWith('conduction:'))return id.slice(11);
@@ -722,6 +729,7 @@ function updateFocus(value,hit,temporary=false){
   for(const part of conduction.parts)if(!part.illustrative&&taps.has(part.id))conductionFocus.array.fill(1,part.offset,part.offset+part.count);
   conductionFocus.needsUpdate=true;
   conductionFocusActive.value=temporary||ids.some(id=>!id.startsWith('conduction:')&&conductionTap(id))?1:0;
+  useConductionFocus(conductionFocusActive.value>0);
 }
 function meshShown(mesh){for(let m=mesh;m;m=m.parent)if(!m.visible)return false;return true}
 function highlight(ids){
@@ -743,7 +751,7 @@ function highlight(ids){
   hoverIds=next;updateFocus(next,null,true);dirty();return [...hoverIds];
 }
 function clearHighlight(){if(!hoverIds.length)return;hoverIds=[];updateFocus(st.sel,selectionHit);dirty()}
-function highlightState(){return {ids:[...hoverIds],conductionVertices:conductionFocus.array.reduce((n,x)=>n+(x>.5),0),
+function highlightState(){return {ids:[...hoverIds],conductionShader:conductionFocusShader,conductionVertices:conductionFocus.array.reduce((n,x)=>n+(x>.5),0),
   landmarks:focusRecords.filter(r=>r.kind==='landmark'&&r.mesh.geometry.attributes.aFocus.array.some(x=>x>.5)).map(r=>r.id),
   vertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((n,x)=>n+(x>.5),0),0)};}
 let avJunctionExpanded=false;
