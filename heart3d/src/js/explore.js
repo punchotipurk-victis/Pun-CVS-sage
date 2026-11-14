@@ -451,7 +451,7 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     else if (a.where === "cav"){ const ci = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tc, l => l === ci); }
     else if (a.where === "valve"){ const lis = (D.VALVE_GROUPS[a.id] || [a.id]).map(n => intNames.indexOf(n)), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => lis.some(li => m.userData.labels.includes(li))); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => lis.includes(l), 14); }
     else if (a.where === "lm"){ const lm = JI.landmarks[a.id], ti = intNames.indexOf(a.id); a.cands = [...(Array.isArray(lm?.points) ? lm.points.map(p => new T.Vector3(...p)) : []), ...(ti > 0 ? spread(HI.tissue.geometry, tl, l => l === ti, 6) : [])]; }
-    a.home = a.p.clone(); }
+    a.home = a.p.clone(); a.layoutHome=a.p.clone(); }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
@@ -494,6 +494,9 @@ function updateLabelVisibility(){
         if (d < -.3) return c; const w = c.w.clone().addScaledVector(P.normal, .08 - d); return { p: w.clone().applyMatrix4(H2B.clone().invert()), w }; };
       const tries = a.cands.map(p => onFace({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 16);
       for (const c of tries) if (!occT.length || !occluded(c.w, occT)){ a.p = c.p.clone(); a.w = c.w; show = true; break; } }
+    if(eligible&&a.where==='valve'&&D.VALVE_GROUPS[a.id]&&!show){
+      for(const p of a.cands||[]){const w=toWorld(p);if(!removed(w)&&!occluded(w,occT)){a.p.copy(p);a.w=w;show=true;break}}
+    }
     a.vis = show; }
   // conduction names in a cut: hidden when the part is not drawn in this view, cut away, or behind a wall
   // (the name may move to another visible point of the same part, as for anatomy names)
@@ -616,7 +619,7 @@ function deform(p){const v=p.clone(),z=v.z,w=T.MathUtils.smoothstep(z,-1,1.5),u=
 /* T6.2-B: a dissection view draws only the conduction parts it teaches (EXPLORE_DATA.VIEW_CONDUCTION), and only where they lie on the visible anatomy */
 const cutView=()=>st.mode==="cut"&&!CUTS[st.cut].body;
 const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,endocardium:{geometry:HI.tissue.geometry,names:intNames},
-  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
+  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,keptTissue:w=>!occluded(w,[HI.tissue,...HI.valves.children.filter(m=>m.visible)]),partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
   cycleMs:()=>60000/C.SC.normal.rh.rate,
   clocks:activationClock,
   onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
@@ -687,6 +690,7 @@ function calloutCandidates(){
   };
   const entries=anchors.filter(a=>a.layer!=='conduction'&&(!exploring||a.id===st.sel)).map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
+  for(const e of entries)if(e.anchor.where==='valve')e.rest=project(e.anchor.layoutHome).rest;
   for(const label of conduction.labels){if(exploring&&st.sel!=='conduction:'+label.id)continue;label.el.dataset.id='conduction:'+label.id;
     const at=condAt.get(label.id),p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(at||label.part.anchor)};
     const shown=at?!!conduction.state.enabled:p.visible&&!condHidden.has(label.id);entry.visible=entry.visible&&shown;if(shown)entry.tap=at?{x:entry.x,y:entry.y}:{x:p.x,y:p.y};entries.push(entry);
@@ -814,11 +818,14 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
     focusVertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((s,x)=>s+(x>.5),0),0),
     colours:{impulse:CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uHot.value.getHexString(),muscle:activationDisplay.uniforms.uActHot.value.getHexString(),after:activationDisplay.uniforms.uActAfter.value.getHexString()}}),
   now:()=>conduction.now(),seek:ms=>conduction.seek(ms),tapStruct:id=>conduction.select(id),
+  probeConduction(x,y){rayAt(x,y);return conduction.pick(x,y,ray.ray)?.id||null},
   frameCost:()=>frameCost,
   playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m)return m;const cut=!!cutView();if(cut)updateLabelVisibility();
-    if(cut&&condHidden.has(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
+    if(cut&&D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=host.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
     const occ=cut?[HI.tissue,...HI.valves.children.filter(v=>v.visible)]:[],pts=[at,...conduction.parts.filter(p=>p.id===id&&!p.illustrative&&!p.cap).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&(!cut||!occluded(w,occ))});
-    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if(conduction.pick(x,y,ray.ray)?.id===id)return {...m,x,y,point:p.toArray()};}   // a point where a tap selects this part
+    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if((cut&&['avn','his','lbb'].includes(id)?[[-6,0],[0,-6],[0,0],[0,6],[6,0]]:[[0,0]]).every(([dx,dy])=>{rayAt(x+dx,y+dy);return conduction.pick(x+dx,y+dy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}   // a point where a tap selects this part
+    if(cut&&['avn','his','lbb'].includes(id))for(const p of [new T.Vector3(...m.point),...pts]){const [cx,cy]=scr(p);for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2){const x=cx+dx,y=cy+dy;
+      if([[-6,0],[0,-6],[0,0],[0,6],[6,0]].every(([ox,oy])=>{rayAt(x+ox,y+oy);return conduction.pick(x+ox,y+oy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}}
     const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},

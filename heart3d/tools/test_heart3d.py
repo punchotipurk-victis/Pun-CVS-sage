@@ -426,10 +426,13 @@ async def conduction_view_checks(pg, fr):
             expected=await fr.evaluate("id=>CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)   # T6.2-B: full name in the card
             if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
             counts[mode]+=1
-        # Every visible callout remains a pointer card target, including crowded fascicles.
+        # Exercise the view's teaching callouts. All-mode grouping/layout has its
+        # own UI checks; dense optional layers must not change this tap fixture.
+        await fr.evaluate("EXPLORE_APP.select(null,null);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render()")
         for tap in await fr.evaluate("CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id)"):
             await fr.locator(f'.conduction-label[data-tap="{tap}"]').click()
             if await fr.evaluate("CONDUCTION_VIEW.state.selected")!=tap:errors.append([mode,tap,'label'])
+        await fr.evaluate("EXPLORE_APP.labelMode('explore');EXPLORE_APP.render()")
     check(not errors,"projected midpoint and label taps open the contract cards in External, X-ray and 4C",str(errors[:6]) if errors else str(counts))
     # T6.2-B: the 4C view draws only its own conduction parts (EXPLORE_DATA.VIEW_CONDUCTION.a4c) and only where they lie on the visible anatomy
     shown4c=await fr.evaluate("EXPLORE_DATA.VIEW_CONDUCTION.a4c")
@@ -478,8 +481,10 @@ async def conduction_view_checks(pg, fr):
     # Measure an actually visible viewer, with its visibility observer settled.
     await pg.evaluate('scrollTo(0,0)');await fr.locator('.viewer').scroll_into_view_if_needed();await pg.wait_for_timeout(400)
     # Warm both the network and its compositor layers before comparing steady work.
-    await fr.evaluate("EXPLORE_APP.conduction(true)")
-    await fr.evaluate("async()=>new Promise(resolve=>{let n=0;function frame(){if(++n<32)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)})")
+    await fr.evaluate('EXPLORE_APP.activationReady().then(()=>true)')
+    for warm_on in (False,True):
+        await fr.evaluate('on=>EXPLORE_APP.conduction(on)',warm_on)
+        await fr.evaluate("async()=>new Promise(resolve=>{let n=0;function frame(){if(++n<32)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)})")
     frame_times={False:[],True:[]}
     for on in (False,True,False,True):
         await fr.evaluate("on=>EXPLORE_APP.conduction(on)",on)
@@ -507,7 +512,8 @@ async def redesign_checks(pg,fr):
       const parts=CONDUCTION_VIEW.parts,tree=parts.filter(p=>p.illustrative),g=CGRAPH;
       const tapered=parts.filter(p=>p.curve&&p.edge).every(p=>{
         const P=p.geometry.attributes.position,C=p.geometry.attributes.aCenter;
-        return Math.abs(Math.hypot(P.getX(0)-C.getX(0),P.getY(0)-C.getY(0),P.getZ(0)-C.getZ(0))-p.radii[0])<1e-5;
+        const last=P.count-(p.geometry.parameters.radialSegments+1),radius=i=>Math.hypot(P.getX(i)-C.getX(i),P.getY(i)-C.getY(i),P.getZ(i)-C.getZ(i));
+        return Math.abs(radius(0)-p.radii[0])<1e-5&&Math.abs(radius(last)-p.radii[1])<1e-5;
       });
       const w=parts[0].pair[0].material.userData.wave;
       return {tapered,tree:tree.length,lv:tree.filter(p=>p.ventricle==='LV').length,rv:tree.filter(p=>p.ventricle==='RV').length,
@@ -518,16 +524,21 @@ async def redesign_checks(pg,fr):
     }''')
     check(geometry['tapered'] and geometry['caps'] and geometry['fan'] and geometry['av']==.24,
           'T6.2-C: tapered tubes, round caps, AV bead and translucent LBB fan',str(geometry))
-    check(geometry['tree']>=100 and geometry['lv']>geometry['rv']>0 and geometry['isolated'],
+    check(geometry['tree']==180 and geometry['lv']==120 and geometry['rv']==60 and geometry['isolated'],
           'T6.2-C: illustrative tree is subendocardial, ventricle-owned and has no seed or picker',str(geometry))
     shell=await fr.evaluate('''()=>CONDUCTION_VIEW.parts.filter(p=>p.illustrative).every(p=>p.controlPoints.every((q,j)=>{
-      const v=EXPLORE_APP.activationAt(p.surfaceIndices[j],'interior'),distance=Math.hypot(...q.map((x,k)=>x-v.p[k]));
-      return v.cavity===(p.ventricle==='LV'?'LV_cavity':'RV_cavity')&&distance>=.04999&&distance<=.15001&&
+      const v=EXPLORE_APP.activationAt(p.surfaceIndices[j],'interior'),surface=p.surfacePoints?.[j]||v.p,distance=Math.hypot(...q.map((x,k)=>x-surface[k]));
+      return v.cavity===(p.ventricle==='LV'?'LV_cavity':'RV_cavity')&&(j===0||distance>=.04999&&distance<=.15001)&&
         !(p.ventricle==='LV'&&v.p[2]<1.8&&v.label!=='IVS')&&!(p.ventricle==='RV'&&v.p[2]<1.5);
     }))''')
     check(shell,'T6.2-C: every tree control point lies .05–.15 cm under its own endocardium, outside free zones')
     deterministic=await fr.evaluate("JSON.stringify(CONDUCTION_VIEW.treeRecipe())===JSON.stringify(CONDUCTION_VIEW.treeRecipe())")
     check(deterministic,'T6.2-C: rebuilding the illustrative tree repeats the fixed-seed geometry')
+    connected=await fr.evaluate('''()=>{const tree=CONDUCTION_VIEW.parts.filter(p=>p.illustrative),roots=Object.values(CGRAPH.nodes).filter(n=>n.purkinje).map(n=>n.p);
+      for(const p of CONDUCTION_VIEW.parts.filter(p=>p.edge?.kind==='fasc'&&p.curve))for(const u of [.5,.8])roots.push(p.curve.getPointAt(u).toArray());
+      const ends=tree.map(p=>p.controlPoints.at(-1));return tree.every(p=>[...roots,...ends].some(q=>q.every((x,i)=>Math.abs(x-p.controlPoints[0][i])<1e-6)));
+    }''')
+    check(connected,'REVIEW: decorative branches start exactly on a real root or parent endpoint')
     isolated=await fr.evaluate('''async()=>{
       const before=JSON.stringify(await EXPLORE_APP.activationSeedSources()),times=JSON.stringify(CGRAPH.times('V',{HIS:0}));
       const extras=['A','V'].map(side=>({...CGRAPH.edges.find(e=>e.side===side),T_ms:0,illustrative:true}));
@@ -590,6 +601,33 @@ async def redesign_checks(pg,fr):
                 await pg.screenshot(path=shot(f'T6.2-C-{view}-{"playing" if playing else "rest"}.png'),clip=box)
     await fr.evaluate("EXPLORE_APP.labelMode('explore');EXPLORE_APP.setMode('ext');EXPLORE_APP.setBeat(false,0);EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(false)")
     await pg.set_viewport_size(original_viewport)
+
+async def review_checks(pg,fr):
+    original=pg.viewport_size
+    for width,height in [(1440,900),(1300,1000),(400,860)]:
+        await pg.set_viewport_size({'width':width,'height':height})
+        # Refresh the projection before setCut fits the camera to its aspect.
+        # The ResizeObserver may otherwise run only after this synchronous setup.
+        await fr.evaluate("EXPLORE_APP.resetView();EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('a4c');EXPLORE_APP.conduction(true);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render()")
+        result=await fr.evaluate('''()=>{const a=EXPLORE_APP,c=a.screenOf(CGRAPH.nodes.AVN.p),areas={avn:0,his:0,lbb:0};
+          for(let y=c[1]-60;y<c[1]+60;y+=2)for(let x=c[0]-60;x<c[0]+60;x+=2){const id=a.probeConduction(x,y);if(id in areas)areas[id]+=4}return areas}''')
+        check(all(n>=(150 if width==400 else 300) for n in result.values()),f'REVIEW: {width}px AVN, His and LBB have usable tap areas',str(result))
+        offsets=await fr.evaluate('''()=>{const failures=[];for(const id of ['avn','his','lbb']){const p=EXPLORE_APP.conductionMidpoint(id);for(const [dx,dy] of [[-6,0],[0,-6],[0,0],[0,6],[6,0]])if(EXPLORE_APP.probeConduction(p.x+dx,p.y+dy)!==id)failures.push([id,dx,dy])}return failures}''')
+        check(not offsets,f'REVIEW: {width}px junction taps survive ±6px offsets',str(offsets))
+        pointer_errors=[]
+        for tap in ['avn','his','lbb']:
+            for dx,dy in [(-6,0),(0,-6),(0,0),(0,6),(6,0)]:
+                point=await fr.evaluate('id=>EXPLORE_APP.conductionMidpoint(id)',tap)
+                origin=await fr.locator('.viewer').evaluate('e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return{x:r.left+parseFloat(s.borderLeftWidth),y:r.top+parseFloat(s.borderTopWidth)}}')
+                await fr.locator('.viewer').click(position={'x':point['x']-origin['x']+dx,'y':point['y']-origin['y']+dy})
+                if await fr.evaluate('CONDUCTION_VIEW.state.selected')!=tap:pointer_errors.append([tap,dx,dy])
+        check(not pointer_errors,f'REVIEW: {width}px real pointer taps survive ±6px offsets',str(pointer_errors))
+        if width==1440:
+            boxes=[]
+            for phase in [0,.15,.4,.7]:
+                boxes.append(await fr.evaluate("phase=>{EXPLORE_APP.setBeat(false,phase);EXPLORE_APP.render();return EXPLORE_APP.uiState().callouts.filter(e=>['mitral_valve','tricuspid_valve'].includes(e.id)).map(e=>({id:e.id,x:e.box.x,y:e.box.y}))}",phase))
+            check(all(len(b)==2 for b in boxes) and all(b==boxes[0] for b in boxes),'REVIEW: both AV valve callouts retain their slots through four frames',str(boxes))
+    await pg.set_viewport_size(original)
 
 async def activation_checks(pg,fr):
     """T6.2(c): technical checks plus strict, uncalibrated medical-contract audit.
@@ -815,7 +853,9 @@ async def main():
         if A.b6 or A.redesign:
             await pg.evaluate("location.hash='#heart3d'"); await pg.wait_for_timeout(700)
             fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP',timeout=180000)
-            if A.redesign:await redesign_checks(pg,fr)
+            if A.redesign:
+                await redesign_checks(pg,fr)
+                await review_checks(pg,fr)
             else:
                 for run in range(3):
                     print(f'B6 consecutive run {run+1}/3',flush=True)
@@ -845,6 +885,7 @@ async def main():
             await pg.evaluate("location.hash = '#heart3d'"); await explore_checks(pg, await lab_frame(pg, "heart3d"), "3D Heart")
             await conduction_view_checks(pg,await lab_frame(pg,"heart3d"))
             await redesign_checks(pg,await lab_frame(pg,"heart3d"))
+            await review_checks(pg,await lab_frame(pg,"heart3d"))
             await activation_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
@@ -886,6 +927,8 @@ async def main():
                     before_phone=await fr.evaluate("(()=>{const r=document.querySelector('.conduction-panel').getBoundingClientRect();return [r.top+scrollY,r.height]})()")
                     await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.conduction(true);EXPLORE_APP.seek(2000);EXPLORE_APP.render()")
                     after_phone=await fr.evaluate("(()=>{const r=document.querySelector('.conduction-panel').getBoundingClientRect();return [r.top+scrollY,r.height]})()")
+                    counts=await fr.evaluate("(()=>{const t=CONDUCTION_VIEW.parts.filter(p=>p.illustrative);return [t.filter(p=>p.ventricle==='LV').length,t.filter(p=>p.ventricle==='RV').length]})()")
+                    check(counts==[48,24],'REVIEW: phone tree retains exactly 40% of 120 LV / 60 RV segments',str(counts))
                     check(before_phone==after_phone,"phone Conduction toggle keeps the reserved ECG panel height and position",str([before_phone,after_phone]))
                     await fr.evaluate("EXPLORE_APP.tapStruct('sa');EXPLORE_APP.render()")
                     phone=await fr.evaluate("({leads:document.querySelector('.conduction-panel').dataset.leadCount,selected:document.querySelector('.conLead select').value,labels:CONDUCTION_VIEW.labels.filter(l=>!l.el.hidden).map(l=>l.id),width:[document.documentElement.scrollWidth,innerWidth]})")

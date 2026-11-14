@@ -957,7 +957,7 @@ function create(o){
         // camera so subendocardial paths pass the depth test, while paths behind a whole wall stay hidden (no see-through pass).
         .replace('#include <project_vertex>',`#include <project_vertex>
         if(uPull>0.0){mvPosition.xyz+=normalize(-mvPosition.xyz)*uPull;gl_Position=projectionMatrix*mvPosition;}`);
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+      shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>','#if NUM_CLIPPING_PLANES > 0\nif(vNode<.5){\n#include <clipping_planes_fragment>\n}\n#endif').replace('#include <common>',`#include <common>
         ${varyings}
         uniform float uNowA,uNowV,uPulse,uRest;uniform vec3 uHot,uAfter,uBlockedInk,uRestInk,uNodeInk;`)
         .replace('#include <color_fragment>',`#include <color_fragment>
@@ -990,7 +990,7 @@ function create(o){
         for(let j=0;j<n;j+=2)for(let k=0;k<r;k+=2){const a=j*stride+k,b=Math.min(n,j+2)*stride+k,c=j*stride+(k+2)%r,e=Math.min(n,j+2)*stride+(k+2)%r;glowIndices.push(a+offset,b+offset,c+offset,b+offset,e+offset,c+offset)}
       }else if(p.nodeId)for(const i of p.geometry.index.array)glowIndices.push(i+offset);
       const ink=new T.Color(p.colour).toArray();
-      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=p.illustrative?-2:tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0;arrays.aAlpha[i]=p.alpha??1;arrays.aNode[i]=p.nodeId?1:0;
+      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=p.illustrative?-2:tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0;arrays.aAlpha[i]=p.alpha??1;arrays.aNode[i]=['SA','AVN'].includes(p.nodeId)?1:0;
         arrays.aFlags[i*4+2]=arrays.aTap[i];arrays.aStyle[i*2]=arrays.aAlpha[i];arrays.aStyle[i*2+1]=arrays.aNode[i];}
       offset+=p.count;
     }
@@ -1021,10 +1021,11 @@ function create(o){
       if(blocked)ta=tb=1e9;
       ta=Number.isFinite(ta)?ta:1e9;tb=Number.isFinite(tb)?tb:1e9;
       const travel=edge?g.edgeDuration(edge,state.mode.avDelay)||0:p.nodeId||p.terminalId?0:1;
+      const visible=isVisible(p);
       for(let i=p.offset;i<p.offset+p.count;i++){
         const u=arrays.aU[i];arrays.aTime[i]=Math.min(ta+u*travel,tb+(1-u)*travel);
         arrays.aSide[i]=isA||edge?.side==='AP'?0:1;arrays.aRefractory[i]=isA?s.timing.refractory_ms.atrial:s.timing.refractory_ms.ventricular;
-        arrays.aBlocked[i]=blocked?1:0;arrays.aVisible[i]=isVisible(p)?1:0;
+        arrays.aBlocked[i]=blocked?1:0;arrays.aVisible[i]=visible?1:0;
         arrays.aParam.set([u,arrays.aTime[i],arrays.aSide[i],arrays.aRefractory[i]],i*4);
         arrays.aFlags[i*4]=arrays.aAvNode[i];arrays.aFlags[i*4+1]=arrays.aBlocked[i];arrays.aFlags[i*4+3]=arrays.aVisible[i];
       }
@@ -1033,7 +1034,9 @@ function create(o){
   }
   function tube(edge,curve,radii,id=edge.tap,info={}){
     const [rA,rB]=Array.isArray(radii)?radii:[radii,radii],radius=Math.max(rA,rB);
-    const segments=Math.max(2,Math.ceil(curve.getLength()/.30)),radial=phone?8:12;
+    // Thin decorative fibres need fewer faces than the tappable main tubes.
+    // Keep visibility samples dense independently of the rendered mesh.
+    const length=curve.getLength(),segments=Math.max(2,Math.ceil(length/(info.illustrative?.45:.30))),radial=info.illustrative?4:phone?8:12;
     const geometry=new T.TubeGeometry(curve,segments,1,radial,false),centres=[],uu=[];
     let saFraction=.5;
     if(!edge&&id==='sa'){let distance=Infinity;for(let i=0;i<=200;i++){const u=i/200,d=curve.getPointAt(u).distanceToSquared(vector(g.nodes.SA.p));if(d<distance){distance=d;saFraction=u}}}
@@ -1044,14 +1047,30 @@ function create(o){
     }
     geometry.computeVertexNormals();
     return addPart(id,geometry,centres,uu,{edge,curve,radius,radii:[rA,rB],
-      samples:curve.getSpacedPoints(segments*2),anchor:curve.getPointAt(.5),...info});
+      samples:curve.getSpacedPoints(info.illustrative?Math.max(segments*2,Math.ceil(length/.15)):segments*2),anchor:curve.getPointAt(.5),...info});
   }
-  for(const edge of g.edges){
-    if(edge.kind==='sa')continue;
-    const curve=new T.CatmullRomCurve3(edge.points.map(vector),false,'centripetal');
-    const radii=edge.tap==='rbb'?[.12,.10]:edge.id==='AVN-HIS'?[.24,.20]:redesign.tubes.radiusCm[edge.kind]||[.1,.08];
-    tube(edge,curve,radii);
-    for(const [u,r] of [[0,radii[0]],[1,radii[1]]])cap(edge,curve.getPointAt(u),r,u);
+  const displayEdges=g.edges.filter(e=>e.kind!=='sa');
+  const chains=new Map();
+  for(const e of displayEdges){const key=e.tap+':'+e.kind;if(!chains.has(key))chains.set(key,[]);chains.get(key).push(e)}
+  const continuous=[];
+  for(const edges of chains.values()){
+    const incoming=id=>edges.filter(e=>e.b===id),outgoing=id=>edges.filter(e=>e.a===id),used=new Set();
+    const walk=first=>{const chain=[];let edge=first;while(edge&&!used.has(edge)){used.add(edge);chain.push(edge);edge=incoming(edge.b).length===1&&outgoing(edge.b).length===1?outgoing(edge.b)[0]:null}if(chain.length)continuous.push(chain)};
+    for(const edge of edges)if(incoming(edge.a).length!==1||outgoing(edge.a).length!==1)walk(edge);
+    for(const edge of edges)walk(edge);
+  }
+  for(const edges of continuous){
+    const first=edges[0],profile=first.tap==='rbb'?[.12,.10]:first.id==='AVN-HIS'?[.24,.20]:redesign.tubes.radiusCm[first.kind]||[.1,.08];
+    const curves=edges.map(e=>new T.CatmullRomCurve3(e.points.map(vector),false,'centripetal'));
+    const lengths=curves.map(c=>c.getLength()),total=lengths.reduce((a,b)=>a+b,0);let travelled=0;
+    edges.forEach((edge,i)=>{
+      const radii=[travelled/total,(travelled+lengths[i])/total].map(u=>T.MathUtils.lerp(...profile,u));
+      tube(edge,curves[i],radii);travelled+=lengths[i];
+      for(const [u,id,r] of [[0,edge.a,radii[0]],[1,edge.b,radii[1]]]){
+        const degree=displayEdges.filter(e=>e.a===id||e.b===id).length;
+        if(degree===1)cap(edge,curves[i].getPointAt(u),r,u,curves[i].getTangentAt(u).multiplyScalar(u===0?-1:1));
+      }
+    });
   }
   const saCurve=new T.CatmullRomCurve3(['SA_H','SA','SA_T'].map(id=>vector(g.nodes[id].p)),false,'centripetal');
   tube(null,saCurve,.14,'sa');
@@ -1064,12 +1083,12 @@ function create(o){
     const n=geometry.attributes.position.count,centres=Array.from({length:n},()=>centre.toArray()).flat();
     const picker=new T.Mesh(new T.SphereGeometry(['SA','AVN'].includes(nodeId)?.45:.35,10,8).translate(...centre.toArray()),
       beatify(new T.MeshBasicMaterial({visible:false,clippingPlanes:clips})));group.add(picker);
-    const samples=[centre];if(nodeId==='AVN')for(let i=0;i<n;i+=3)samples.push(new T.Vector3().fromBufferAttribute(geometry.attributes.position,i));
-    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples,picker});
+    const samples=[centre];
+    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples,picker,alpha:['SA','AVN'].includes(nodeId)?1:0});
   }
-  function cap(edge,p,r,u){const geometry=new T.SphereGeometry(r,phone?8:12,6).translate(...p.toArray()),n=geometry.attributes.position.count;
+  function cap(edge,p,r,u,tangent){const geometry=new T.SphereGeometry(r,phone?8:12,6,0,Math.PI*2,0,Math.PI/2).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),tangent)).translate(...p.toArray()),n=geometry.attributes.position.count;
     addPart(edge.tap,geometry,Array.from({length:n},()=>p.toArray()).flat(),new Float32Array(n).fill(u),{edge,radius:r,anchor:p,samples:[p],cap:true});}
-  node('SA',[.45,.24,.22],'sa');node('AVN',[.24,.24,.24],'avn');
+  node('SA',[.45,.24,.22],'sa');node('AVN',[.24,.24,.24],'avn');node('HIS',[.16,.16,.16],'his');node('BIF',[.14,.14,.14],'his');
   // Align the SA bulge with the exported crista axis, with its epicardial proudness.
   const sa=parts.find(p=>p.nodeId==='SA'),saAt=vector(g.nodes.SA.p),saAxis=vector(g.nodes.SA_T.p).sub(vector(g.nodes.SA_H.p)).normalize();
   const saRotation=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),saAxis);
@@ -1088,7 +1107,7 @@ function create(o){
       for(const [a,b,c] of Array.from({length:idx.length/3},(_,i)=>idx.slice(i*3,i*3+3)))idx.push(c,b,a);
       const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(pos,3));geometry.setIndex(idx);geometry.computeVertexNormals();
       const samples=[];for(let j=3;j<=13;j++){const u=j/16;samples.push(a.curve.getPointAt(u).lerp(b.curve.getPointAt(u),.5))}
-      addPart('lbb',geometry,centres,uu,{edge:a.edge,anchor:vector(g.nodes.LB1.p),samples,radius:.02,alpha:.35,ribbon:true});
+      addPart('lbb',geometry,centres,uu,{edge:a.edge,anchor:vector(g.nodes.LB1.p),samples,radius:redesign.tubes.radiusCm.fasc[0],alpha:.35,ribbon:true});
     }
   }
   function buildTree(emit=tube){
@@ -1102,7 +1121,16 @@ function create(o){
       pools[side].push({p:new T.Vector3().fromBufferAttribute(P,i),n:new T.Vector3().fromBufferAttribute(N,i),label,index:i});
     }
     const terminals=Object.entries(g.nodes).filter(([,n])=>n.purkinje);
-    const snap=(p,pool)=>{let best,dd=Infinity;for(const q of pool){const d=q.p.distanceToSquared(p);if(d<dd){dd=d;best=q}}return best};
+    const adjacency=new Map(),index=geometry.index.array;
+    for(let j=0;j<index.length;j+=3)for(let k=0;k<3;k++){const i=index[j+k];if(!adjacency.has(i))adjacency.set(i,[]);adjacency.get(i).push(j)}
+    const snap=(p,pool)=>{
+      let nearest,dd=Infinity;for(const q of pool){const d=q.p.distanceToSquared(p);if(d<dd){dd=d;nearest=q}}
+      const allowed=pool.allowed||(pool.allowed=new Set(pool.map(q=>q.index)));let best=nearest.p.clone(),normal=nearest.n.clone();dd=Infinity;
+      for(const j of adjacency.get(nearest.index)||[]){const ids=[index[j],index[j+1],index[j+2]];if(!ids.every(i=>allowed.has(i)))continue;
+        const vertices=ids.map(i=>new T.Vector3().fromBufferAttribute(P,i)),triangle=new T.Triangle(...vertices),q=triangle.closestPointToPoint(p,new T.Vector3()),d=q.distanceToSquared(p);
+        if(d<dd){dd=d;best=q;const bary=triangle.getBarycoord(q,new T.Vector3());normal=new T.Vector3();ids.forEach((id,k)=>normal.addScaledVector(new T.Vector3().fromBufferAttribute(N,id),bary.getComponent(k)));if(normal.dot(nearest.n)<0)normal.negate()}}
+      return {p:best,n:normal.normalize(),index:nearest.index};
+    };
     for(const side of ['LV','RV']){
       const pool=pools[side],limit=Math.round((side==='LV'?120:60)*(phone?.4:1));if(!pool.length)continue;
       const own=terminals.filter(([id])=>(/^(RB|MOD)/.test(id)?'RV':'LV')===side);
@@ -1114,13 +1142,14 @@ function create(o){
         for(let k=0,n=2+(random()>.55?1:0);k<n&&count<limit;k++){
           const q=snap(start,pool),normal=q.n.clone().normalize(),angle=(25+15*random())*Math.PI/180*(k%2?1:-1);
           let dir=direction.clone().addScaledVector(normal,-direction.dot(normal));if(dir.lengthSq()<.01)dir.set(1,0,-.5);
-          dir.normalize().applyAxisAngle(normal,angle);const length=[.8,.5,.3][level],points=[],surfaceIndices=[],depth=.05+.1*random();
-          for(let j=0;j<=8;j++){const target=start.clone().addScaledVector(dir,length*j/8),hit=snap(target,pool);points.push(hit.p.clone().addScaledVector(hit.n,-depth));surfaceIndices.push(hit.index)}
+          dir.normalize().applyAxisAngle(normal,angle);const length=[.8,.5,.3][level],points=[],surfaceIndices=[],depth=.08+.04*random();
+          const surfaces=[];
+          for(let j=0;j<=8;j++){const target=start.clone().addScaledVector(dir,length*j/8),hit=snap(target,pool);points.push(j===0?start.clone():hit.p.clone().addScaledVector(hit.n,-depth));surfaceIndices.push(hit.index);surfaces.push(hit.p.toArray())}
           if(points[0].distanceTo(points[8])<.1)continue;
-          // Piecewise linear segments keep every vertex on its own subendocardial shell (no spline overshoot).
-          const curve=new T.CurvePath();for(let j=1;j<points.length;j++)curve.add(new T.LineCurve3(points[j-1],points[j]));
+          for(let pass=0;pass<3;pass++)for(let j=1;j<8;j++){const q=points[j-1].clone().add(points[j+1]).multiplyScalar(.5),hit=snap(q,pool);points[j].copy(hit.p).addScaledVector(hit.n,-depth);surfaces[j]=hit.p.toArray()}
+          const curve=new T.CatmullRomCurve3(points,false,'centripetal');
           const nearest=own.reduce((a,b)=>vector(a[1].p).distanceToSquared(points[4])<vector(b[1].p).distanceToSquared(points[4])?a:b)[0];
-          emit(null,curve,redesign.purkinjeTree.radiusCm,'purk',{illustrative:true,terminalId:nearest,ventricle:side,depthCm:depth,surfaceIndices,controlPoints:points.map(p=>p.toArray()),seed:false,tappable:false});count++;
+          emit(null,curve,redesign.purkinjeTree.radiusCm,'purk',{illustrative:true,terminalId:nearest,rootTerminal:terminalId,ventricle:side,depthCm:depth,surfaceIndices,surfacePoints:surfaces,controlPoints:points.map(p=>p.toArray()),seed:false,tappable:false});count++;
           branch(points[8],dir,level+1,terminalId);
         }
       }
@@ -1194,7 +1223,11 @@ function create(o){
     }
     update(state.ms);onChange?.();return next;
   }
-  function isVisible(part){return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
+  function isVisible(part){
+    if(o.cutMode?.()&&['SA','AVN'].includes(part.nodeId)){const P=part.geometry.attributes.position;let kept=false;for(let i=0;i<P.count&&!kept;i++)kept=!removed(project(new T.Vector3().fromBufferAttribute(P,i)).w);if(!kept)return false}
+    if(part.illustrative&&o.cutMode?.()&&!part.samples.every(p=>!removed(project(p).w)&&o.keptTissue?.(project(p).w)))return false;
+    return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)
+  }
   function update(ms,wall=performance.now()){
     state.ms=ms;const rr=cycleMs(),phase=((ms%rr)+rr)%rr;
     const clocks=o.clocks?o.clocks(ms):{a:phase,v:phase-g.constants.TA_AVN-state.mode.avDelay};
@@ -1262,27 +1295,33 @@ function create(o){
     });
     if(leaderDirty){leaderGeometry.attributes.aShow.needsUpdate=true;leaderGeometry.attributes.aScreen.needsUpdate=true}
   }
+  let pickCacheKey='',pickCache=new Map();
   function pick(x,y,ray){
+    const rect=host.getBoundingClientRect();
+    const key=[rect.left,rect.top,rect.width,rect.height].join(',')+'|'+cam.matrixWorld.elements.join(',')+'|'+cam.projectionMatrix.elements.join(',')+'|'+state.ms+'|'+deform(vector(g.nodes.AVN.p)).toArray().join(',')+'|'+clips.map(p=>p.constant).join(',');
+    if(key!==pickCacheKey){pickCacheKey=key;pickCache.clear()}
     if(!state.enabled)return null;const hits=[];
     for(const p of parts){if(p.illustrative||p.cap||!isVisible(p))continue;let px=Infinity,hit3d=false,point=null;
-      for(const sample of p.samples){const q=project(sample);if(q.z<-1||q.z>1||removed(q.w))continue;
+      if(!pickCache.has(p))pickCache.set(p,p.samples.map(sample=>project(sample)).filter(q=>q.z>=-1&&q.z<=1&&!removed(q.w)));
+      for(const q of pickCache.get(p)){
         const distance=Math.hypot(q.x-x,q.y-y);if(distance<px){px=distance;point=q.w}
         if(ray.distanceToPoint(q.w)<(p.nodeId?(['SA','AVN'].includes(p.nodeId)?.45:.35):Math.max(.35,2.5*p.radius)))hit3d=true;
       }
+      if(point&&Number.isFinite(px))px=Math.max(0,px-(p.radius||0)*cam.projectionMatrix.elements[5]*rect.height/(2*point.distanceTo(cam.position)));
       // The visible AV bead owns its projected footprint, including when its
       // centre is just behind the cut plane but its round surface is exposed.
-      if(p.nodeId==='AVN'&&Number.isFinite(px)){
+      if(p.nodeId==='AVN'){
         const c=project(p.anchor),r=host.getBoundingClientRect(),radiusPx=p.radius*cam.projectionMatrix.elements[5]*r.height/(2*c.w.distanceTo(cam.position));
-        if(Math.hypot(c.x-x,c.y-y)<=radiusPx)px=0;
+        px=Math.max(0,Math.hypot(c.x-x,c.y-y)-radiusPx);hit3d=px===0;point=c.w;
       }
-      const rank=p.nodeId==='AVN'?-2:p.id==='his'?-1:p.nodeId==='SA'?0:p.id==='avn'?2:priority(p.id);
+      const rank=p.nodeId==='AVN'?(px===0?-2:0):p.id==='his'?-1:p.nodeId==='SA'?0:p.id==='avn'?2:priority(p.id);
       if(hit3d||px<=d.pick.minScreenPx)hits.push({id:p.id,px,hit3d,point,priority:rank});
     }
     if(!hits.length)return null;
     // A directly targeted centre stays selectable in the tightly packed His/LBB region;
     // contract priority resolves equally close hits and the wider finger fallback.
     const direct=hits.filter(h=>h.px<=3),pool=direct.length?direct:hits;
-    pool.sort((a,b)=>direct.length&&Math.abs(a.px-b.px)>.15?a.px-b.px:a.priority-b.priority||a.px-b.px||a.id.localeCompare(b.id));return pool[0];
+    pool.sort((a,b)=>Math.abs(a.px-b.px)>1?a.px-b.px:a.priority-b.priority||a.px-b.px||a.id.localeCompare(b.id));return pool[0];
   }
   function select(id){if(!(id in d.shortNames))return false;state.selected=id;update(state.ms);onSelect(id);onChange?.();return true;}
   function enable(on){state.enabled=!!on;group.visible=state.enabled;update(state.ms);placeLabels();onChange?.()}
@@ -2422,7 +2461,7 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     else if (a.where === "cav"){ const ci = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tc, l => l === ci); }
     else if (a.where === "valve"){ const lis = (D.VALVE_GROUPS[a.id] || [a.id]).map(n => intNames.indexOf(n)), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => lis.some(li => m.userData.labels.includes(li))); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => lis.includes(l), 14); }
     else if (a.where === "lm"){ const lm = JI.landmarks[a.id], ti = intNames.indexOf(a.id); a.cands = [...(Array.isArray(lm?.points) ? lm.points.map(p => new T.Vector3(...p)) : []), ...(ti > 0 ? spread(HI.tissue.geometry, tl, l => l === ti, 6) : [])]; }
-    a.home = a.p.clone(); }
+    a.home = a.p.clone(); a.layoutHome=a.p.clone(); }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
@@ -2465,6 +2504,9 @@ function updateLabelVisibility(){
         if (d < -.3) return c; const w = c.w.clone().addScaledVector(P.normal, .08 - d); return { p: w.clone().applyMatrix4(H2B.clone().invert()), w }; };
       const tries = a.cands.map(p => onFace({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 16);
       for (const c of tries) if (!occT.length || !occluded(c.w, occT)){ a.p = c.p.clone(); a.w = c.w; show = true; break; } }
+    if(eligible&&a.where==='valve'&&D.VALVE_GROUPS[a.id]&&!show){
+      for(const p of a.cands||[]){const w=toWorld(p);if(!removed(w)&&!occluded(w,occT)){a.p.copy(p);a.w=w;show=true;break}}
+    }
     a.vis = show; }
   // conduction names in a cut: hidden when the part is not drawn in this view, cut away, or behind a wall
   // (the name may move to another visible point of the same part, as for anatomy names)
@@ -2587,7 +2629,7 @@ function deform(p){const v=p.clone(),z=v.z,w=T.MathUtils.smoothstep(z,-1,1.5),u=
 /* T6.2-B: a dissection view draws only the conduction parts it teaches (EXPLORE_DATA.VIEW_CONDUCTION), and only where they lie on the visible anatomy */
 const cutView=()=>st.mode==="cut"&&!CUTS[st.cut].body;
 const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,endocardium:{geometry:HI.tissue.geometry,names:intNames},
-  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
+  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,keptTissue:w=>!occluded(w,[HI.tissue,...HI.valves.children.filter(m=>m.visible)]),partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
   cycleMs:()=>60000/C.SC.normal.rh.rate,
   clocks:activationClock,
   onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
@@ -2658,6 +2700,7 @@ function calloutCandidates(){
   };
   const entries=anchors.filter(a=>a.layer!=='conduction'&&(!exploring||a.id===st.sel)).map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
+  for(const e of entries)if(e.anchor.where==='valve')e.rest=project(e.anchor.layoutHome).rest;
   for(const label of conduction.labels){if(exploring&&st.sel!=='conduction:'+label.id)continue;label.el.dataset.id='conduction:'+label.id;
     const at=condAt.get(label.id),p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(at||label.part.anchor)};
     const shown=at?!!conduction.state.enabled:p.visible&&!condHidden.has(label.id);entry.visible=entry.visible&&shown;if(shown)entry.tap=at?{x:entry.x,y:entry.y}:{x:p.x,y:p.y};entries.push(entry);
@@ -2785,11 +2828,14 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
     focusVertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((s,x)=>s+(x>.5),0),0),
     colours:{impulse:CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uHot.value.getHexString(),muscle:activationDisplay.uniforms.uActHot.value.getHexString(),after:activationDisplay.uniforms.uActAfter.value.getHexString()}}),
   now:()=>conduction.now(),seek:ms=>conduction.seek(ms),tapStruct:id=>conduction.select(id),
+  probeConduction(x,y){rayAt(x,y);return conduction.pick(x,y,ray.ray)?.id||null},
   frameCost:()=>frameCost,
   playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m)return m;const cut=!!cutView();if(cut)updateLabelVisibility();
-    if(cut&&condHidden.has(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
+    if(cut&&D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=host.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
     const occ=cut?[HI.tissue,...HI.valves.children.filter(v=>v.visible)]:[],pts=[at,...conduction.parts.filter(p=>p.id===id&&!p.illustrative&&!p.cap).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&(!cut||!occluded(w,occ))});
-    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if(conduction.pick(x,y,ray.ray)?.id===id)return {...m,x,y,point:p.toArray()};}   // a point where a tap selects this part
+    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if((cut&&['avn','his','lbb'].includes(id)?[[-6,0],[0,-6],[0,0],[0,6],[6,0]]:[[0,0]]).every(([dx,dy])=>{rayAt(x+dx,y+dy);return conduction.pick(x+dx,y+dy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}   // a point where a tap selects this part
+    if(cut&&['avn','his','lbb'].includes(id))for(const p of [new T.Vector3(...m.point),...pts]){const [cx,cy]=scr(p);for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2){const x=cx+dx,y=cy+dy;
+      if([[-6,0],[0,-6],[0,0],[0,6],[6,0]].every(([ox,oy])=>{rayAt(x+ox,y+oy);return conduction.pick(x+ox,y+oy,ray.ray)?.id===id}))return {...m,x,y,visible:true,point:p.toArray()};}}
     const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
