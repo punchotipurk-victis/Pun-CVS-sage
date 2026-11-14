@@ -11,7 +11,7 @@ const T = window.THREE, D = EXPLORE_DATA, C = CONTENT, SIM = SIMC;
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const host = $(".viewer"), labelLayer = $(".labels"), panel = $(".panel");
-let callouts=null, selectionHit=null, cardsPanel=null, cardView=null;const virtualLabels=new Map();
+let callouts=null, selectionHit=null, cardsPanel=null, cardsDeep=null, cardView=null;const virtualLabels=new Map();
 function getData(k){ try { if (window[k]) return window[k]; } catch (e) {} try { if (window.parent && window.parent !== window && window.parent[k]) return window.parent[k]; } catch (e) {} return null; }
 const JM = getData("PUN_HEART_MESH"), JI = getData("PUN_HEART_INTERIOR");
 if (!T || !JM || !JI || !CGRAPH.spec){ host.innerHTML = '<p class="fallback">The refined 3D heart opens from the Pun CVS Lab site (its data is stored in the site page). Open the site and choose 3D Heart.</p>'; window.EXPLORE_APP = { ready: false, error: "no data" }; return; }
@@ -395,7 +395,7 @@ function chooseCut(k, fromUser){ st.cut = k; st.coronaries=false; st.off = 0; st
 /* "Find in this view" = the view's Relevant labels (EXPLORE_DATA.RELEVANT_LABELS) */
 const findName = id => id.startsWith("conduction:") ? D.CONDUCTION_SHORT[id.slice(11)] || id : D.SHORT[id] || id;
 function showView(k){ const C0 = CUTS[k], find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
-  if (cardsPanel) { cardsPanel.render(null); window.__lastCard=C0.name; dirty(); return; }
+  if (cardsPanel) { cardsPanel.render(null); cardsDeep?.render(null); window.__lastCard=C0.name; dirty(); return; }
   panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
     (find.length ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${find.map(id => `<button class="chip" data-find="${esc(id)}">${esc(findName(id))}</button>`).join("")}</div>` : "");
   panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const id = b.dataset.find; if (id.startsWith("conduction:")){ if (!st.layers.conduction){ st.layers.conduction = true; syncLayers(); } conduction.select(id.slice(11)); } else select(id, null); }); window.__lastCard = C0.name; dirty(); }
@@ -610,6 +610,7 @@ function select(id, hit){
   updateFocus(id,hit);
   if(!id?.startsWith("conduction:")&&conduction.state.selected){conduction.state.selected=null;conduction.update(conduction.state.ms)} st.sel = id;
   if (!cardsPanel?.render(id)) { panel.innerHTML = card(id, hit); panel.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (!goSim(b.dataset.go)) b.classList.add("nogo"); }); }
+  cardsDeep?.render(id);
   if (hit && hit.point){ marker.position.copy(hit.point); marker.visible = true; } else marker.visible = false;
   window.__lastCard = panel.querySelector("h2") ? panel.querySelector("h2").textContent : ""; dirty(); }
 
@@ -667,16 +668,84 @@ const focusRecords=[{mesh:HM.mesh,kind:'outer',labels:HM.attr.label},
   ...HM.vessels.children.map(mesh=>({mesh,kind:'vessel'}))];
 for(const record of focusRecords)record.mesh.geometry.setAttribute('aFocus',new T.BufferAttribute(new Float32Array(record.mesh.geometry.attributes.position.count),1));
 for(const mat of [extMat,tisMat,valMat,artMat,veinMat])EXPLORE_UI.focusMaterial(mat);
-function updateFocus(id,hit){
-  for(const record of focusRecords){const attr=record.mesh.geometry.attributes.aFocus,mask=attr.array;
-    if(!id||id.startsWith('conduction:'))mask.fill(0);
-    else if(record.kind==='vessel')mask.fill(id===(record.mesh.userData.kind==='artery'?'artery:':'vein:')+record.mesh.userData.id?1:0);
-    else{const names=record.kind==='outer'?extNames:intNames,labels=new Set((record.kind==='outer'?(extOf[id]||[id]):(D.VALVE_GROUPS[id]||[id])).map(n=>names.indexOf(n)).filter(i=>i>0)),cavity=intNames.indexOf(id);
-      for(let i=0;i<mask.length;i++)mask[i]=id.startsWith('wall:')?(record.kind==='outer'&&D.AHA_WALL(extAha[i])===id.slice(5)?1:0):
-        labels.has(record.labels[i])||cavity>0&&record.cavity?.[i]===cavity?1:0;
-    }attr.needsUpdate=true;
-  }
+for(const [id,group] of [['koch_triangle',koch],['cti',cti]])group.traverse(mesh=>{if(mesh.isMesh){
+  mesh.geometry.setAttribute('aFocus',new T.BufferAttribute(new Float32Array(mesh.geometry.attributes.position.count),1));focusRecords.push({mesh,kind:'landmark',id})}});
+for(const mat of [kochMat,ctiMat])EXPLORE_UI.focusMaterial(mat);
+/* Reuse the wiring's selection interpolant; upload masks only on UI events.
+   The wiring clock, geometry, selected tap and picker are unchanged. */
+const conductionFocusActive={value:0},conductionFocusMeshes=conduction.group.children.filter(m=>m.geometry?.attributes.aFlags),
+  conductionFocus=new T.BufferAttribute(new Float32Array(conductionFocusMeshes[0].geometry.attributes.position.count),1);
+for(const mesh of conductionFocusMeshes){mesh.geometry.setAttribute('aCardFocus',conductionFocus);
+  const mat=mesh.material,prev=mat.onBeforeCompile,key=mat.customProgramCacheKey();
+  mat.onBeforeCompile=shader=>{prev(shader);shader.uniforms.uCardFocusActive=conductionFocusActive;
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute float aCardFocus;uniform float uCardFocusActive;')
+      .replace('transformed=aCenter+','vSelected=mix(vSelected,aCardFocus,uCardFocusActive);transformed=aCenter+');};
+  mat.customProgramCacheKey=()=>key+'-card-focus';
 }
+let hoverIds=[];
+function conductionTap(id){if(id.startsWith('conduction:'))return id.slice(11);
+  if(intNames.includes(id)||extNames.includes(id))return null;
+  return H3CARDS.byTap(id)?.card.labelIds.find(k=>k.startsWith('conduction:'))?.slice(11)||null;
+}
+const landmarkFocusCache=new Map();
+function pointLandmarkMask(id){
+  const lm=JI.landmarks[id];if(lm?.kind!=='point'||!lm.p||intNames.includes(id)||conductionTap(id))return null;
+  if(!landmarkFocusCache.has(id)){
+    const P=HI.tissue.geometry.attributes.position,L=HI.tissue.geometry.attributes.aLabel.array,p=new T.Vector3(...lm.p),v=new T.Vector3();
+    let nearest=0,d=Infinity;for(let i=0;i<P.count;i++){const q=v.fromBufferAttribute(P,i).distanceToSquared(p);if(q<d){d=q;nearest=i}}
+    // Highlight existing tissue only. Use the export's footprint when present;
+    // otherwise a small presentation target around the exported point. This
+    // creates no anatomy and never labels an adjacent tissue class.
+    const mask=new Uint8Array(P.count),radius=lm.r||.35;
+    for(let i=0;i<P.count;i++)if(L[i]===L[nearest]&&v.fromBufferAttribute(P,i).distanceToSquared(p)<=d+radius*radius)mask[i]=1;
+    landmarkFocusCache.set(id,mask);
+  }
+  return landmarkFocusCache.get(id);
+}
+function focusMatcher(record,ids){
+  if(record.kind==='landmark')return ()=>ids.includes(record.id);
+  if(record.kind==='vessel')return ()=>ids.includes((record.mesh.userData.kind==='artery'?'artery:':'vein:')+record.mesh.userData.id);
+  const names=record.kind==='outer'?extNames:intNames,
+    labels=new Set(ids.flatMap(id=>record.kind==='outer'?(extOf[id]||[id]):(D.VALVE_GROUPS[id]||[id])).map(n=>names.indexOf(n)).filter(i=>i>0)),
+    cavities=new Set(ids.map(id=>intNames.indexOf(id)).filter(i=>i>0)),walls=new Set(ids.filter(id=>id.startsWith('wall:')).map(id=>id.slice(5))),
+    points=record.kind==='tissue'?ids.map(pointLandmarkMask).filter(Boolean):[];
+  return i=>labels.has(record.labels[i])||!!record.cavity&&cavities.has(record.cavity[i])||walls.size>0&&record.kind==='outer'&&walls.has(D.AHA_WALL(extAha[i]))||points.some(mask=>mask[i]);
+}
+function updateFocus(value,hit,temporary=false){
+  const ids=Array.isArray(value)?value:value?[value]:[];
+  if(!temporary)hoverIds=[];
+  for(const record of focusRecords){const attr=record.mesh.geometry.attributes.aFocus,mask=attr.array,match=focusMatcher(record,ids);
+    if(!ids.length)mask.fill(0);else for(let i=0;i<mask.length;i++)mask[i]=match(i)?1:0;
+    attr.needsUpdate=true;
+  }
+  const taps=new Set(ids.map(conductionTap).filter(Boolean));conductionFocus.array.fill(0);
+  for(const part of conduction.parts)if(!part.illustrative&&taps.has(part.id))conductionFocus.array.fill(1,part.offset,part.offset+part.count);
+  conductionFocus.needsUpdate=true;
+  conductionFocusActive.value=temporary||ids.some(id=>!id.startsWith('conduction:')&&conductionTap(id))?1:0;
+}
+function meshShown(mesh){for(let m=mesh;m;m=m.parent)if(!m.visible)return false;return true}
+function highlight(ids){
+  world.updateMatrixWorld(true);updateLabelVisibility();
+  const targets=st.mode==='cut'?[HI.tissue,...HI.valves.children.filter(m=>m.visible)]:st.mode==='ext'?[HM.mesh]:[];
+  const pointVisible=(p,mesh)=>{const w=deform(p).applyMatrix4(mesh?.matrixWorld||world.matrixWorld),v=w.clone().project(cam);
+    return !removed(w)&&v.z>-1&&v.z<1&&Math.abs(v.x)<=1&&Math.abs(v.y)<=1&&(!targets.length||mesh?.material.depthTest===false||!occluded(w,targets))};
+  const visible=id=>{
+    for(const record of focusRecords){if(!meshShown(record.mesh))continue;const match=focusMatcher(record,[id]),P=record.mesh.geometry.attributes.position,indices=[];
+      for(let i=0;i<P.count;i++)if(match(i))indices.push(i);
+      const stride=Math.max(1,Math.floor(indices.length/24));for(let j=0;j<indices.length;j+=stride)if(pointVisible(new T.Vector3().fromBufferAttribute(P,indices[j]),record.mesh))return true;
+    }
+    const tap=conductionTap(id);if(!tap||!conduction.state.enabled||condHidden.has(tap))return false;
+    return conduction.parts.some(p=>p.id===tap&&!p.illustrative&&p.pair.some(meshShown)&&p.pair[0].geometry.attributes.aFlags.array[p.offset*4+3]>.5&&
+      (p.samples||[p.anchor]).some(p=>pointVisible(p,null)));
+  };
+  const next=[...new Set(Array.isArray(ids)?ids.filter(id=>typeof id==='string'):[])].filter(visible);
+  if(!next.length){clearHighlight();return []}
+  hoverIds=next;updateFocus(next,null,true);dirty();return [...hoverIds];
+}
+function clearHighlight(){if(!hoverIds.length)return;hoverIds=[];updateFocus(st.sel,selectionHit);dirty()}
+function highlightState(){return {ids:[...hoverIds],conductionVertices:conductionFocus.array.reduce((n,x)=>n+(x>.5),0),
+  landmarks:focusRecords.filter(r=>r.kind==='landmark'&&r.mesh.geometry.attributes.aFocus.array.some(x=>x>.5)).map(r=>r.id),
+  vertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((n,x)=>n+(x>.5),0),0)};}
 let avJunctionExpanded=false;
 const avJunctionLabel=document.createElement('button');avJunctionLabel.type='button';avJunctionLabel.className='lab lab-conduction';avJunctionLabel.dataset.id='group:avJunction';avJunctionLabel.hidden=true;avJunctionLabel.setAttribute('aria-expanded','false');labelLayer.appendChild(avJunctionLabel);
 function pickLabel(el){if(el.dataset.id==='group:avJunction'){avJunctionExpanded=true;avJunctionLabel.setAttribute('aria-expanded','true');callouts?.invalidate();dirty();return}
@@ -804,14 +873,17 @@ document.addEventListener("visibilitychange", kick);
 window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== "lab") return; if (typeof d.visible === "boolean"){ shown = d.visible; kick(); } });
 
 /* ---------- start ---------- */
+const selectCard=id=>{if(id.startsWith('conduction:')){if(!st.layers.conduction){st.layers.conduction=true;syncLayers()}conduction.select(id.slice(11))}else select(id,null)};
 cardsPanel=H3PANEL.create({root:$('.x3-panel'),content:panel,workspace:$('.model-workspace'),
-  select:id=>{if(id.startsWith('conduction:')){if(!st.layers.conduction){st.layers.conduction=true;syncLayers()}conduction.select(id.slice(11))}else select(id,null)},
-  relevant:()=>D.RELEVANT_LABELS[viewKey()]||[],name:findName,goSim,resize:resizeViewer});
+  select:selectCard,
+  relevant:()=>D.RELEVANT_LABELS[viewKey()]||[],name:findName,goSim,resize:resizeViewer,onLevel:()=>cardsDeep?.levelChanged(),onMore:()=>cardsDeep?.scroll()});
+cardsDeep=H3DEEP.create({root:$('.x3-deep'),select:selectCard,goSim,
+  cut:id=>{window.EXPLORE_APP.setMode('cut');window.EXPLORE_APP.setCut(id);host.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'})},onLevel:()=>cardsPanel.render(st.sel)});
 conductionReady=true;
 paint(st.colour); applyMode(); resetView(); select(null, null);syncLayersUI();ecgStrip.draw(conduction.state.ms,true);
 $(".busy").hidden = true;
 condLive = true; refreshCond = () => conduction.refreshVisibility(); refreshCond();
-window.EXPLORE_APP = { ready: true, st, CUTS, anchors, panel:()=>cardsPanel.state(), viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
+window.EXPLORE_APP = { ready: true, st, CUTS, anchors, highlight, clearHighlight, highlightState, panel:()=>cardsPanel.state(), viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),
