@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "heart3d/data/structures.schema.json",
-  "title": "3D Heart structure cards (Step 7; v2 with the glance layer, 14 Nov 2026)",
+  "title": "3D Heart structure cards (Step 7; v3: glance layer + SAQs, 14 Nov 2026)",
   "description": "One card per teachable structure. Written by Claude, reviewed by Punnatorn + cardiology staff. Codex renders it (T7.1) and never edits the text. Short names on the model stay in explore-data.js SHORT (one source); the card shows `name`.",
   "type": "object",
   "required": [
@@ -79,7 +79,8 @@
         "sources",
         "review",
         "stats",
-        "quick"
+        "quick",
+        "saq"
       ],
       "additionalProperties": false,
       "properties": {
@@ -261,7 +262,7 @@
             "resident"
           ],
           "additionalProperties": false,
-          "description": "Student and resident: 2–4 each (priority audience). Fellow: optional, 0–3; when empty the Fellow button is greyed with 'Fellow pearls coming later'. Each pearl = {hook (≤ 8 words, shown bold; the prompt in recall mode), text (the answer/explanation)}.",
+          "description": "Student and resident: 2–4 each (priority audience). Fellow: optional, 0–3; when empty the Fellow button is greyed with 'Fellow pearls coming later'. Each pearl = {hook (≤ 8 words, shown bold), text (the answer/explanation)}.",
           "properties": {
             "student": {
               "type": "array",
@@ -429,6 +430,47 @@
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "saq": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "description": "Short-answer questions (14 Nov; replace 'Quiz me'). The learner types an answer, presses 'Check', then sees the model answer and ticks the key points (self-marking, not stored). Shown by the chosen level; Student and Resident first.",
+          "items": {
+            "type": "object",
+            "required": [
+              "level",
+              "q",
+              "a",
+              "keys"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "level": {
+                "enum": [
+                  "student",
+                  "resident",
+                  "fellow"
+                ]
+              },
+              "q": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "a": {
+                "type": "string"
+              },
+              "keys": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 60
                 }
               }
             }

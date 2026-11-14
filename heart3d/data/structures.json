@@ -1,6 +1,6 @@
 {
  "meta": {
-  "version": "0.3.0 (glance layer: stats, quick, summaries, hooks; 14 Nov 2026)",
+  "version": "0.4.0 (pilots + B1 + B2 valves; SAQs replace Quiz me; 14 Nov 2026)",
   "levels": [
    "student",
    "resident",
@@ -10,7 +10,10 @@
    "Schema: structures.schema.json. Text by Claude, reviewed by Punnatorn + cardiology staff; Codex never edits text (TODO(content)).",
    "Priority audience: students and residents. Fellow pearls are optional and may be empty.",
    "scenario: existing id (CONTENT.SC / SIMC.EXTRA / SIMC.MIS) = Run in simulator; planned:<id> = greyed chip; null = no chip.",
-   "Glance layer (14 Nov): `stats` + `quick` feed the desktop side panel; every long section has a one-line `summary` above its `detail`; every complication has a `hook`. Pearls start with a short hook before the first colon (shown bold)."
+   "Glance layer (14 Nov): `stats` + `quick` feed the desktop side panel; every long section has a one-line `summary` above its `detail`; every complication has a `hook`. Pearls start with a short hook before the first colon (shown bold).",
+   "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring).",
+   "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring).",
+   "SAQs (14 Nov): 2–4 short-answer questions per card ({level, q, a, keys}); the learner types an answer, then compares it with the model answer and ticks the key points. Pearls are always fully visible (no blurring)."
   ]
  },
  "cards": [
@@ -226,6 +229,39 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does the AV node conduct slowly?",
+     "a": "Its cells depolarise with an L-type Ca²⁺ current instead of fast Na⁺ channels and are poorly coupled (few gap junctions), so impulses pass slowly. This delay is most of the PR interval.",
+     "keys": [
+      "Ca²⁺-dependent upstroke, not Na⁺",
+      "Few gap junctions",
+      "Makes most of the PR interval"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Which type of second-degree AV block points to the AV node, and why?",
+     "a": "Mobitz I (Wenckebach): the PR lengthens before a dropped beat because nodal tissue fatigues gradually (decremental conduction). A fixed PR with sudden drops (Mobitz II) points below the node.",
+     "keys": [
+      "Mobitz I / Wenckebach",
+      "Progressive PR lengthening",
+      "Decremental conduction"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Inferior STEMI with complete heart block and a narrow escape at 45/min. Where is the block, why, and what course do you expect?",
+     "a": "In the AV node: ischaemia of the AV nodal artery (from the RCA) plus vagal tone. The narrow escape is junctional; the block is often transient and atropine-responsive. Pace only if unstable or persistent.",
+     "keys": [
+      "Nodal level",
+      "RCA → AV nodal artery + vagal",
+      "Often transient, atropine-responsive",
+      "Pace if unstable"
+     ]
+    }
+   ],
    "sources": [
     "ACC/AHA/HRS 2018 bradycardia and conduction delay guideline",
     "ESC 2019 SVT guideline",
@@ -458,6 +494,38 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does acute MR cause pulmonary oedema when chronic MR of the same size may be tolerated for years?",
+     "a": "In acute MR the LA is small and stiff, so the leak raises LA and pulmonary venous pressure sharply. In chronic MR the LA enlarges and becomes compliant, absorbing the volume at lower pressure.",
+     "keys": [
+      "Acute: small, stiff LA",
+      "Pressure passes to the lungs",
+      "Chronic: big, compliant LA"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does a fast heart rate make mitral stenosis worse?",
+     "a": "A shorter diastole leaves less time for blood to cross the narrow valve, so LA pressure rises and the lungs congest.",
+     "keys": [
+      "Shorter diastole",
+      "Less filling time across the valve",
+      "LA pressure rises"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Asymptomatic severe primary MR, LVEF 58%, LVESD 42 mm. Does she need intervention?",
+     "a": "Yes: severe primary MR with LVEF ≤ 60% or LVESD ≥ 40 mm is an indication for mitral surgery even without symptoms; repair is preferred.",
+     "keys": [
+      "Yes, refer",
+      "LVEF ≤ 60% or LVESD ≥ 40 mm",
+      "Repair preferred"
+     ]
+    }
+   ],
    "sources": [
     "ACC/AHA 2020 valvular heart disease guideline",
     "ESC/EACTS 2021 valvular heart disease guideline",
@@ -683,6 +751,38 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "ST elevation in V1–V4: which artery, and which other leads suggest the block is proximal?",
+     "a": "The LAD. ST elevation also in I and aVL (first diagonal territory) suggests a proximal occlusion.",
+     "keys": [
+      "LAD",
+      "I and aVL",
+      "First diagonal → proximal"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does a new RBBB in anterior MI suggest a large infarct?",
+     "a": "The right bundle (and left anterior fascicle) are fed by the LAD's septal branches. New block means the septum is infarcted: a large territory with a risk of complete heart block.",
+     "keys": [
+      "Septal perforators feed RBB/LAF",
+      "Septal infarction",
+      "Risk of complete heart block"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Pain-free after chest pain; deep, symmetrical T inversion in V2–V3; troponin normal. Diagnosis and next test?",
+     "a": "Wellens pattern: critical proximal LAD stenosis. Arrange coronary angiography and avoid stress testing.",
+     "keys": [
+      "Wellens",
+      "Critical proximal LAD",
+      "Angiography, no stress test"
+     ]
+    }
+   ],
    "sources": [
     "ESC 2023 acute coronary syndromes guideline",
     "Fourth universal definition of MI (2018)",
@@ -865,6 +965,38 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why can the JVP be used to estimate right atrial pressure?",
+     "a": "There is no valve between the internal jugular vein and the RA, so the height of the venous column reflects RA pressure.",
+     "keys": [
+      "No valve between IJV and RA",
+      "Column height = RA pressure"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Describe the circuit of typical atrial flutter and its ECG.",
+     "a": "A large re-entry circuit around the tricuspid ring through the cavotricuspid isthmus. Saw-tooth flutter waves in II, III and aVF; atrial rate ~300/min, often 2:1 block giving ~150/min.",
+     "keys": [
+      "Around the tricuspid ring",
+      "Through the CTI",
+      "Saw-tooth in II, III, aVF",
+      "Often 2:1, ~150/min"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "IVC 2.4 cm, collapsing less than 50% on a sniff. Estimate RA pressure and say what it means.",
+     "a": "About 15 mmHg: raised RA pressure, e.g. RV failure, tamponade or fluid overload.",
+     "keys": [
+      "≈ 15 mmHg",
+      "Raised",
+      "Look for the cause"
+     ]
+    }
+   ],
    "sources": [
     "ASE 2015 chamber quantification",
     "ASE 2010 right heart guidelines",
@@ -1068,6 +1200,37 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the RV wall thinner than the LV wall?",
+     "a": "The pulmonary circulation runs at low pressure. By Laplace's law, lower pressure needs less wall thickness to keep wall stress normal.",
+     "keys": [
+      "Low pulmonary pressure",
+      "Laplace: wall stress ∝ P × r / thickness"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "In an inferior STEMI, which extra lead looks for RV infarction, and what confirms it?",
+     "a": "V4R; ST elevation of 1 mm or more.",
+     "keys": [
+      "V4R",
+      "ST elevation ≥ 1 mm"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Inferior STEMI; after sublingual nitrate the patient is hypotensive with a raised JVP and clear lungs. Explain and manage.",
+     "a": "RV infarction: the RV depends on preload and the nitrate dropped it. Stop nitrates, give cautious IV fluid, keep AV synchrony (pace if blocked), reperfuse urgently; inotropes if still low.",
+     "keys": [
+      "RV infarction",
+      "Preload-dependent",
+      "Stop nitrates, cautious fluid",
+      "Urgent reperfusion"
+     ]
+    }
+   ],
    "sources": [
     "ASE 2015 chamber quantification",
     "ESC 2019 pulmonary embolism guideline",
@@ -1261,6 +1424,35 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does a rise in LA pressure cause pulmonary oedema?",
+     "a": "No valves separate the LA from the pulmonary veins, so LA pressure raises pulmonary capillary pressure and pushes fluid into the interstitium, then the alveoli.",
+     "keys": [
+      "No valve between LA and pulmonary veins",
+      "Capillary hydrostatic pressure ↑",
+      "Interstitial then alveolar oedema"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Where do the triggers of most atrial fibrillation come from?",
+     "a": "The muscle sleeves of the pulmonary veins where they join the LA.",
+     "keys": [
+      "Pulmonary vein sleeves"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "AF started about 5 days ago with no anticoagulation; the patient wants cardioversion now. What do you need first?",
+     "a": "Exclude LA/LAA thrombus with TOE (or anticoagulate for 3 weeks first), then continue anticoagulation for at least 4 weeks after cardioversion.",
+     "keys": [
+      "TOE first (or 3 weeks of anticoagulation)",
+      "Anticoagulate ≥ 4 weeks after"
+     ]
+    }
+   ],
    "sources": [
     "ASE 2015 chamber quantification",
     "ESC 2024 atrial fibrillation guideline",
@@ -1472,6 +1664,37 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Use Laplace's law to explain why aortic stenosis thickens the LV and aortic regurgitation dilates it.",
+     "a": "Wall stress ∝ pressure × radius ÷ thickness. AS raises pressure, so the wall thickens to normalise stress (concentric). AR adds volume, so the chamber enlarges (eccentric), with some thickening to match.",
+     "keys": [
+      "Wall stress ∝ P × r / h",
+      "AS: pressure → concentric",
+      "AR: volume → eccentric"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why is the subendocardium the first layer to become ischaemic?",
+     "a": "It has the highest wall stress and its vessels are squeezed during systole, so it is perfused only in diastole and runs out of supply first.",
+     "keys": [
+      "Highest wall stress",
+      "Compressed in systole",
+      "Perfused in diastole only"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "LVEF 45% with heart failure symptoms. Classify it and name one drug class with strong evidence in this range.",
+     "a": "Heart failure with mildly reduced EF (41–49%). An SGLT2 inhibitor has strong evidence here.",
+     "keys": [
+      "HFmrEF (41–49%)",
+      "SGLT2 inhibitor"
+     ]
+    }
+   ],
    "sources": [
     "ASE 2015 chamber quantification",
     "Universal definition of heart failure (2021)",
@@ -1624,6 +1847,28 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does thrombus form in the left atrial appendage in AF?",
+     "a": "In AF the appendage stops contracting; its narrow neck and ridged lining make blood stagnate (Virchow's stasis), so clot forms there.",
+     "keys": [
+      "No contraction in AF",
+      "Narrow neck, ridged lining",
+      "Stasis"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A 70-year-old man with AF, hypertension and diabetes. Calculate CHA₂DS₂-VA and decide on anticoagulation.",
+     "a": "Age 65–74 = 1, hypertension = 1, diabetes = 1: score 3. Anticoagulate, preferably with a DOAC.",
+     "keys": [
+      "Score 3",
+      "Anticoagulate",
+      "DOAC preferred"
+     ]
+    }
+   ],
    "sources": [
     "ESC 2024 atrial fibrillation guideline",
     "ASE/SCA TOE guidelines (teaching)"
@@ -1793,6 +2038,28 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Which manoeuvres make the HCM murmur louder, and why?",
+     "a": "Standing and Valsalva reduce preload, so the LV gets smaller and the outflow narrows more; squatting and handgrip do the opposite and soften it.",
+     "keys": [
+      "Standing, Valsalva louder",
+      "Less preload → smaller LV → more obstruction",
+      "Squatting, handgrip softer"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A patient with obstructive HCM becomes hypotensive after a diuretic. Why, and what do you give?",
+     "a": "Lower preload worsens the outflow obstruction. Give IV fluid, stop diuretics and vasodilators, use phenylephrine if needed, continue the beta-blocker, and avoid inotropes.",
+     "keys": [
+      "Less preload → more obstruction",
+      "IV fluid",
+      "Phenylephrine, not inotropes"
+     ]
+    }
+   ],
    "sources": [
     "ACC/AHA 2024 HCM guideline",
     "ESC 2023 cardiomyopathy guideline",
@@ -1947,6 +2214,29 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "A PVC has an LBBB shape with an inferior axis. Where does it probably start, and how do you know?",
+     "a": "In the RVOT: an LBBB shape means it starts in the RV (the LV activates late), and an inferior axis means it starts high and travels down.",
+     "keys": [
+      "RVOT",
+      "LBBB = RV origin",
+      "Inferior axis = high start"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Name two findings that make 'RVOT ectopy' not benign and suggest ARVC.",
+     "a": "Any two: T inversion beyond V1–V3 in an adult, an epsilon wave, a dilated or poorly moving RV, a family history of sudden death, polymorphic or exercise VT with syncope.",
+     "keys": [
+      "T inversion beyond V3",
+      "Epsilon wave",
+      "RV dilatation",
+      "Family history of sudden death"
+     ]
+    }
+   ],
    "sources": [
     "EHRA/HRS/APHRS/LAHRS 2019 ventricular arrhythmia consensus",
     "ESC 2022 ventricular arrhythmias guideline"
@@ -2104,6 +2394,27 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Explain the fixed, wide split S2 in an ASD.",
+     "a": "The right heart carries extra volume, so the RV empties later and P2 is late (wide split). Breathing changes both atria together through the defect, so the split does not change (fixed).",
+     "keys": [
+      "Extra right-heart volume → late P2",
+      "Atria share pressure → fixed"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Which TTE view is best for the interatrial septum, and why can the apical 4-chamber view mislead?",
+     "a": "The subcostal view: the beam crosses the septum at a right angle. In A4C the beam runs parallel to the thin fossa, which drops out and mimics a defect.",
+     "keys": [
+      "Subcostal",
+      "Beam perpendicular",
+      "A4C dropout = false hole"
+     ]
+    }
+   ],
    "sources": [
     "ESC 2020 adult congenital heart disease guideline",
     "ASE 2015 guidelines on echo for ASD/PFO"
@@ -2253,6 +2564,28 @@
      }
     ]
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What is the difference between a PFO and a secundum ASD?",
+     "a": "A PFO is an unsealed flap that opens only when RA pressure exceeds LA pressure, so there is no shunt at rest. A secundum ASD is a true hole in the fossa floor that shunts left to right all the time.",
+     "keys": [
+      "PFO = flap, opens only when RA > LA",
+      "ASD = hole, constant left-to-right shunt"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A 45-year-old with cryptogenic stroke has a large PFO with an atrial septal aneurysm. What do you discuss?",
+     "a": "This is a high-risk PFO in a patient under 60: after other causes are excluded, PFO closure plus antiplatelet therapy lowers recurrence compared with antiplatelets alone. Decide with a heart–brain team.",
+     "keys": [
+      "High-risk PFO, age < 60",
+      "Exclude other causes",
+      "Closure + antiplatelet",
+      "Heart–brain team"
+     ]
+    }
+   ],
    "sources": [
     "AHA/ASA 2021 secondary stroke prevention guideline",
     "CLOSE, RESPECT and REDUCE trials (NEJM 2017)",
@@ -2441,6 +2774,36 @@
     ],
     "fellow": []
    },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does a small VSD give a louder murmur than a large one?",
+     "a": "A small hole keeps a big LV–RV pressure difference, so the jet is fast and loud. A large hole lets the pressures equalise, so the jet is slow and quiet.",
+     "keys": [
+      "Small hole keeps the pressure gap",
+      "Fast jet = loud"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "What makes the small q in I and V6, and why does LBBB remove it?",
+     "a": "The septum depolarises first, from left to right, which points away from the lateral leads (q in I, V6) and towards V1 (small r). In LBBB the septum is activated from the right, so the q disappears.",
+     "keys": [
+      "Septum fires first, left → right",
+      "q in I/V6, r in V1",
+      "LBBB reverses it"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "On PSAX the septum flattens only in diastole. What does this tell you?",
+     "a": "RV volume overload (e.g. ASD, severe TR). Flattening in systole would mean RV pressure overload.",
+     "keys": [
+      "Diastolic = volume overload",
+      "Systolic = pressure overload"
+     ]
+    }
+   ],
    "sources": [
     "ACC/AHA 2024 HCM guideline",
     "ESC 2020 adult congenital heart disease guideline",
@@ -2453,6 +2816,1433 @@
    "review": {
     "status": "draft",
     "batch": "B1"
+   }
+  },
+  {
+   "id": "tricuspid_valve",
+   "name": "Tricuspid valve",
+   "category": "Valve",
+   "layer": "valves",
+   "labelIds": [
+    "tricuspid_valve",
+    "TV_septal",
+    "TV_anterior",
+    "TV_posterior"
+   ],
+   "aliases": [
+    "TV"
+   ],
+   "core": "The RV inlet valve: three leaflets on a large, flexible ring that leaks easily when the RV or its ring dilates.",
+   "stats": [
+    {
+     "value": "3",
+     "label": "leaflets"
+    },
+    {
+     "value": "Lower",
+     "label": "hinge than the mitral"
+    },
+    {
+     "value": "Inspiration",
+     "label": "makes its murmurs louder"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Between **RA and RV**; its septal hinge sits a little **lower (more apical)** than the mitral",
+     "focus": [
+      "TV_septal",
+      "mitral_valve"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Three leaflets: **anterior** (largest), **posterior**, **septal**",
+     "focus": [
+      "TV_anterior",
+      "TV_posterior",
+      "TV_septal"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Most TR is **functional**: the RV and ring dilate (pulmonary hypertension, AF)"
+    },
+    {
+     "icon": "exam",
+     "text": "TR murmur **louder on inspiration**; giant **v waves** in the JVP"
+    },
+    {
+     "icon": "key",
+     "text": "**Injecting drug use** → tricuspid endocarditis, septic lung emboli"
+    }
+   ],
+   "parts": [
+    {
+     "labelId": "TV_anterior",
+     "name": "Anterior leaflet",
+     "note": "The largest leaflet; most of its chordae come from the anterior papillary muscle, which the moderator band reaches."
+    },
+    {
+     "labelId": "TV_posterior",
+     "name": "Posterior leaflet",
+     "note": "The smallest, along the inferior (diaphragmatic) wall of the RV."
+    },
+    {
+     "labelId": "TV_septal",
+     "name": "Septal leaflet",
+     "note": "Hinged on the septum a little lower than the mitral hinge; the His bundle runs just below its attachment, near the membranous septum."
+    }
+   ],
+   "anatomy": {
+    "summary": "Three leaflets on a large, flexible ring, held by the RV papillary muscles, including the anterior one reached by the moderator band.",
+    "detail": "The largest valve ring in the heart, between RA and RV. Anterior, posterior and septal leaflets take chordae from the anterior, posterior and small septal papillary muscles, and some straight from the septum. The septal hinge is normally a few millimetres closer to the apex than the mitral hinge. The ring has little fibrous support along the free wall, so it dilates mostly there."
+   },
+   "function": {
+    "summary": "Opens in diastole at low pressure and closes at the start of systole (tricuspid part of S1).",
+    "detail": "Flow across it rises with inspiration (more venous return), so right-sided murmurs get louder on inspiration. Whether it seals depends on the size and shape of the RV as much as on the leaflets."
+   },
+   "supply": {
+    "summary": "The leaflets have no vessels of importance; the papillary muscles are fed by RCA and LAD branches.",
+    "detail": "Anterior papillary muscle: RCA and LAD (via the moderator-band artery). Posterior papillary muscle: RCA / PDA."
+   },
+   "relations": [
+    {
+     "with": "His bundle and AV node",
+     "why": "Lie close to the septal hinge: tricuspid surgery and VSD closure can cause heart block."
+    },
+    {
+     "with": "Right coronary artery in the right AV groove",
+     "why": "Runs around the ring and can be injured during annuloplasty."
+    },
+    {
+     "with": "Coronary-sinus ostium and CTI",
+     "why": "Neighbours on the RA floor; the flutter isthmus runs from the IVC to this ring."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "a4c",
+      "text": "Septal and lateral leaflets; the TR jet and its velocity give RV systolic pressure."
+     },
+     {
+      "id": "psax_av",
+      "text": "Beside the aortic valve, on the left of the image."
+     },
+     {
+      "id": "subxiphoid_4c",
+      "text": "Leaflets and TR jet when apical views are poor."
+     }
+    ],
+    "cut": [
+     {
+      "id": "rvOpen",
+      "text": "Opened RV: leaflets, chordae, papillary muscles."
+     },
+     {
+      "id": "a4c",
+      "text": "Hinge slightly lower than the mitral."
+     },
+     {
+      "id": "valves",
+      "text": "From above, beside the mitral valve."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign; severe TR enlarges the RA (tall P waves) and often comes with AF."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Functional tricuspid regurgitation",
+     "mechanism": "RV dilation (pulmonary hypertension, left-heart disease, AF) stretches the ring and pulls the leaflets apart.",
+     "presentation": "Raised JVP with giant v waves, pulsatile liver, oedema, ascites; holosystolic murmur louder on inspiration.",
+     "scenario": null,
+     "hook": "Raised JVP, v waves, louder on inspiration"
+    },
+    {
+     "name": "Tricuspid endocarditis",
+     "mechanism": "Bacteria from injected drugs or long-term lines settle on the leaflets (often S. aureus).",
+     "presentation": "Fever, septic pulmonary emboli (several cavitating lung nodules), new TR.",
+     "scenario": "planned:tvEndocarditis",
+     "hook": "Injecting drugs, fever, septic lung emboli"
+    },
+    {
+     "name": "Ebstein anomaly",
+     "mechanism": "The septal and posterior leaflets are hinged far down in the RV, turning part of the RV into atrium.",
+     "presentation": "Cyanosis or heart failure, severe TR, often an accessory pathway (WPW).",
+     "scenario": "planned:ebstein",
+     "hook": "Low-set leaflets, TR, often WPW"
+    },
+    {
+     "name": "Carcinoid heart disease",
+     "mechanism": "Serotonin from liver metastases thickens and stiffens right-sided valves; the lung inactivates it before it reaches the left heart.",
+     "presentation": "TR (and pulmonary stenosis) with flushing and diarrhoea.",
+     "scenario": null,
+     "hook": "Stiff right-sided valves; flushing, diarrhoea"
+    },
+    {
+     "name": "Lead-related TR",
+     "mechanism": "A pacemaker or ICD lead crossing the valve holds a leaflet open.",
+     "presentation": "New or worse TR after a device.",
+     "scenario": null,
+     "hook": "TR that starts after a device"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why right-sided murmurs grow on inspiration",
+      "text": "Inspiration lowers chest pressure, more blood returns to the right heart, and more flows across the tricuspid valve (Carvallo sign)."
+     },
+     {
+      "hook": "The septal hinge sits lower",
+      "text": "On the 4-chamber view the tricuspid hinge is a little closer to the apex than the mitral: a quick way to tell the RV from the LV. Far lower suggests Ebstein anomaly."
+     },
+     {
+      "hook": "Carcinoid spares the left heart",
+      "text": "The lung breaks down serotonin, so carcinoid plaques hit the tricuspid and pulmonary valves unless there is a shunt or lung metastases."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "The TR jet gives RV pressure",
+      "text": "RV systolic pressure ≈ 4 × (peak TR velocity)² + RA pressure; a TR velocity above 2.8 m/s suggests pulmonary hypertension."
+     },
+     {
+      "hook": "Check the TV during left-sided surgery",
+      "text": "Repair the tricuspid valve at mitral surgery when TR is severe, or moderate with a dilated ring."
+     },
+     {
+      "hook": "Lung nodules plus fever",
+      "text": "Several cavitating lung nodules in a febrile person who injects drugs: blood cultures and an echo for tricuspid vegetations."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Transcatheter tricuspid therapy",
+      "text": "Edge-to-edge repair or transcatheter replacement is an option for severe symptomatic TR at high surgical risk."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "A holosystolic murmur at the left lower sternal border gets louder on inspiration. Which valve, and why?",
+     "a": "Tricuspid regurgitation: inspiration increases venous return to the right heart, so more blood leaks back through the tricuspid valve.",
+     "keys": [
+      "Tricuspid regurgitation",
+      "Inspiration → more venous return"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does carcinoid heart disease usually spare the left-sided valves?",
+     "a": "Serotonin from liver metastases reaches the right heart first and is broken down in the lung, so it rarely reaches the left heart unless there is a shunt or lung metastases.",
+     "keys": [
+      "Liver metastases → right heart",
+      "Lung inactivates serotonin",
+      "Exceptions: shunt, lung metastases"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Peak TR velocity 3.5 m/s, RA pressure about 10 mmHg. Estimate RV systolic pressure.",
+     "a": "4 × 3.5² + 10 ≈ 59 mmHg: raised, suggesting pulmonary hypertension if there is no pulmonary stenosis.",
+     "keys": [
+      "4v² + RA pressure",
+      "≈ 59 mmHg",
+      "Raised"
+     ]
+    }
+   ],
+   "sources": [
+    "ACC/AHA 2020 valvular heart disease guideline",
+    "ESC/EACTS 2021 valvular heart disease guideline",
+    "ASE 2017 native valve regurgitation",
+    "ESC 2023 endocarditis guideline"
+   ],
+   "verify": [
+    "Papillary muscle supply of the TV",
+    "TR velocity 2.8 m/s threshold",
+    "Ring dilation threshold for concomitant repair (≥ 40 mm or > 21 mm/m²)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "aortic_valve",
+   "name": "Aortic valve",
+   "category": "Valve",
+   "layer": "valves",
+   "labelIds": [
+    "aortic_valve",
+    "AV_cusps.RCC",
+    "AV_cusps.LCC",
+    "AV_cusps.NCC"
+   ],
+   "aliases": [
+    "AV"
+   ],
+   "core": "The LV outlet valve: three semilunar cusps whose sinuses give rise to the coronary arteries.",
+   "stats": [
+    {
+     "value": "3–4 cm²",
+     "label": "normal area"
+    },
+    {
+     "value": "≤ 1 cm²",
+     "label": "severe stenosis"
+    },
+    {
+     "value": "1–2%",
+     "label": "have a bicuspid valve"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "At the root of the aorta, between the **mitral valve** and the **RVOT**, at the centre of the heart",
+     "focus": [
+      "aortic_valve"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "Cusps are named by their **coronary**: right, left and non-coronary",
+     "focus": [
+      "AV_cusps.RCC",
+      "AV_cusps.LCC",
+      "AV_cusps.NCC"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**Severe AS + symptoms** (angina, syncope, breathlessness) = replace the valve"
+    },
+    {
+     "icon": "exam",
+     "text": "AS: **ejection murmur to the carotids**, slow pulse; AR: **early diastolic** murmur, wide pulse pressure"
+    },
+    {
+     "icon": "ecg",
+     "text": "Disease near the **non-coronary cusp** can block the **His bundle**",
+     "focus": [
+      "AV_cusps.NCC",
+      "conduction:his"
+     ]
+    }
+   ],
+   "parts": [
+    {
+     "labelId": "AV_cusps.RCC",
+     "name": "Right coronary cusp",
+     "note": "The most anterior cusp; the right coronary artery arises from its sinus."
+    },
+    {
+     "labelId": "AV_cusps.LCC",
+     "name": "Left coronary cusp",
+     "note": "The left main coronary artery arises from its sinus."
+    },
+    {
+     "labelId": "AV_cusps.NCC",
+     "name": "Non-coronary cusp",
+     "note": "Posterior, facing the atrial septum. It sits above the membranous septum and His bundle, so root disease or surgery here can cause heart block."
+    }
+   ],
+   "anatomy": {
+    "summary": "Three semilunar cusps, each with a sinus of Valsalva behind it, at the centre of the heart; no chordae.",
+    "detail": "The cusps hang from a crown-shaped attachment. The right and left coronary arteries arise from two of the sinuses. Behind, the valve is joined to the anterior mitral leaflet (aorto-mitral curtain); in front lies the RVOT; below the right and non-coronary cusps lie the membranous septum and the His bundle."
+   },
+   "function": {
+    "summary": "Opens passively in systole and closes in diastole (A2); with the valve closed, the coronaries fill.",
+    "detail": "Normal area is 3–4 cm². Most coronary flow happens in diastole, so in severe AR the low diastolic pressure cuts coronary perfusion. A2 normally comes just before P2."
+   },
+   "supply": {
+    "summary": "The cusps have no vessels; the coronary ostia sit in the sinuses just above them.",
+    "detail": "The ostia usually lie below the sinotubular junction. Bulky calcium or a transcatheter valve can cover an ostium (a TAVI risk)."
+   },
+   "relations": [
+    {
+     "with": "Coronary ostia",
+     "why": "Calcium or a TAVI valve can block them."
+    },
+    {
+     "with": "Membranous septum and His bundle",
+     "why": "Below the right and non-coronary cusps: heart block after surgery or TAVI, and in root abscesses."
+    },
+    {
+     "with": "Anterior mitral leaflet",
+     "why": "Shares the aorto-mitral curtain: endocarditis spreads between the two valves."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "plax",
+      "text": "Cusp opening and calcium; LVOT and aortic root size."
+     },
+     {
+      "id": "psax_av",
+      "text": "Three cusps ('Mercedes' sign); a bicuspid valve opens as a fish-mouth."
+     },
+     {
+      "id": "a5c",
+      "text": "Doppler: stenosis velocity and gradient, regurgitant jets."
+     }
+    ],
+    "cut": [
+     {
+      "id": "valves",
+      "text": "Centre of the base, wedged between the other three valves."
+     },
+     {
+      "id": "lvOpen",
+      "text": "Above the LVOT."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Stenosis or regurgitation causes LVH voltages with strain; root disease can cause PR prolongation or heart block."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Aortic stenosis",
+     "mechanism": "Calcific degeneration (older age) or a bicuspid valve (earlier) narrows the opening; the LV thickens to push through it.",
+     "presentation": "Exertional angina, syncope or breathlessness; ejection murmur to the carotids, slow-rising pulse, soft A2.",
+     "scenario": "planned:aorticStenosis",
+     "hook": "Angina, syncope, breathlessness on exertion"
+    },
+    {
+     "name": "Aortic regurgitation",
+     "mechanism": "Damaged cusps (endocarditis, rheumatic, bicuspid) or a dilated root (Marfan, aortitis) let blood fall back in diastole, volume-loading the LV.",
+     "presentation": "Wide pulse pressure, bounding pulses, early diastolic murmur at the left sternal edge; acute AR causes sudden pulmonary oedema.",
+     "scenario": "planned:aorticRegurg",
+     "hook": "Wide pulse pressure, early diastolic murmur"
+    },
+    {
+     "name": "Bicuspid aortic valve",
+     "mechanism": "Two cusps instead of three; turbulent flow wears them early; often with a dilated aorta and coarctation.",
+     "presentation": "Stenosis or regurgitation decades earlier than usual; ejection click.",
+     "scenario": null,
+     "hook": "Early AS or AR, dilated aorta, coarctation"
+    },
+    {
+     "name": "Endocarditis with root abscess",
+     "mechanism": "Infection spreads into the ring next to the membranous septum and conduction axis.",
+     "presentation": "Fever and new AR; a new long PR or heart block points to an abscess.",
+     "scenario": "planned:avEndocarditis",
+     "hook": "New AV block in endocarditis = abscess"
+    },
+    {
+     "name": "Heart block or coronary occlusion after TAVI",
+     "mechanism": "The prosthesis presses on the conduction axis below the non- and right cusps, or pushes calcium over a coronary ostium.",
+     "presentation": "New LBBB or complete heart block; sudden hypotension with ST changes during the procedure.",
+     "scenario": "planned:postTavi",
+     "hook": "New LBBB, heart block or ostial occlusion"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "The classic AS triad",
+      "text": "Angina, syncope and breathlessness on exertion. Once symptoms start, survival without valve replacement falls quickly."
+     },
+     {
+      "hook": "Why AR widens the pulse pressure",
+      "text": "A big stroke volume raises systolic pressure; blood falling back into the LV drops diastolic pressure."
+     },
+     {
+      "hook": "Bicuspid = earlier disease",
+      "text": "About 1–2% of people have one; it calcifies decades earlier than a three-cusp valve and often comes with a dilated aorta."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Severe AS numbers",
+      "text": "Peak velocity ≥ 4 m/s, mean gradient ≥ 40 mmHg, valve area ≤ 1.0 cm². Symptoms or LVEF < 50% → valve replacement."
+     },
+     {
+      "hook": "Low-flow, low-gradient AS",
+      "text": "Small area but low gradient with a low EF: dobutamine echo separates true severe AS from pseudo-severe; a CT calcium score helps when the EF is normal."
+     },
+     {
+      "hook": "Respect the fixed obstruction",
+      "text": "In severe AS, vasodilators and sudden falls in preload (spinal anaesthesia, dehydration) can drop blood pressure sharply."
+     },
+     {
+      "hook": "Endocarditis + new PR prolongation",
+      "text": "Suspect an aortic root abscess: TOE and urgent surgical review."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "TAVI or surgery",
+      "text": "A heart-team choice based on age, surgical risk, anatomy (bicuspid valve, coronary heights, annulus size) and life expectancy."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Name the classic symptoms of severe aortic stenosis and explain exertional syncope.",
+     "a": "Angina, syncope and breathlessness. On exertion the vessels dilate but the narrow valve cannot raise output, so blood pressure and brain perfusion fall.",
+     "keys": [
+      "Angina, syncope, breathlessness",
+      "Fixed output + vasodilation",
+      "BP falls"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does aortic regurgitation produce a wide pulse pressure?",
+     "a": "The LV ejects a large stroke volume (high systolic pressure), and blood falls back into the LV in diastole (low diastolic pressure).",
+     "keys": [
+      "Large stroke volume → high systolic",
+      "Backflow → low diastolic"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Peak velocity 4.3 m/s, mean gradient 46 mmHg, area 0.8 cm², LVEF 60%, new breathlessness on stairs. Next step?",
+     "a": "Severe symptomatic aortic stenosis: refer to the heart team for aortic valve replacement (surgical or TAVI).",
+     "keys": [
+      "Severe AS",
+      "Symptomatic",
+      "Valve replacement via heart team"
+     ]
+    }
+   ],
+   "sources": [
+    "ACC/AHA 2020 valvular heart disease guideline",
+    "ESC/EACTS 2021 valvular heart disease guideline",
+    "ASE/EACVI 2017 aortic stenosis recommendations",
+    "ESC 2023 endocarditis guideline"
+   ],
+   "verify": [
+    "Normal area 3–4 cm²",
+    "Bicuspid prevalence 1–2%",
+    "Severe AS thresholds"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "pulmonary_valve",
+   "name": "Pulmonary valve",
+   "category": "Valve",
+   "layer": "valves",
+   "labelIds": [
+    "pulmonary_valve",
+    "PV_cusps"
+   ],
+   "aliases": [
+    "PV",
+    "pulmonic valve"
+   ],
+   "core": "The RV outlet valve: three thin semilunar cusps at the top of the RVOT, working at low pressure.",
+   "stats": [
+    {
+     "value": "3",
+     "label": "thin cusps"
+    },
+    {
+     "value": "Highest",
+     "label": "and most anterior valve"
+    },
+    {
+     "value": "P2",
+     "label": "its closure sound"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "The **highest, most anterior** valve, at the top of the RVOT, left of the aortic valve",
+     "focus": [
+      "pulmonary_valve",
+      "RVOT"
+     ]
+    },
+    {
+     "icon": "exam",
+     "text": "**P2** is loud in pulmonary hypertension and splits from A2 on inspiration"
+    },
+    {
+     "icon": "danger",
+     "text": "**Pulmonary stenosis** is usually congenital: tetralogy of Fallot, Noonan syndrome"
+    },
+    {
+     "icon": "key",
+     "text": "Severe **pulmonary regurgitation** is common years after Fallot repair"
+    }
+   ],
+   "parts": [
+    {
+     "labelId": "PV_cusps",
+     "name": "Cusps",
+     "note": "Three thin semilunar cusps (anterior, right, left); no coronary arteries arise from their sinuses."
+    }
+   ],
+   "anatomy": {
+    "summary": "Three thin cusps on the muscular RVOT; no fibrous link to the tricuspid valve.",
+    "detail": "Sits higher and more anterior than the aortic valve, on a free-standing muscular funnel (which is why it can be moved in the Ross operation). The two outflow tracts cross: the pulmonary trunk runs back and to the left of the aorta."
+   },
+   "function": {
+    "summary": "Opens in systole and closes in diastole (P2), at about a fifth of systemic pressure.",
+    "detail": "P2 normally follows A2. Inspiration fills the RV more, so it empties later and P2 moves away from A2 (physiological splitting)."
+   },
+   "supply": {
+    "summary": "No vessels of importance; the RVOT around it is fed by the conus branch.",
+    "detail": "Conus branch from the RCA (or its own ostium) and LAD branches."
+   },
+   "relations": [
+    {
+     "with": "Aortic valve",
+     "why": "Behind and to the right: the outflow tracts cross."
+    },
+    {
+     "with": "Left main coronary artery",
+     "why": "Runs just behind the pulmonary trunk."
+    },
+    {
+     "with": "Ross operation",
+     "why": "The patient's own pulmonary valve can replace a diseased aortic valve; a homograft takes its place."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_av",
+      "text": "Beyond the RVOT, upper right of the image; Doppler for stenosis and regurgitation."
+     }
+    ],
+    "cut": [
+     {
+      "id": "rvOpen",
+      "text": "At the top of the RVOT."
+     },
+     {
+      "id": "valves",
+      "text": "The front valve of the base."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Significant stenosis: RV hypertrophy (right axis, dominant R in V1)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Pulmonary stenosis",
+     "mechanism": "Fused or dysplastic cusps (congenital; Noonan) block RV outflow; the RV thickens.",
+     "presentation": "Ejection click and murmur at the left upper sternal edge, RVH; severe cases cause exertional breathlessness.",
+     "scenario": "planned:pulmStenosis",
+     "hook": "Click + ejection murmur, RVH"
+    },
+    {
+     "name": "Regurgitation after Fallot repair",
+     "mechanism": "Repair opens up the valve area, so it leaks; the RV dilates over years.",
+     "presentation": "Exercise intolerance, VT, RV dilation on CMR.",
+     "scenario": "planned:tof",
+     "hook": "RV dilation years after repair"
+    },
+    {
+     "name": "Pulmonary hypertension",
+     "mechanism": "The valve is normal, but high pressure dilates the trunk and ring.",
+     "presentation": "Loud P2, early diastolic pulmonary regurgitation murmur (Graham Steell), RV failure.",
+     "scenario": null,
+     "hook": "Loud P2, Graham Steell murmur"
+    },
+    {
+     "name": "Carcinoid heart disease",
+     "mechanism": "Serotonin plaques stiffen the cusps.",
+     "presentation": "Pulmonary stenosis and regurgitation alongside TR.",
+     "scenario": null,
+     "hook": "Stiff cusps alongside TR"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Physiological splitting",
+      "text": "Inspiration sends more blood to the right heart, so the RV empties later and P2 comes after A2."
+     },
+     {
+      "hook": "A loud P2",
+      "text": "A loud, sometimes palpable P2 means high pulmonary artery pressure snapping the valve shut."
+     },
+     {
+      "hook": "Noonan and pulmonary stenosis",
+      "text": "A dysplastic, stenotic pulmonary valve is the commonest heart lesion in Noonan syndrome."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Fallot follow-up",
+      "text": "After Fallot repair, follow RV size and function with CMR and replace the pulmonary valve before the RV fails or VT appears."
+     },
+     {
+      "hook": "Balloon first",
+      "text": "Typical dome-shaped congenital valvar pulmonary stenosis is treated with balloon valvuloplasty."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Explain why S2 splits on inspiration.",
+     "a": "Inspiration increases venous return to the right heart, so RV ejection lasts longer and P2 comes later than A2.",
+     "keys": [
+      "More right-heart filling",
+      "Longer RV ejection",
+      "P2 later"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "An adult whose tetralogy of Fallot was repaired in childhood now tires easily. What valve problem do you expect and how do you follow it?",
+     "a": "Severe pulmonary regurgitation with RV dilation. Follow RV volumes and function with CMR and refer for pulmonary valve replacement before RV failure or VT.",
+     "keys": [
+      "Pulmonary regurgitation",
+      "RV dilation",
+      "CMR follow-up",
+      "Valve replacement"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2020 adult congenital heart disease guideline",
+    "ACC/AHA 2018 adult congenital heart disease guideline"
+   ],
+   "verify": [
+    "Noonan: pulmonary stenosis the commonest lesion"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "papillary_muscles",
+   "name": "Papillary muscles (LV)",
+   "category": "Subvalvular",
+   "layer": "valves",
+   "labelIds": [
+    "papillary_muscles.ALPM",
+    "papillary_muscles.PMPM"
+   ],
+   "aliases": [
+    "ALPM",
+    "PMPM"
+   ],
+   "core": "Two muscle columns in the LV that anchor the mitral chordae and stop the leaflets flipping into the LA.",
+   "stats": [
+    {
+     "value": "2",
+     "label": "in the LV"
+    },
+    {
+     "value": "2 vs 1",
+     "label": "arteries: ALPM vs PMPM"
+    },
+    {
+     "value": "Days 2–7",
+     "label": "rupture after MI"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Rise from the LV wall: **anterolateral** and **posteromedial**",
+     "focus": [
+      "papillary_muscles.ALPM",
+      "papillary_muscles.PMPM"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Contract in systole to keep the chordae taut, so the **mitral leaflets don't prolapse**",
+     "focus": [
+      "chordae"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**ALPM**: LAD + LCx · **PMPM**: usually the PDA alone",
+     "focus": [
+      "artery:LAD",
+      "artery:LCx",
+      "artery:PDA"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**PMPM rupture** after inferior MI → acute severe MR, shock",
+     "focus": [
+      "papillary_muscles.PMPM"
+     ]
+    }
+   ],
+   "parts": [
+    {
+     "labelId": "papillary_muscles.ALPM",
+     "name": "Anterolateral",
+     "note": "Larger, with two arteries (LAD diagonals and LCx marginals), so it rarely ruptures."
+    },
+    {
+     "labelId": "papillary_muscles.PMPM",
+     "name": "Posteromedial",
+     "note": "Usually one artery (the PDA), so it is the one that ruptures after inferior MI."
+    }
+   ],
+   "anatomy": {
+    "summary": "Two muscle columns from the LV wall; chordae from each go to both mitral leaflets.",
+    "detail": "The anterolateral muscle arises from the anterolateral wall, the posteromedial from the inferior wall near the septum. Each holds the matching half of both leaflets. The RV has its own (anterior, posterior, septal) for the tricuspid valve."
+   },
+   "function": {
+    "summary": "They contract with the ventricle so the chordae stay tight as the LV shortens.",
+    "detail": "Without that tension the leaflet edges would be pushed into the LA in systole. When the LV dilates they move apart and tether the leaflets (secondary MR)."
+   },
+   "supply": {
+    "summary": "ALPM has two arteries; the PMPM usually one.",
+    "detail": "ALPM: LAD diagonals and LCx obtuse marginals. PMPM: the PDA (from the RCA in right-dominant hearts, the LCx in left-dominant)."
+   },
+   "relations": [
+    {
+     "with": "Mitral leaflets (via the chordae)",
+     "why": "Rupture or dysfunction causes MR."
+    },
+    {
+     "with": "Inferior wall",
+     "why": "The PMPM sits on it, so inferior MI threatens it."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "psax_pap",
+      "text": "Both muscles at mid-ventricle, at about 4 and 8 o'clock."
+     },
+     {
+      "id": "a4c",
+      "text": "The anterolateral muscle along the lateral wall."
+     }
+    ],
+    "cut": [
+     {
+      "id": "lvOpen",
+      "text": "Both muscles and their chordae."
+     },
+     {
+      "id": "sax",
+      "text": "Two bumps on the inner LV wall."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Papillary muscle rupture",
+     "mechanism": "Infarction of the single-supply PMPM tears the muscle or one of its heads, freeing its chordae.",
+     "presentation": "Usually days 2–7 after MI: sudden pulmonary oedema and shock; the murmur may be soft.",
+     "scenario": "planned:papRupture",
+     "hook": "Sudden oedema and shock days after MI"
+    },
+    {
+     "name": "Papillary muscle dysfunction",
+     "mechanism": "Ischaemia without rupture weakens the muscle, so the leaflets don't close fully.",
+     "presentation": "MR that comes and goes with angina.",
+     "scenario": null,
+     "hook": "MR that comes and goes with ischaemia"
+    },
+    {
+     "name": "Tethering (secondary) MR",
+     "mechanism": "A dilated LV pulls the muscles apart and the leaflets with them.",
+     "presentation": "MR with normal leaflets in heart failure.",
+     "scenario": null,
+     "hook": "Dilated LV, normal leaflets"
+    },
+    {
+     "name": "Abnormal papillary muscles in HCM",
+     "mechanism": "Displaced or extra papillary muscles push the mitral apparatus towards the LVOT.",
+     "presentation": "Adds to outflow obstruction.",
+     "scenario": "hocm",
+     "hook": "Adds to outflow obstruction in HCM"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why the PMPM ruptures",
+      "text": "It usually has one artery (the PDA); the ALPM has two, so one blocked artery rarely kills it."
+     },
+     {
+      "hook": "Timing after MI",
+      "text": "Mechanical complications (papillary rupture, septal rupture, free-wall rupture) cluster in the first week, mostly days 2–7."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Shock + new MR after MI",
+      "text": "Urgent echo. Papillary rupture needs emergency surgery, with support meanwhile (vasodilator if BP allows, IABP or mechanical support)."
+     },
+     {
+      "hook": "A soft murmur doesn't rule it out",
+      "text": "In acute severe MR the LA and LV pressures equalise quickly, so the murmur may be short or absent."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the posteromedial papillary muscle more likely to rupture after MI than the anterolateral one?",
+     "a": "It usually has one artery (the PDA); the anterolateral has two (LAD and LCx), so a single occlusion rarely infarcts it completely.",
+     "keys": [
+      "PMPM: single supply (PDA)",
+      "ALPM: dual supply"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Three days after an inferior STEMI: sudden pulmonary oedema and hypotension. What do you look for, and with what test?",
+     "a": "Mechanical complications: papillary muscle rupture (acute MR), ventricular septal rupture, or free-wall rupture with tamponade. Urgent bedside echo.",
+     "keys": [
+      "Papillary rupture",
+      "Septal rupture",
+      "Free-wall rupture",
+      "Urgent echo"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "ACC/AHA 2020 valvular heart disease guideline"
+   ],
+   "verify": [
+    "Rupture timing days 2–7",
+    "PMPM single supply in most hearts"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "chordae",
+   "name": "Chordae tendineae",
+   "category": "Subvalvular",
+   "layer": "valves",
+   "labelIds": [
+    "chordae"
+   ],
+   "aliases": [
+    "chordae",
+    "tendinous cords"
+   ],
+   "core": "Fine fibrous cords from the papillary muscles to the leaflets: the valve's guy-ropes.",
+   "stats": [
+    {
+     "value": "Primary",
+     "label": "edge cords: torn → flail"
+    },
+    {
+     "value": "Secondary",
+     "label": "body cords: leaflet shape"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Run from the **papillary muscles** to the **mitral and tricuspid** leaflets",
+     "focus": [
+      "chordae"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Stop the leaflets **flipping into the atrium** in systole"
+    },
+    {
+     "icon": "danger",
+     "text": "A **torn chord** → flail leaflet → acute severe MR"
+    },
+    {
+     "icon": "echo",
+     "text": "Flail: the leaflet tip points **into the LA** in systole"
+    }
+   ],
+   "parts": [],
+   "anatomy": {
+    "summary": "Thin collagen cords: primary to the free edge, secondary to the underside, tertiary from the wall to the posterior leaflet base.",
+    "detail": "Each LV papillary muscle sends chordae to both mitral leaflets. Primary (marginal) chordae hold the edge; secondary chordae attach to the underside and help keep the LV's shape; tertiary chordae run from the wall to the base of the posterior leaflet. The tricuspid also takes chordae straight from the septum."
+   },
+   "function": {
+    "summary": "Hold the leaflets in a sealed position against systolic pressure.",
+    "detail": "Secondary chordae also tie the valve to the LV and help its shape and function, which is why surgeons try to keep them."
+   },
+   "supply": {
+    "summary": "No vessels: nourished from the blood around them.",
+    "detail": "Avascular collagen."
+   },
+   "relations": [
+    {
+     "with": "Papillary muscles",
+     "why": "Their anchors."
+    },
+    {
+     "with": "Posterior mitral scallops",
+     "why": "A torn chord to P2 is the commonest cause of a flail mitral leaflet."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "plax",
+      "text": "Chordae under the leaflets; a flail tip in systole."
+     },
+     {
+      "id": "a4c",
+      "text": "The subvalvular apparatus of both AV valves."
+     }
+    ],
+    "cut": [
+     {
+      "id": "lvOpen",
+      "text": "Mitral chordae to both papillary muscles."
+     },
+     {
+      "id": "rvOpen",
+      "text": "Tricuspid chordae, some from the septum."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Chordal rupture with flail leaflet",
+     "mechanism": "Myxomatous degeneration, endocarditis or trauma tears a chord; the free edge flails into the LA.",
+     "presentation": "Sudden breathlessness; severe eccentric MR (often P2).",
+     "scenario": "planned:mvp",
+     "hook": "Sudden severe eccentric MR"
+    },
+    {
+     "name": "Rheumatic chordal fusion",
+     "mechanism": "Chordae thicken, shorten and fuse.",
+     "presentation": "Adds below-valve narrowing in rheumatic MS and makes balloon valvotomy less successful.",
+     "scenario": "planned:mitralStenosis",
+     "hook": "Thick, short chordae in rheumatic MS"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Flail vs prolapse",
+      "text": "Prolapse: the leaflet body bulges into the LA but the tip still points to the LV. Flail: a torn chord lets the tip point into the LA."
+     },
+     {
+      "hook": "Chordae in rheumatic MS",
+      "text": "Thick, fused chordae lower the chance that balloon valvotomy works (part of the Wilkins score)."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Flail = severe MR",
+      "text": "A flail segment almost always means severe MR; an isolated P2 flail is very repairable."
+     },
+     {
+      "hook": "Eccentric jets mislead",
+      "text": "Flail and prolapse jets hug the LA wall, so colour area underestimates them: use vena contracta, PISA and pulmonary vein flow."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What is the difference between a prolapsing and a flail mitral leaflet?",
+     "a": "In prolapse the leaflet body bulges into the LA but its tip still points to the LV. In a flail leaflet a torn chord lets the tip itself point into the LA.",
+     "keys": [
+      "Prolapse: body bulges, tip to LV",
+      "Flail: tip into LA",
+      "Flail = torn chord"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A P2 flail with an eccentric jet: why may colour Doppler underestimate it, and what do you measure instead?",
+     "a": "Eccentric jets hug the LA wall and lose area (Coanda effect). Use vena contracta, PISA (EROA, regurgitant volume) and pulmonary vein flow reversal.",
+     "keys": [
+      "Wall-hugging jet",
+      "Vena contracta",
+      "PISA",
+      "Pulmonary vein flow"
+     ]
+    }
+   ],
+   "sources": [
+    "ASE 2017 native valve regurgitation",
+    "ACC/AHA 2020 valvular heart disease guideline"
+   ],
+   "verify": [],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "moderator_band",
+   "name": "Moderator band",
+   "category": "Landmark",
+   "layer": "landmarks",
+   "labelIds": [
+    "moderator_band"
+   ],
+   "aliases": [
+    "septomarginal trabecula"
+   ],
+   "core": "A muscular bridge across the RV from the septum to the anterior papillary muscle, carrying the right bundle branch.",
+   "stats": [
+    {
+     "value": "RBB",
+     "label": "runs inside it"
+    },
+    {
+     "value": "RV only",
+     "label": "the LV has none"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Crosses the **RV** from the septum to the **anterior papillary muscle**",
+     "focus": [
+      "moderator_band"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Carries the **right bundle branch** so the anterior papillary muscle contracts on time",
+     "focus": [
+      "conduction:rbb"
+     ]
+    },
+    {
+     "icon": "echo",
+     "text": "A band near the RV apex that **identifies the RV** on echo"
+    },
+    {
+     "icon": "key",
+     "text": "Easily mistaken for an **RV clot or mass**"
+    }
+   ],
+   "parts": [],
+   "anatomy": {
+    "summary": "Part of the septomarginal trabecula, spanning the lower RV cavity from the septum to the anterior papillary muscle.",
+    "detail": "It crosses the apical third of the RV. The right bundle branch travels inside it, and its artery usually comes from the first septal branch of the LAD."
+   },
+   "function": {
+    "summary": "A shortcut for the right bundle branch to the anterior papillary muscle.",
+    "detail": "Early activation of the anterior papillary muscle tightens the tricuspid chordae before RV pressure rises. The old idea that it stops the RV over-stretching gave it the name 'moderator'."
+   },
+   "supply": {
+    "summary": "Usually the first septal perforator of the LAD (the moderator-band artery).",
+    "detail": "This artery can link LAD and RCA territories as a collateral."
+   },
+   "relations": [
+    {
+     "with": "Right bundle branch",
+     "why": "Injury here can cause RBBB; some PVCs and rare VF triggers start in its Purkinje fibres."
+    },
+    {
+     "with": "Anterior tricuspid papillary muscle",
+     "why": "Its far anchor."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "a4c",
+      "text": "A band across the RV near the apex."
+     },
+     {
+      "id": "subxiphoid_4c",
+      "text": "The same band, closer to the probe."
+     }
+    ],
+    "cut": [
+     {
+      "id": "rvOpen",
+      "text": "The bridge from the septum to the anterior papillary muscle."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Moderator-band PVCs: LBBB-like QRS with a superior axis and a late precordial transition."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Moderator-band PVCs and VF",
+     "mechanism": "Purkinje fibres in the band fire ectopic beats that can trigger VF.",
+     "presentation": "LBBB-like PVCs with a superior axis; rarely idiopathic VF.",
+     "scenario": "planned:moderatorBandVF",
+     "hook": "LBBB-like PVCs; a rare VF trigger"
+    },
+    {
+     "name": "Mistaken for a mass",
+     "mechanism": "A thick band is read as RV thrombus or tumour.",
+     "presentation": "Imaging pitfall; avoid needless anticoagulation or work-up.",
+     "scenario": null,
+     "hook": "A normal band read as a mass"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "How echo recognises the RV",
+      "text": "Moderator band, coarse trabeculae and a lower tricuspid hinge mark the RV, whichever side it lies on."
+     },
+     {
+      "hook": "It carries the RBB",
+      "text": "The right bundle branch takes the band as a shortcut to the anterior papillary muscle."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Not a thrombus",
+      "text": "A straight band joining the lower septum to the anterior papillary muscle is the moderator band."
+     },
+     {
+      "hook": "PVC axis",
+      "text": "Moderator-band PVCs have a superior axis; RVOT PVCs have an inferior axis. Both look LBBB-like."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Name two features that identify the RV on echo, one of them a structure carrying the conduction system.",
+     "a": "The moderator band (carrying the right bundle branch) and a tricuspid hinge closer to the apex; coarse trabeculae also help.",
+     "keys": [
+      "Moderator band (RBB)",
+      "More apical tricuspid hinge",
+      "Coarse trabeculae"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A PVC has an LBBB-like shape. How does the axis help separate an RVOT origin from a moderator-band origin?",
+     "a": "Inferior axis = starts high (RVOT); superior axis = starts low in the RV (moderator band or apex).",
+     "keys": [
+      "Inferior axis → RVOT",
+      "Superior axis → moderator band"
+     ]
+    }
+   ],
+   "sources": [
+    "EHRA/HRS/APHRS/LAHRS 2019 ventricular arrhythmia consensus",
+    "Anderson RH, cardiac anatomy texts (teaching)"
+   ],
+   "verify": [
+    "Moderator-band PVC morphology (superior axis, late transition)",
+    "Artery from the first septal perforator"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
+   }
+  },
+  {
+   "id": "central_fibrous_body",
+   "name": "Central fibrous body",
+   "category": "Landmark",
+   "layer": "landmarks",
+   "labelIds": [
+    "central_fibrous_body"
+   ],
+   "aliases": [
+    "right fibrous trigone",
+    "fibrous skeleton"
+   ],
+   "core": "The strongest part of the heart's fibrous skeleton, joining the mitral, tricuspid and aortic rings; the His bundle pierces it.",
+   "stats": [
+    {
+     "value": "1",
+     "label": "normal path through it"
+    },
+    {
+     "value": "3",
+     "label": "valve rings meet here"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "At the centre of the heart, where the **mitral, tricuspid and aortic** rings meet",
+     "focus": [
+      "central_fibrous_body"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "**Insulates** the atria from the ventricles"
+    },
+    {
+     "icon": "key",
+     "text": "The **His bundle** is the only normal path through it",
+     "focus": [
+      "conduction:his"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Valve surgery, TAVI or a root abscess here → **heart block**"
+    }
+   ],
+   "parts": [],
+   "anatomy": {
+    "summary": "The right fibrous trigone plus the membranous septum: the centre of the fibrous skeleton.",
+    "detail": "The fibrous skeleton is the four valve rings joined by the right and left fibrous trigones. The right trigone and the membranous septum form the central fibrous body, between the mitral, tricuspid and aortic rings. The AV node rests on its right-atrial side, and the His bundle passes through it to the crest of the ventricular septum."
+   },
+   "function": {
+    "summary": "Anchors the valves and electrically separates atria from ventricles.",
+    "detail": "Fibrous tissue does not conduct, so every normal impulse has to pass through the AV node and His bundle. An accessory pathway is a muscle bridge that crosses the rings somewhere else."
+   },
+   "supply": {
+    "summary": "Fibrous tissue with few vessels; the His bundle inside it is fed by the AV nodal artery and LAD septal branches.",
+    "detail": "That dual supply of the His bundle is why it often survives an inferior MI that blocks the AV node."
+   },
+   "relations": [
+    {
+     "with": "His bundle",
+     "why": "Passes through it."
+    },
+    {
+     "with": "Aortic, mitral and tricuspid rings",
+     "why": "Disease or surgery at any of them can injure the conduction axis."
+    },
+    {
+     "with": "Accessory pathways",
+     "why": "Cross the rings elsewhere: WPW."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "id": "a4c",
+      "text": "At the crux, where the valve hinges meet the septum."
+     }
+    ],
+    "cut": [
+     {
+      "id": "valves",
+      "text": "Between the valve rings at the centre of the base."
+     },
+     {
+      "id": "a4c",
+      "text": "Where the AV valve hinges meet the septum."
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Damage here: PR prolongation, bundle branch block or complete heart block."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Heart block after valve surgery or TAVI",
+     "mechanism": "Oedema, sutures or the prosthesis press on the His bundle where it passes through.",
+     "presentation": "New LBBB or complete heart block after the procedure.",
+     "scenario": "planned:postTavi",
+     "hook": "New block after aortic or mitral procedures"
+    },
+    {
+     "name": "Root abscess spreading here",
+     "mechanism": "Aortic valve endocarditis burrows into the fibrous body.",
+     "presentation": "New PR prolongation or heart block in endocarditis.",
+     "scenario": "planned:avEndocarditis",
+     "hook": "New PR prolongation in endocarditis"
+    },
+    {
+     "name": "Age-related fibrosis and calcification (Lev disease)",
+     "mechanism": "The skeleton calcifies and damages the conduction axis passing through it.",
+     "presentation": "Slowly progressive conduction block in older people.",
+     "scenario": null,
+     "hook": "Older patient, slowly progressive block"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why WPW needs an extra pathway",
+      "text": "The fibrous rings block conduction; only the His bundle crosses. An accessory pathway is a muscle bridge that escapes this insulation."
+     },
+     {
+      "hook": "The heart's crossroads",
+      "text": "Mitral, tricuspid and aortic valves all meet here, which is why surgery on any of them can cause heart block."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Endocarditis + new block",
+      "text": "A new long PR or AV block in aortic valve endocarditis suggests spread into this region: urgent TOE and surgical review."
+     },
+     {
+      "hook": "Block in older people",
+      "text": "Fibrosis of the skeleton (Lev) or of the conduction system itself (Lenègre) is a common cause of progressive block."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the His bundle the only normal electrical route from atria to ventricles?",
+     "a": "The fibrous skeleton (valve rings and central fibrous body) does not conduct; the His bundle is the only muscle path that pierces it.",
+     "keys": [
+      "Fibrous rings insulate",
+      "His pierces the central fibrous body"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Aortic valve endocarditis; the PR is now 280 ms. What does this suggest and what next?",
+     "a": "Spread of infection into the root and central fibrous body (abscess) next to the conduction axis. Urgent TOE and early surgical review.",
+     "keys": [
+      "Root abscess",
+      "Conduction axis involved",
+      "TOE",
+      "Surgery review"
+     ]
+    }
+   ],
+   "sources": [
+    "Anderson RH, cardiac anatomy texts (teaching)",
+    "ACC/AHA/HRS 2018 bradycardia and conduction delay guideline",
+    "ESC 2023 endocarditis guideline"
+   ],
+   "verify": [
+    "His bundle dual supply (AV nodal artery + LAD septal)",
+    "Lev vs Lenègre definitions"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B2"
    }
   }
  ]

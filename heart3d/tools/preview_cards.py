@@ -4,7 +4,7 @@
     python heart3d/tools/preview_cards.py [--out heart3d/dist/cards-preview.html] [--ids a,b,c]
 
 Desktop: 3D canvas placeholder on the left, the "At a glance" side panel on the right (stats, high-yield bites with icons,
-watch-outs, two pearls for the chosen level), the deep-dive card below. Phone (< 760 px): stacked, glance first.
+watch-outs, two pearls and one SAQ for the chosen level), the deep-dive card below. Phone (< 760 px): stacked, glance first.
 No external files; icons are inline SVG.
 """
 import argparse, html, json, pathlib
@@ -39,7 +39,12 @@ main{padding:16px;max-width:1280px;margin:0 auto}
 .chip{display:inline-block;font-size:11.5px;border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:1px}.chip.run{background:var(--does);color:#08231c}.chip.soon{border:1px dashed var(--line);color:var(--mut)}
 .lv{display:flex;gap:6px;margin:4px 0 8px;flex-wrap:wrap}
 .pearl{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;font-size:14px}
-.pearl .ph{font-weight:650;display:block;margin-bottom:2px}.pearl .pt.hide{filter:blur(5px);cursor:pointer;user-select:none}
+.pearl .ph{font-weight:650;display:block;margin-bottom:2px}
+.saq{border:1px solid var(--line);border-left:3px solid var(--key);border-radius:0 12px 12px 0;padding:9px 11px;margin:8px 0;font-size:14px}
+.saq .q{font-weight:650}.saq .lvtag{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.saq textarea{width:100%;min-height:54px;margin:6px 0;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;font-size:13.5px;resize:vertical}
+.saq .ans{display:none;margin-top:6px}.saq.shown .ans{display:block}.saq .ans p{margin:0 0 6px}
+.saq label{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin:3px 0}.saq .score{color:var(--acc);font-size:12.5px;margin-top:4px}
 .more{margin-top:12px;width:100%}
 .deep{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
 .deep h3{margin:0 0 8px;font-size:16px}
@@ -58,8 +63,9 @@ main{padding:16px;max-width:1280px;margin:0 auto}
 """
 
 JS = r"""
-const D=JSON.parse(document.getElementById('data').textContent);let cur=0,lvl='student',recall=false;
-try{lvl=localStorage.getItem('h3.pearlLevel')||'student';recall=localStorage.getItem('h3.recall')==='1'}catch(e){}
+const D=JSON.parse(document.getElementById('data').textContent);let cur=0,lvl='student';
+try{lvl=localStorage.getItem('h3.pearlLevel')||'student'}catch(e){}
+let saqLv=null;
 const E=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const MD=s=>E(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
 const IC={where:'<path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>',
@@ -71,15 +77,17 @@ const icon=k=>`<span class="ic" style="color:var(--${k});background:color-mix(in
 const chip=s=>!s?'':s.startsWith('planned:')?'<span class="chip soon">Coming with Pathology</span>':'<span class="chip run">Run ▸</span>';
 const L={student:'Student',resident:'Resident',fellow:'Fellow'};
 function pearls(P,max){const ps=(P[lvl]||[]).slice(0,max||9);if(!ps.length)return'<p style="color:var(--mut)">Fellow pearls coming later.</p>';
- return ps.map(p=>`<div class="pearl"><span class="ph">${E(p.hook)}</span><span class="pt ${recall?'hide':''}">${E(p.text)}</span></div>`).join('')}
-function lvBtns(P){return '<div class="lv">'+['student','resident','fellow'].map(l=>`<button class="pill lvb ${l===lvl?'on':''} ${(P[l]||[]).length?'':'empty'}" data-l="${l}">${L[l]}</button>`).join('')+
- `<button class="pill rc ${recall?'on':''}" title="Hide the answers; tap one to reveal">Quiz me</button></div>`}
+ return ps.map(p=>`<div class="pearl"><span class="ph">${E(p.hook)}</span><span class="pt">${E(p.text)}</span></div>`).join('')}
+function lvBtns(P){return '<div class="lv">'+['student','resident','fellow'].map(l=>`<button class="pill lvb ${l===lvl?'on':''} ${(P[l]||[]).length?'':'empty'}" data-l="${l}">${L[l]}</button>`).join('')+'</div>'}
+function saqs(c,max){let qs=c.saq.filter(x=>x.level===lvl);if(!qs.length)qs=c.saq.filter(x=>x.level==='student');return qs.slice(0,max||9).map(saqBox).join('')}
+function saqBox(x){return `<div class="saq"><div class="lvtag">${L[x.level]} SAQ</div><div class="q">${E(x.q)}</div><textarea placeholder="Type your answer (optional), then Check"></textarea>
+ <button class="pill chk">Check</button><div class="ans"><p><b>Model answer:</b> ${E(x.a)}</p><div>${x.keys.map(k=>`<label><input type="checkbox"> ${E(k)}</label>`).join('')}</div><div class="score"></div></div></div>`}
 function render(){const c=D.cards[cur];
  let s=`<div class="cat">${E(c.category)}</div><h2>${E(c.name)}</h2><p class="core">${E(c.core)}</p>`;
  s+='<div class="stats">'+c.stats.map(x=>`<div class="stat"><div class="v">${E(x.value)}</div><div class="l">${E(x.label)}</div></div>`).join('')+'</div>';
  s+='<div class="qh">High yield</div>'+c.quick.map(q=>`<div class="bite ${q.focus?'f':''}" data-f="${E((q.focus||[]).join(', '))}">${icon(q.icon)}<span>${MD(q.text)}</span></div>`).join('');
  s+='<div class="qh">Watch out for</div>'+c.complications.slice(0,3).map(x=>`<div class="watch"><span class="n">${E(x.name)}</span>${chip(x.scenario)}<br><span class="h">${E(x.hook)}</span></div>`).join('');
- s+='<div class="qh">Pearls</div>'+lvBtns(c.pearls)+pearls(c.pearls,2)+'<button class="pill more">Deep dive ↓</button>';
+ s+='<div class="qh">Pearls</div>'+lvBtns(c.pearls)+pearls(c.pearls,2)+'<div class="qh">Check yourself</div>'+saqs(c,1)+'<button class="pill more">Deep dive ↓</button>';
  document.getElementById('side').innerHTML=s;
  let d=`<h3>Deep dive · ${E(c.name)}</h3>`;
  const sec=(t,o,extra)=>`<div class="sec"><div class="st"><b>${t} ▸</b><span>${E(o.summary)}</span></div><div class="det">${E(o.detail)}</div>${extra||''}</div>`;
@@ -91,11 +99,12 @@ function render(){const c=D.cards[cur];
  d+=`<div class="sec"><div class="st"><b>Complications · ${c.complications.length}</b><span style="color:var(--mut)">tap one: mechanism → what you see</span></div>`+c.complications.map(x=>
   `<div class="cxrow"><span class="n">${E(x.name)}</span>${chip(x.scenario)} <span class="h">— ${E(x.hook)}</span><div class="flow"><div class="bx"><i>Mechanism</i>${E(x.mechanism)}</div><div class="ar">→</div><div class="bx"><i>What you see</i>${E(x.presentation)}</div></div></div>`).join('')+'</div>';
  d+=`<div class="sec"><div class="st"><b>Pearls</b><span>${L[lvl]} level</span></div>${lvBtns(c.pearls)}${pearls(c.pearls)}</div>`;
+ d+=`<div class="sec"><div class="st"><b>Check yourself · ${c.saq.length}</b><span style="color:var(--mut)">short-answer questions; write, then check</span></div>${c.saq.map(saqBox).join('')}</div>`;
  d+=`<p class="src">Sources: ${c.sources.map(E).join(' · ')}</p>`;
  document.getElementById('deep').innerHTML=d;
  document.querySelectorAll('.lvb').forEach(b=>b.onclick=()=>{lvl=b.dataset.l;try{localStorage.setItem('h3.pearlLevel',lvl)}catch(e){}render()});
- document.querySelectorAll('.rc').forEach(b=>b.onclick=()=>{recall=!recall;try{localStorage.setItem('h3.recall',recall?'1':'0')}catch(e){}render()});
- document.querySelectorAll('.pt.hide').forEach(p=>p.onclick=()=>p.classList.remove('hide'));
+ document.querySelectorAll('.saq').forEach(q=>{const b=q.querySelector('.chk');b.onclick=()=>{q.classList.add('shown');b.style.display='none'};
+  const cb=[...q.querySelectorAll('input')],sc=q.querySelector('.score');cb.forEach(x=>x.onchange=()=>{sc.textContent=`${cb.filter(y=>y.checked).length} / ${cb.length} key points`})});
  document.querySelectorAll('.sec .st').forEach(t=>t.onclick=()=>t.parentNode.classList.toggle('open'));
  document.querySelectorAll('.cxrow').forEach(r=>r.onclick=()=>r.classList.toggle('open'));
  document.querySelector('.more').onclick=()=>document.getElementById('deep').scrollIntoView({behavior:'smooth'});
