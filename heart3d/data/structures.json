@@ -1,6 +1,6 @@
 {
  "meta": {
-  "version": "0.5.0 (pilots + B1 + B2 + B3 coronaries and veins; 14 Nov 2026)",
+  "version": "0.6.0 (pilots + B1–B5: all model structures; 14 Nov 2026)",
   "levels": [
    "student",
    "resident",
@@ -1473,7 +1473,8 @@
    "layer": "chambers",
    "labelIds": [
     "LV_cavity",
-    "LV_myocardium"
+    "LV_myocardium",
+    "PW"
    ],
    "aliases": [
     "LV"
@@ -2891,6 +2892,11 @@
      "labelId": "TV_septal",
      "name": "Septal leaflet",
      "note": "Hinged on the septum a little lower than the mitral hinge; the His bundle runs just below its attachment, near the membranous septum."
+    },
+    {
+     "labelId": "TV_annulus",
+     "name": "Tricuspid annulus",
+     "note": "The fibrous ring of the valve; at the septum it sits about 1 cm closer to the apex than the mitral ring. It dilates with the RV in functional TR."
     }
    ],
    "anatomy": {
@@ -4249,7 +4255,8 @@
    "category": "Coronary artery",
    "layer": "vessels",
    "labelIds": [
-    "artery:LM"
+    "artery:LM",
+    "LCA"
    ],
    "aliases": [
     "LM",
@@ -5112,7 +5119,8 @@
     "artery:RVB1",
     "artery:RVB2",
     "artery:AM",
-    "artery:PLB"
+    "artery:PLB",
+    "RCA"
    ],
    "aliases": [
     "RCA",
@@ -5959,7 +5967,8 @@
    "layer": "vessels",
    "labelIds": [
     "coronary_sinus",
-    "cs_ostium"
+    "cs_ostium",
+    "cardiac_veins"
    ],
    "aliases": [
     "CS"
@@ -6539,6 +6548,4702 @@
    "review": {
     "status": "draft",
     "batch": "B3"
+   }
+  },
+  {
+   "id": "aortic_root",
+   "name": "Aortic root and ascending aorta",
+   "category": "Great vessel",
+   "layer": "vessels",
+   "labelIds": [
+    "aortic_root",
+    "aortic_root.ascending"
+   ],
+   "aliases": [
+    "aortic root",
+    "ascending aorta",
+    "sinuses of Valsalva"
+   ],
+   "parts": [
+    {
+     "labelId": "aortic_root.ascending",
+     "name": "Ascending aorta",
+     "note": "Tubular part from the sinotubular junction to the arch, inside the pericardium."
+    },
+    {
+     "labelId": null,
+     "name": "Sinuses of Valsalva",
+     "note": "Three bulges behind the cusps; the coronaries arise from the right and left sinuses."
+    },
+    {
+     "labelId": null,
+     "name": "Sinotubular junction",
+     "note": "The waist where the root meets the tubular aorta; its dilatation also causes AR."
+    }
+   ],
+   "core": "The first part of the aorta: the root holds the aortic valve and the coronary ostia in its sinuses, and its dilatation or dissection threatens the valve, the coronaries and life.",
+   "stats": [
+    {
+     "value": "≥ 5.5 cm",
+     "label": "usual surgery threshold"
+    },
+    {
+     "value": "≥ 5.0 cm",
+     "label": "Marfan threshold"
+    },
+    {
+     "value": "3",
+     "label": "sinuses of Valsalva"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Root = **annulus, 3 sinuses, sinotubular junction**; the coronaries leave the **right and left sinuses**",
+     "focus": [
+      "aortic_root",
+      "AV_cusps.RCC",
+      "AV_cusps.LCC"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Its elastic wall stores systolic energy and keeps **diastolic flow** going (coronaries fill in diastole)"
+    },
+    {
+     "icon": "danger",
+     "text": "**Type A dissection**: tearing pain to the back, new AR, tamponade → emergency surgery"
+    },
+    {
+     "icon": "echo",
+     "text": "Measure in **PLAX** at the annulus, sinuses, STJ and ascending aorta"
+    },
+    {
+     "icon": "key",
+     "text": "**Bicuspid valve** and **Marfan** dilate the root and ascending aorta"
+    }
+   ],
+   "anatomy": {
+    "summary": "Annulus, three sinuses of Valsalva and the sinotubular junction, then the ascending aorta up to the arch.",
+    "detail": "The root runs from the aortic annulus (the hinge of the cusps) through three bulges, the sinuses of Valsalva (right, left and non-coronary), to the sinotubular junction (STJ). The right coronary artery leaves the right sinus and the left main the left sinus. Above the STJ the tubular ascending aorta rises inside the pericardium, to the right of the pulmonary trunk, to the arch."
+   },
+   "function": {
+    "summary": "Holds the aortic valve and acts as an elastic reservoir that smooths flow into diastole.",
+    "detail": "The sinuses give the cusps room to open without blocking the coronary ostia and help them close. The elastic wall stretches in systole and recoils in diastole (Windkessel effect), keeping pressure and flow up in diastole, when the coronaries fill. Stiffening with age raises pulse pressure."
+   },
+   "supply": {
+    "summary": "Wall fed by its own small vessels (vasa vasorum); it gives off the coronary arteries.",
+    "detail": "The wall is nourished from the lumen and the vasa vasorum. The root is the origin of the right and left coronary arteries."
+   },
+   "relations": [
+    {
+     "with": "Aortic valve",
+     "why": "Root dilatation pulls the commissures apart, so the cusps no longer meet (aortic regurgitation).",
+     "focus": [
+      "aortic_valve"
+     ]
+    },
+    {
+     "with": "Coronary ostia",
+     "why": "A dissection flap or a TAVI valve can block them; the RCA ostium is the one most often involved in type A dissection.",
+     "focus": [
+      "artery:RCA",
+      "artery:LM"
+     ]
+    },
+    {
+     "with": "Pericardium",
+     "why": "The ascending aorta lies inside the pericardium, so rupture causes tamponade.",
+     "focus": [
+      "pericardium"
+     ]
+    },
+    {
+     "with": "Pulmonary trunk",
+     "why": "Wraps round the front and left of the root.",
+     "focus": [
+      "PA_main"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Root at the sinuses, STJ and proximal ascending aorta; measure in end-diastole.",
+      "id": "plax"
+     },
+     {
+      "text": "Root in cross-section with the three cusps (Mercedes sign).",
+      "id": "psax_av"
+     },
+     {
+      "text": "LVOT, valve and proximal root.",
+      "id": "a5c"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Root and cusps opened from the LV side.",
+      "id": "lvOpen"
+     },
+     {
+      "text": "Root at the centre of the valve plane.",
+      "id": "valves"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign; a dissection into the RCA ostium can mimic inferior STEMI."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Type A aortic dissection",
+     "mechanism": "An intimal tear lets blood split the wall of the ascending aorta; the false lumen can extend back to the valve, the coronaries or the pericardium.",
+     "presentation": "Sudden tearing chest pain to the back, pulse or BP difference between the arms, new AR murmur, tamponade or stroke; sometimes inferior STEMI.",
+     "scenario": "planned:aorticDissection",
+     "hook": "Tearing pain, arm BP gap, new AR"
+    },
+    {
+     "name": "Root aneurysm with aortic regurgitation",
+     "mechanism": "Weak media (Marfan, bicuspid aortopathy, ageing, hypertension) lets the root dilate and pull the cusps apart.",
+     "presentation": "Often silent; early diastolic murmur, wide pulse pressure; found on echo or CT.",
+     "scenario": "planned:aorticRegurg",
+     "hook": "Silent dilatation, diastolic murmur"
+    },
+    {
+     "name": "Ruptured sinus of Valsalva aneurysm",
+     "mechanism": "A weak sinus bulges and bursts, usually into the RV or RA.",
+     "presentation": "Sudden breathlessness with a continuous machinery murmur and heart failure.",
+     "scenario": null,
+     "hook": "Sudden continuous murmur"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Coronaries start in the sinuses",
+      "text": "The RCA leaves the right sinus and the left main the left sinus; the non-coronary sinus has none."
+     },
+     {
+      "hook": "Why the aorta is elastic",
+      "text": "It stores energy in systole and releases it in diastole, keeping diastolic pressure (and coronary flow) up."
+     },
+     {
+      "hook": "Pain to the back",
+      "text": "Severe tearing chest pain that radiates to the back, with unequal arm pulses, is dissection until proven otherwise."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Type A = surgery",
+      "text": "Stanford type A (ascending aorta involved) needs emergency surgery; type B is usually managed medically unless complicated."
+     },
+     {
+      "hook": "Inferior STEMI + dissection",
+      "text": "A type A dissection can occlude the RCA ostium: check for dissection signs before giving antithrombotics."
+     },
+     {
+      "hook": "Surgery thresholds",
+      "text": "Operate on the root or ascending aorta at about 5.5 cm, or 5.0 cm in Marfan or with risk factors (lower again in some genetic syndromes)."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Measure by convention",
+      "text": "Echo measures the root leading edge to leading edge in end-diastole; CT measures inner to inner. Compare like with like over time."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Severe tearing chest pain to the back, BP 160/90 in the right arm and 120/70 in the left. Diagnosis and why is the left arm lower?",
+     "a": "Aortic dissection: the flap or false lumen narrows the origin of the left subclavian artery, so the left arm pressure is lower.",
+     "keys": [
+      "Aortic dissection",
+      "Flap narrows a branch origin",
+      "Arm BP difference"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does dilatation of the aortic root cause aortic regurgitation?",
+     "a": "The cusps hang from the root; when it widens, the commissures move apart and the cusps can no longer meet in the centre.",
+     "keys": [
+      "Cusps attach to the root",
+      "Commissures pulled apart",
+      "Central leak"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Inferior STEMI with a new early diastolic murmur and a wide mediastinum on CXR. What must you exclude before the cath lab, and how?",
+     "a": "Type A aortic dissection involving the RCA ostium: urgent CT aortography (or bedside echo for a flap, AR, effusion) before antithrombotic therapy.",
+     "keys": [
+      "Type A dissection",
+      "RCA ostium involved",
+      "CT aortography / echo first",
+      "Avoid blind antithrombotics"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2024 peripheral arterial and aortic diseases guideline",
+    "ASE 2015 chamber quantification",
+    "Netter's Atlas of Human Anatomy (great vessels)"
+   ],
+   "verify": [
+    "Surgery thresholds 5.5 cm / 5.0 cm Marfan (ESC 2024 wording)",
+    "RCA ostium most often involved in type A dissection"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "aortic_arch",
+   "name": "Aortic arch and descending aorta",
+   "category": "Great vessel",
+   "layer": "vessels",
+   "labelIds": [
+    "aortic_arch",
+    "arch_branches",
+    "descending_aorta",
+    "descending_aorta.abdominal"
+   ],
+   "aliases": [
+    "aortic arch",
+    "descending aorta",
+    "isthmus"
+   ],
+   "parts": [
+    {
+     "labelId": "arch_branches",
+     "name": "Arch branches",
+     "note": "Brachiocephalic trunk, left common carotid and left subclavian arteries."
+    },
+    {
+     "labelId": "descending_aorta",
+     "name": "Descending thoracic aorta",
+     "note": "Behind the LA and left of the oesophagus; seen in cross-section on PLAX."
+    },
+    {
+     "labelId": "descending_aorta.abdominal",
+     "name": "Abdominal aorta",
+     "note": "Below the diaphragm, left of the IVC in the subcostal window."
+    }
+   ],
+   "core": "The arch gives the arteries to the head and arms and then becomes the descending aorta behind the heart; the narrow isthmus after the left subclavian is where coarctation and traumatic tears happen.",
+   "stats": [
+    {
+     "value": "3",
+     "label": "arch branches"
+    },
+    {
+     "value": "Isthmus",
+     "label": "coarctation + trauma site"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Arch gives the **brachiocephalic trunk, left common carotid, left subclavian**",
+     "focus": [
+      "arch_branches"
+     ]
+    },
+    {
+     "icon": "where",
+     "text": "**Isthmus** after the left subclavian, tethered by the **ligamentum arteriosum**",
+     "focus": [
+      "aortic_arch"
+     ]
+    },
+    {
+     "icon": "echo",
+     "text": "PLAX: **descending aorta** behind the LA; **pericardial fluid lies in front of it**",
+     "focus": [
+      "descending_aorta"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**Coarctation**: arm hypertension, weak delayed femoral pulses"
+    },
+    {
+     "icon": "exam",
+     "text": "Left **recurrent laryngeal nerve** hooks under the arch → hoarseness with a big arch or LA"
+    }
+   ],
+   "anatomy": {
+    "summary": "The arch curves backwards over the left bronchus and the RPA, then descends left of the spine through the diaphragm.",
+    "detail": "The arch runs from the front of the trachea back to its left side, giving off the brachiocephalic trunk, the left common carotid and the left subclavian arteries. Just beyond the left subclavian the isthmus is tied to the pulmonary trunk by the ligamentum arteriosum (the closed ductus). The descending thoracic aorta then runs behind the LA, left of the oesophagus, and passes through the diaphragm at T12 to become the abdominal aorta."
+   },
+   "function": {
+    "summary": "Distributes blood to the head, arms and the rest of the body; its baroreceptors sense blood pressure.",
+    "detail": "The arch carries aortic baroreceptors (vagus nerve) that help set blood pressure. The descending aorta supplies the chest wall, spinal cord (via intercostal arteries) and abdomen."
+   },
+   "supply": {
+    "summary": "Its branches supply the head, arms, spinal cord and abdomen.",
+    "detail": "Arch branches: the brachiocephalic trunk (right subclavian and right common carotid), left common carotid, left subclavian. Descending branches: intercostal, bronchial and oesophageal arteries, then the abdominal branches."
+   },
+   "relations": [
+    {
+     "with": "Left atrium",
+     "why": "The descending aorta lies just behind it: in PLAX it marks where pericardial fluid stops and pleural fluid starts.",
+     "focus": [
+      "LA"
+     ]
+    },
+    {
+     "with": "Pulmonary trunk",
+     "why": "Joined at the isthmus by the ligamentum arteriosum (the patent ductus in a newborn).",
+     "focus": [
+      "PA_main",
+      "LPA"
+     ]
+    },
+    {
+     "with": "Left recurrent laryngeal nerve",
+     "why": "Hooks under the arch; a dilated arch or LA can stretch it (hoarseness)."
+    },
+    {
+     "with": "Right pulmonary artery",
+     "why": "Passes under the arch.",
+     "focus": [
+      "RPA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Round descending aorta behind the LA, below the AV groove.",
+      "id": "plax"
+     },
+     {
+      "text": "Abdominal aorta beside the IVC in the subcostal window.",
+      "id": "ivc"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Descending aorta behind the left atrium.",
+      "id": "laOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign; coarctation causes LV hypertrophy."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Coarctation of the aorta",
+     "mechanism": "A congenital narrowing at the isthmus forces the LV to pump against high resistance above it and lowers flow below it.",
+     "presentation": "Arm hypertension, weak delayed femoral pulses (radio-femoral delay), rib notching on CXR, often a bicuspid valve.",
+     "scenario": "planned:coarctation",
+     "hook": "Arm BP high, femoral pulses weak"
+    },
+    {
+     "name": "Type B aortic dissection",
+     "mechanism": "A tear beyond the left subclavian splits the descending aorta.",
+     "presentation": "Tearing back pain between the shoulder blades; limb, kidney or gut ischaemia if branches are cut off.",
+     "scenario": "planned:aorticDissection",
+     "hook": "Back pain between the shoulder blades"
+    },
+    {
+     "name": "Traumatic aortic injury",
+     "mechanism": "A sudden deceleration tears the aorta at the isthmus, where the mobile arch meets the fixed descending aorta.",
+     "presentation": "High-speed crash; wide mediastinum on CXR; often fatal at the scene.",
+     "scenario": null,
+     "hook": "Deceleration injury at the isthmus"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Three arch branches",
+      "text": "Brachiocephalic trunk, left common carotid, left subclavian: right to left."
+     },
+     {
+      "hook": "Effusion or pleural fluid?",
+      "text": "In PLAX, pericardial fluid sits in front of the descending aorta; pleural fluid extends behind it."
+     },
+     {
+      "hook": "Feel both pulses",
+      "text": "Hypertension in a young person: feel the radial and femoral pulses together for coarctation."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Coarctation and bicuspid",
+      "text": "About half of coarctation patients have a bicuspid aortic valve; screen for both."
+     },
+     {
+      "hook": "Type B management",
+      "text": "Uncomplicated type B dissection: control heart rate and BP first (IV beta-blocker, then vasodilator); stent graft if complicated."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "How do you tell a pericardial from a pleural effusion in the PLAX view?",
+     "a": "By the descending aorta: pericardial fluid lies in front of it (between the aorta and the heart); pleural fluid extends behind it.",
+     "keys": [
+      "Descending aorta as landmark",
+      "Pericardial: in front",
+      "Pleural: behind"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "A 19-year-old has BP 170/90 in the arms and weak, delayed femoral pulses. Diagnosis and site?",
+     "a": "Coarctation of the aorta, at the isthmus just beyond the left subclavian artery.",
+     "keys": [
+      "Coarctation",
+      "Isthmus",
+      "Radio-femoral delay"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "In type B aortic dissection, why give a beta-blocker before a vasodilator?",
+     "a": "A vasodilator alone causes reflex tachycardia and a steeper pressure rise (dP/dt), which extends the tear. Beta-blockade first lowers heart rate and dP/dt.",
+     "keys": [
+      "Lower dP/dt and HR first",
+      "Vasodilator alone → reflex tachycardia",
+      "Prevents propagation"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2024 peripheral arterial and aortic diseases guideline",
+    "ESC 2020 adult congenital heart disease guideline",
+    "Netter's Atlas of Human Anatomy (great vessels)"
+   ],
+   "verify": [
+    "Bicuspid valve in ≈ half of coarctation",
+    "Diaphragm crossing at T12"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "pulmonary_trunk",
+   "name": "Pulmonary trunk and arteries",
+   "category": "Great vessel",
+   "layer": "vessels",
+   "labelIds": [
+    "PA_main",
+    "RPA",
+    "LPA"
+   ],
+   "aliases": [
+    "PA",
+    "pulmonary artery",
+    "main PA"
+   ],
+   "parts": [
+    {
+     "labelId": "RPA",
+     "name": "Right pulmonary artery",
+     "note": "Long; passes under the arch behind the ascending aorta and SVC to the right lung."
+    },
+    {
+     "labelId": "LPA",
+     "name": "Left pulmonary artery",
+     "note": "Short; arches over the left bronchus; the ductus joins near its origin."
+    }
+   ],
+   "core": "Carries all the RV output to the lungs and splits under the aortic arch into the right and left pulmonary arteries; a saddle embolus lodges here.",
+   "stats": [
+    {
+     "value": "> 20 mmHg",
+     "label": "mean PAP = PH"
+    },
+    {
+     "value": "PA > Ao",
+     "label": "on CT suggests PH"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "From the **RV** in front and to the left of the aorta, spiralling round it",
+     "focus": [
+      "PA_main",
+      "aortic_root"
+     ]
+    },
+    {
+     "icon": "where",
+     "text": "Divides **under the arch** into the **RPA** (behind the ascending aorta) and **LPA**",
+     "focus": [
+      "RPA",
+      "LPA"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**Saddle embolus** at the bifurcation → acute RV failure, shock"
+    },
+    {
+     "icon": "echo",
+     "text": "PSAX at the aortic valve shows the trunk and bifurcation; **PASP from the TR jet**"
+    },
+    {
+     "icon": "exam",
+     "text": "**Loud P2** = raised pulmonary pressure"
+    }
+   ],
+   "anatomy": {
+    "summary": "Leaves the RV through the pulmonary valve, runs up and back to the left of the aorta and splits under the arch.",
+    "detail": "The trunk starts at the pulmonary valve, in front of and to the left of the aortic root, and spirals round it. Under the concavity of the arch it divides into the long right pulmonary artery, which passes behind the ascending aorta and SVC, and the shorter left pulmonary artery, which arches over the left bronchus. The ligamentum arteriosum ties the start of the LPA to the aortic isthmus."
+   },
+   "function": {
+    "summary": "A low-pressure, high-compliance conduit for the whole cardiac output.",
+    "detail": "It takes the entire RV output at about a fifth of systemic pressure (systolic ~15–30 mmHg). Its compliance keeps RV afterload low; when the pulmonary vessels stiffen or narrow, pressure rises and the RV must work harder."
+   },
+   "supply": {
+    "summary": "Wall fed by vasa vasorum; the lungs receive oxygenated blood from the bronchial arteries.",
+    "detail": "The trunk and arteries carry deoxygenated blood; their walls are fed by vasa vasorum. Lung tissue gets its oxygenated supply from the bronchial arteries (from the aorta)."
+   },
+   "relations": [
+    {
+     "with": "Right ventricle",
+     "why": "Pressure overload of the PA is felt directly by the thin RV.",
+     "focus": [
+      "RV_cavity",
+      "RVOT"
+     ]
+    },
+    {
+     "with": "Aortic root and arch",
+     "why": "The trunk wraps round the root; the RPA runs under the arch.",
+     "focus": [
+      "aortic_root",
+      "aortic_arch"
+     ]
+    },
+    {
+     "with": "Left main coronary",
+     "why": "Runs behind the trunk; a dilated PA can compress it in severe PH.",
+     "focus": [
+      "artery:LM"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Trunk, pulmonary valve and the bifurcation into RPA and LPA.",
+      "id": "psax_av"
+     },
+     {
+      "text": "Tricuspid regurgitant jet for PASP (4v² + RA pressure).",
+      "id": "a4c"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Pulmonary valve and the start of the trunk, in front of the aortic root.",
+      "id": "valves"
+     },
+     {
+      "text": "RVOT leading up to the pulmonary valve.",
+      "id": "rvOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Pulmonary hypertension: right axis, dominant R in V1, P pulmonale; acute PE: sinus tachycardia, S1Q3T3, RBBB, T inversion V1–V4."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Pulmonary embolism",
+     "mechanism": "A clot from the leg veins lodges in the pulmonary arteries; a large one at the bifurcation (saddle) blocks most flow, and the RV fails.",
+     "presentation": "Sudden breathlessness, pleuritic pain, tachycardia, hypoxia; shock with a large clot; dilated RV on echo.",
+     "scenario": "planned:pe",
+     "hook": "Sudden breathlessness, RV strain"
+    },
+    {
+     "name": "Pulmonary hypertension",
+     "mechanism": "Disease of the small pulmonary arteries, left heart disease, lung disease or chronic clots raise PA pressure.",
+     "presentation": "Exertional breathlessness, loud P2, raised JVP, oedema; dilated PA and RV.",
+     "scenario": "planned:pulmHypertension",
+     "hook": "Loud P2, dilated PA and RV"
+    },
+    {
+     "name": "Patent ductus arteriosus",
+     "mechanism": "The fetal duct between the aorta and the LPA stays open, shunting aorta to PA.",
+     "presentation": "Continuous machinery murmur under the left clavicle; LA/LV dilatation with a large shunt.",
+     "scenario": "planned:patentDuctus",
+     "hook": "Continuous machinery murmur"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Low pressure, high flow",
+      "text": "The PA carries the whole cardiac output at about a fifth of aortic pressure."
+     },
+     {
+      "hook": "Estimate PA pressure",
+      "text": "PASP ≈ 4 × (peak TR velocity)² + RA pressure (from the IVC)."
+     },
+     {
+      "hook": "Loud P2",
+      "text": "A loud pulmonary component of S2 means high pulmonary pressure."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "PH definition (2022)",
+      "text": "Mean PAP > 20 mmHg at rest; pre-capillary if PAWP ≤ 15 mmHg and PVR > 2 Wood units."
+     },
+     {
+      "hook": "PA wider than the aorta",
+      "text": "On CT a PA diameter larger than the ascending aorta (ratio > 1) suggests PH."
+     },
+     {
+      "hook": "High-risk PE",
+      "text": "Shock or hypotension = high-risk PE: reperfusion (thrombolysis, or catheter/surgical options)."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "How do you estimate PA systolic pressure on echo?",
+     "a": "From the peak tricuspid regurgitation velocity: PASP ≈ 4v² + estimated RA pressure (from IVC size and collapse).",
+     "keys": [
+      "TR peak velocity",
+      "4v² (Bernoulli)",
+      "+ RA pressure from IVC"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does a large PE cause shock?",
+     "a": "The clot raises RV afterload suddenly; the thin RV dilates and fails, LV filling falls (septum shift, low RV output), so cardiac output falls.",
+     "keys": [
+      "Sudden RV afterload",
+      "RV dilates and fails",
+      "LV underfilled → low output"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "What haemodynamic values define pre-capillary pulmonary hypertension (2022)?",
+     "a": "Mean PAP > 20 mmHg, PAWP ≤ 15 mmHg and PVR > 2 Wood units, measured at right heart catheterisation.",
+     "keys": [
+      "mPAP > 20",
+      "PAWP ≤ 15",
+      "PVR > 2 WU"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC/ERS 2022 pulmonary hypertension guideline",
+    "ESC 2019 pulmonary embolism guideline",
+    "ASE 2015 chamber quantification"
+   ],
+   "verify": [
+    "PH definitions (2022 ESC/ERS)",
+    "PA:Ao ratio > 1 on CT"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "superior_vena_cava",
+   "name": "Superior vena cava",
+   "category": "Great vein",
+   "layer": "vessels",
+   "labelIds": [
+    "SVC"
+   ],
+   "aliases": [
+    "SVC"
+   ],
+   "core": "Returns blood from the head, neck and arms to the top of the right atrium; the SA node sits at its junction with the RA.",
+   "stats": [
+    {
+     "value": "SA node",
+     "label": "at the SVC–RA junction"
+    },
+    {
+     "value": "Line tip",
+     "label": "cavo-atrial junction"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Enters the **top of the RA**, right of the ascending aorta",
+     "focus": [
+      "SVC",
+      "RA"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**SA node** lies at the **SVC–RA junction** along the crista",
+     "focus": [
+      "conduction:sa",
+      "crista_terminalis"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**SVC obstruction** (tumour, leads, lines) → swollen face and arms"
+    },
+    {
+     "icon": "key",
+     "text": "**Sinus venosus ASD** sits at its mouth, often with an anomalous right upper PV",
+     "focus": [
+      "pulmonary_veins"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A short valveless vein from the junction of the brachiocephalic veins to the top of the RA.",
+    "detail": "Formed by the right and left brachiocephalic veins behind the right first costal cartilage, it runs down to the right of the ascending aorta and opens into the top of the smooth part of the RA (sinus venarum). The azygos vein joins it from behind. The right phrenic nerve runs on its lateral side."
+   },
+   "function": {
+    "summary": "Carries venous return from the upper body; no valve guards its opening.",
+    "detail": "Drains the head, neck, arms and upper chest (via the azygos). With no valve, RA pressure is transmitted straight up into the neck veins: that is why the JVP reflects RA pressure."
+   },
+   "supply": {
+    "summary": "Drains the head, neck, arms and upper chest wall.",
+    "detail": "Tributaries: right and left brachiocephalic veins, azygos vein."
+   },
+   "relations": [
+    {
+     "with": "SA node",
+     "why": "Sits at the junction; SVC isolation or surgery near it can injure the node.",
+     "focus": [
+      "conduction:sa"
+     ]
+    },
+    {
+     "with": "Right phrenic nerve",
+     "why": "Runs along it: ablation inside the SVC can paralyse the right hemidiaphragm."
+    },
+    {
+     "with": "Right upper pulmonary vein",
+     "why": "Lies just behind it; a sinus venosus defect lets it drain into the SVC or RA.",
+     "focus": [
+      "pulmonary_veins"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Opening at the top of the RA, above the crista terminalis.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign. The JVP waves (a, c, v) are read through it."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Superior vena cava syndrome",
+     "mechanism": "Compression or clot (lung cancer, lymphoma, pacing leads, lines) blocks return from the upper body.",
+     "presentation": "Swollen face and arms, distended non-pulsatile neck veins, headache worse on bending; collateral veins on the chest.",
+     "scenario": null,
+     "hook": "Swollen face and arms, fixed JVP"
+    },
+    {
+     "name": "Sinus venosus atrial septal defect",
+     "mechanism": "A defect at the SVC–RA junction, outside the fossa ovalis, usually with the right upper pulmonary vein draining to the right side.",
+     "presentation": "Signs of an atrial shunt (RV dilatation, fixed split S2) with an intact fossa on echo; often needs CT/MRI or TEE.",
+     "scenario": "planned:asd",
+     "hook": "Atrial shunt, fossa intact"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why the JVP shows RA pressure",
+      "text": "There is no valve between the RA and the SVC and internal jugular vein, so RA pressure is transmitted straight up the neck."
+     },
+     {
+      "hook": "Pacemaker at the top",
+      "text": "The SA node lies at the SVC–RA junction, which is why sinus rhythm P waves point down and left."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Central line tip",
+      "text": "Aim the tip at the lower SVC or cavo-atrial junction (about the carina level on CXR)."
+     },
+     {
+      "hook": "Sinus venosus ASD is easy to miss",
+      "text": "TTE often misses it; suspect it with unexplained RV dilatation and look with TEE or MRI."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does the JVP reflect right atrial pressure?",
+     "a": "No valve separates the RA from the SVC and internal jugular vein, so RA pressure is transmitted up the neck.",
+     "keys": [
+      "No valve",
+      "Continuous column to the RA",
+      "Pressure transmitted"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Unexplained RV dilatation, intact fossa ovalis on TTE. Which defect should you look for, and with what?",
+     "a": "A sinus venosus ASD at the SVC–RA junction (often with anomalous right upper PV drainage); look with TEE or cardiac MRI/CT.",
+     "keys": [
+      "Sinus venosus ASD",
+      "Anomalous RUPV",
+      "TEE / MRI"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2020 adult congenital heart disease guideline",
+    "Netter's Atlas of Human Anatomy (great veins)"
+   ],
+   "verify": [
+    "Line tip at carina level on CXR"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "inferior_vena_cava",
+   "name": "Inferior vena cava",
+   "category": "Great vein",
+   "layer": "vessels",
+   "labelIds": [
+    "IVC",
+    "hepatic_veins"
+   ],
+   "aliases": [
+    "IVC"
+   ],
+   "parts": [
+    {
+     "labelId": "hepatic_veins",
+     "name": "Hepatic veins",
+     "note": "Join the IVC just below the RA; their Doppler pattern reflects RA pressure and TR."
+    }
+   ],
+   "core": "Returns blood from the lower body to the floor of the right atrium; on echo its size and collapse with a sniff estimate right atrial pressure.",
+   "stats": [
+    {
+     "value": "≤ 2.1 cm + > 50 %",
+     "label": "collapse → RAP ≈ 3"
+    },
+    {
+     "value": "> 2.1 cm + < 50 %",
+     "label": "collapse → RAP ≈ 15"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Enters the **floor of the RA**; the **Eustachian valve** guards its front edge",
+     "focus": [
+      "IVC",
+      "eustachian_valve"
+     ]
+    },
+    {
+     "icon": "echo",
+     "text": "Subcostal IVC: **size + sniff collapse** estimate **RA pressure**"
+    },
+    {
+     "icon": "danger",
+     "text": "**Plethoric IVC** that does not collapse: tamponade, RV failure, severe TR"
+    },
+    {
+     "icon": "key",
+     "text": "**Hepatic veins** join it just below the RA: systolic flow reversal = severe TR",
+     "focus": [
+      "hepatic_veins"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A wide valveless vein that pierces the diaphragm at T8 and opens almost at once into the RA floor.",
+    "detail": "It runs up the right side of the abdomen behind the liver, receives the hepatic veins just below the diaphragm, passes through the central tendon at about T8 and opens into the lowest part of the RA. A fold, the Eustachian valve, lies along the front of its opening and continues towards the CS ostium."
+   },
+   "function": {
+    "summary": "Carries venous return from the legs, abdomen and liver; its calibre follows RA pressure and breathing.",
+    "detail": "On inspiration, falling chest pressure draws blood in and the IVC narrows; when RA pressure is high it stays wide. In the fetus the Eustachian valve steered oxygenated IVC blood across the foramen ovale."
+   },
+   "supply": {
+    "summary": "Drains the legs, pelvis, kidneys, and the liver (hepatic veins).",
+    "detail": "Tributaries: common iliac, renal, gonadal (right), adrenal (right), lumbar and hepatic veins."
+   },
+   "relations": [
+    {
+     "with": "Eustachian valve",
+     "why": "Guards its front edge; a big one directs IVC flow to the fossa ovalis.",
+     "focus": [
+      "eustachian_valve"
+     ]
+    },
+    {
+     "with": "Cavotricuspid isthmus",
+     "why": "The strip of RA floor between its orifice and the tricuspid annulus: the flutter ablation line.",
+     "focus": [
+      "cti"
+     ]
+    },
+    {
+     "with": "Liver",
+     "why": "Congestion of the hepatic veins in right heart failure causes a tender liver and abnormal LFTs."
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Long axis 1–2 cm from the RA junction: diameter and collapse with a sniff.",
+      "id": "ivc"
+     },
+     {
+      "text": "IVC and hepatic veins entering the RA.",
+      "id": "subxiphoid_4c"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Opening in the floor of the RA with the Eustachian valve.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Cardiac tamponade",
+     "mechanism": "Pericardial pressure raises RA pressure, so the IVC stays full.",
+     "presentation": "Plethoric IVC with < 50 % collapse, RA/RV collapse, pulsus paradoxus, hypotension.",
+     "scenario": "tamp",
+     "hook": "Plethoric IVC + chamber collapse"
+    },
+    {
+     "name": "Right heart failure and congestive hepatopathy",
+     "mechanism": "High RA pressure is transmitted back to the liver.",
+     "presentation": "Raised JVP, tender liver, ascites, oedema; hepatic vein systolic flow reversal in severe TR.",
+     "scenario": null,
+     "hook": "Big IVC, tender liver, oedema"
+    },
+    {
+     "name": "Volume depletion",
+     "mechanism": "Low RA pressure lets the IVC collapse almost completely.",
+     "presentation": "Small IVC (< 1 cm) that collapses fully; hypotension that responds to fluid.",
+     "scenario": null,
+     "hook": "Small, fully collapsing IVC"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "IVC → RA pressure",
+      "text": "Small IVC that collapses > 50 % with a sniff: RAP about 3 mmHg; dilated and < 50 %: about 15 mmHg; in between: about 8."
+     },
+     {
+      "hook": "Breathing changes it",
+      "text": "Inspiration lowers chest pressure, draws blood in and narrows the IVC."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Ventilated patients",
+      "text": "Positive-pressure ventilation distends the IVC, so the sniff rules do not apply."
+     },
+     {
+      "hook": "Hepatic vein flow",
+      "text": "Systolic flow reversal in the hepatic veins is a specific sign of severe TR."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "IVC 1.6 cm, collapses more than 50 % with a sniff. Estimated RA pressure?",
+     "a": "About 3 mmHg (range 0–5).",
+     "keys": [
+      "Normal size",
+      "> 50 % collapse",
+      "RAP ≈ 3"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why does a large pericardial effusion make the IVC plethoric?",
+     "a": "Pericardial pressure raises RA pressure; venous return backs up and the IVC no longer collapses with breathing.",
+     "keys": [
+      "High pericardial pressure",
+      "High RA pressure",
+      "No inspiratory collapse"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why can't you use IVC collapse to estimate RA pressure in a ventilated patient?",
+     "a": "Positive-pressure ventilation raises chest pressure in inspiration, distending the IVC whatever the RA pressure, so the sniff criteria are invalid.",
+     "keys": [
+      "Positive pressure",
+      "IVC distends regardless",
+      "Criteria invalid"
+     ]
+    }
+   ],
+   "sources": [
+    "ASE 2015 chamber quantification (RA pressure from IVC)",
+    "ESC 2022 pericardial diseases guideline"
+   ],
+   "verify": [
+    "IVC cut-offs 2.1 cm / 50 % collapse",
+    "Diaphragm crossing at T8"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "pulmonary_veins",
+   "name": "Pulmonary veins",
+   "category": "Great vein",
+   "layer": "vessels",
+   "labelIds": [
+    "pulmonary_veins",
+    "conduction:la"
+   ],
+   "aliases": [
+    "PVs",
+    "pulmonary vein ostia"
+   ],
+   "core": "Four veins that bring oxygenated blood from the lungs into the back of the left atrium; muscle sleeves inside them fire the ectopic beats that start most atrial fibrillation.",
+   "stats": [
+    {
+     "value": "4",
+     "label": "veins (2 each side)"
+    },
+    {
+     "value": "1–3 cm",
+     "label": "muscle sleeves"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Two **right** and two **left** veins enter the **back of the LA**",
+     "focus": [
+      "pulmonary_veins",
+      "LA"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**Muscle sleeves** inside the veins fire the **triggers of AF**"
+    },
+    {
+     "icon": "key",
+     "text": "**Pulmonary vein isolation** is the cornerstone of AF ablation"
+    },
+    {
+     "icon": "echo",
+     "text": "Pulsed Doppler in a PV: **S, D and atrial reversal** waves reflect LA filling pressure"
+    }
+   ],
+   "anatomy": {
+    "summary": "Four veins (right and left, superior and inferior) open into the smooth posterior wall of the LA.",
+    "detail": "Usually four: right superior, right inferior, left superior and left inferior, though common ostia and extra veins are frequent. The right veins pass behind the SVC and RA; the left veins lie next to the LAA. Atrial muscle extends 1–3 cm into each vein as a sleeve."
+   },
+   "function": {
+    "summary": "Return oxygenated blood to the LA; their sleeves can fire on their own.",
+    "detail": "Flow into the LA is in two waves: in ventricular systole (S, as the LA relaxes and the mitral annulus descends) and in early diastole (D, as the mitral valve opens), with a small reversal during atrial contraction (Ar). The sleeves have short refractory periods and abrupt changes in fibre direction, which favour triggered beats and micro re-entry."
+   },
+   "supply": {
+    "summary": "Drain the lungs; the bronchial veins partly join them.",
+    "detail": "They carry oxygenated blood from the lungs; part of the bronchial venous blood drains into them too (a small normal right-to-left shunt)."
+   },
+   "relations": [
+    {
+     "with": "Left atrial appendage",
+     "why": "The left superior vein lies just behind its ridge (the 'coumadin ridge'), which can mimic thrombus.",
+     "focus": [
+      "LAA"
+     ]
+    },
+    {
+     "with": "Oesophagus",
+     "why": "Lies right behind the LA and the veins: ablation there risks an atrio-oesophageal fistula."
+    },
+    {
+     "with": "SVC",
+     "why": "The right upper vein lies behind it; in a sinus venosus defect it drains to the right side.",
+     "focus": [
+      "SVC"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Right upper pulmonary vein entering the LA; pulsed Doppler for S, D and Ar.",
+      "id": "a4c"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Four venous openings in the back wall of the LA.",
+      "id": "laOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Triggered PACs and AF; PV ectopy can give an inferior P axis (superior veins)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Atrial fibrillation triggered from the veins",
+     "mechanism": "Rapid firing from the muscle sleeves sets off AF in a susceptible atrium.",
+     "presentation": "Irregularly irregular rhythm, no P waves, palpitations, stroke risk.",
+     "scenario": "af",
+     "hook": "Triggers from the PV sleeves"
+    },
+    {
+     "name": "Pulmonary vein stenosis after ablation",
+     "mechanism": "Burns too far inside a vein scar and narrow it.",
+     "presentation": "Weeks to months after AF ablation: breathlessness, cough, haemoptysis, recurrent pneumonia on that side.",
+     "scenario": null,
+     "hook": "Cough, haemoptysis after ablation"
+    },
+    {
+     "name": "Anomalous pulmonary venous return",
+     "mechanism": "One or more veins drain to the right heart (SVC, RA, IVC) instead of the LA.",
+     "presentation": "Signs of an atrial shunt (RV dilatation); often with a sinus venosus ASD.",
+     "scenario": "planned:asd",
+     "hook": "RV dilatation, left-to-right shunt"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Where AF starts",
+      "text": "Most AF triggers fire from muscle sleeves inside the pulmonary veins."
+     },
+     {
+      "hook": "Four veins, back of the LA",
+      "text": "Two on each side enter the smooth back wall of the LA."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "PVI",
+      "text": "Electrically isolating the veins (pulmonary vein isolation) is the cornerstone of AF ablation."
+     },
+     {
+      "hook": "PV Doppler and filling pressure",
+      "text": "A blunted S wave with a dominant D wave (and a large Ar) suggests raised LA pressure, except in young people with normal hearts."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Oesophageal risk",
+      "text": "The oesophagus lies behind the posterior LA; limit energy there to avoid atrio-oesophageal fistula, which presents days to weeks later with fever and neurological signs."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Where do most of the triggers for atrial fibrillation come from, and why there?",
+     "a": "From the muscle sleeves inside the pulmonary veins: short refractory periods and abrupt fibre-direction changes favour triggered beats and micro re-entry.",
+     "keys": [
+      "Pulmonary vein sleeves",
+      "Short refractory periods",
+      "Fibre-direction changes"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Three months after AF ablation, cough, haemoptysis and breathlessness. Likely cause and test?",
+     "a": "Pulmonary vein stenosis from ablation scar; confirm with CT pulmonary venography.",
+     "keys": [
+      "PV stenosis",
+      "After ablation",
+      "CT venography"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2024 atrial fibrillation guideline",
+    "ASE/EACVI 2016 diastolic function recommendations"
+   ],
+   "verify": [
+    "Sleeve length 1–3 cm",
+    "PV Doppler pattern wording"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "crista_terminalis",
+   "name": "Crista terminalis",
+   "category": "Landmark",
+   "layer": "landmarks",
+   "labelIds": [
+    "crista_terminalis"
+   ],
+   "aliases": [
+    "crista",
+    "sulcus terminalis"
+   ],
+   "core": "A muscle ridge inside the RA between its smooth back and its ridged front; the SA node lies at its top, and it is a highway and a barrier for atrial conduction.",
+   "stats": [
+    {
+     "value": "SA node",
+     "label": "at its top"
+    },
+    {
+     "value": "Line of block",
+     "label": "in typical flutter"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Ridge from the **SVC** opening down to the **IVC**, separating smooth and ridged RA",
+     "focus": [
+      "crista_terminalis",
+      "SVC",
+      "IVC"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Fast conduction **along** it, slow **across** it",
+     "focus": [
+      "conduction:tracts"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Focal atrial tachycardias** often start on it"
+    },
+    {
+     "icon": "echo",
+     "text": "A prominent crista can be mistaken for an **RA mass or thrombus**"
+    }
+   ],
+   "anatomy": {
+    "summary": "A C-shaped muscle ridge on the inside of the RA, matching the sulcus terminalis on the outside.",
+    "detail": "It curves from the front of the SVC opening down the lateral RA wall to the front of the IVC opening. Behind it lies the smooth sinus venarum (from the embryonic sinus venosus); in front, the pectinate muscles fan out from it into the appendage. The SA node lies at its upper end, just under the epicardium."
+   },
+   "function": {
+    "summary": "Conducts fast along its length and blocks conduction across it.",
+    "detail": "Its fibres run lengthways, so impulses travel quickly along it but slowly across it (anisotropy). In typical flutter it forms the posterior wall of the circuit, forcing the wave round the tricuspid ring."
+   },
+   "supply": {
+    "summary": "Branches of the SA nodal artery and RA branches of the RCA.",
+    "detail": "Mainly the SA nodal artery and atrial branches of the RCA (or LCx)."
+   },
+   "relations": [
+    {
+     "with": "SA node",
+     "why": "Lies at its top; the sinus impulse runs down it.",
+     "focus": [
+      "conduction:sa"
+     ]
+    },
+    {
+     "with": "Pectinate muscles",
+     "why": "Fan out from it into the RA appendage.",
+     "focus": [
+      "pectinate_muscles"
+     ]
+    },
+    {
+     "with": "Cavotricuspid isthmus",
+     "why": "Together they channel the typical flutter circuit.",
+     "focus": [
+      "cti"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "The ridge on the lateral wall, from SVC to IVC.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Crista tachycardia: P waves resemble sinus P waves (upright in I and II, often negative in aVR, biphasic in V1)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Focal atrial tachycardia from the crista",
+     "mechanism": "Automatic or triggered cells along the crista fire faster than the SA node.",
+     "presentation": "Regular narrow-complex tachycardia with P waves close to sinus in shape.",
+     "scenario": null,
+     "hook": "Regular tachy with near-sinus P"
+    },
+    {
+     "name": "Typical atrial flutter",
+     "mechanism": "The crista acts as a line of block, so a macro re-entry circles the tricuspid ring through the cavotricuspid isthmus.",
+     "presentation": "Sawtooth flutter waves in II, III, aVF at about 300/min, often with 2:1 block (ventricular rate about 150).",
+     "scenario": "flutter",
+     "hook": "Sawtooth waves, rate 150 (2:1)"
+    },
+    {
+     "name": "Mistaken for an RA mass",
+     "mechanism": "A prominent crista bulges into the RA cavity on echo.",
+     "presentation": "Imaging pitfall; avoid needless anticoagulation or work-up.",
+     "scenario": null,
+     "hook": "Normal ridge read as mass"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Smooth vs ridged RA",
+      "text": "Behind the crista the RA is smooth (sinus venarum); in front it is ridged by pectinate muscles."
+     },
+     {
+      "hook": "The SA node's home",
+      "text": "The SA node lies at the top of the crista next to the SVC."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Anisotropy",
+      "text": "Conduction is fast along the crista and slow across it, which helps make it a barrier in flutter."
+     },
+     {
+      "hook": "Crista tachycardia",
+      "text": "A focal AT with near-sinus P morphology often comes from the crista; think of it in 'inappropriate sinus tachycardia'."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What does the crista terminalis separate, and what lies at its top?",
+     "a": "It separates the smooth posterior RA (sinus venarum) from the ridged anterior RA with pectinate muscles. The SA node lies at its top.",
+     "keys": [
+      "Smooth vs ridged RA",
+      "SA node at the top"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "How does the crista terminalis take part in typical atrial flutter?",
+     "a": "Conduction across it is slow, so it acts as a posterior line of block; the wave circles the tricuspid ring and must pass through the cavotricuspid isthmus.",
+     "keys": [
+      "Line of block",
+      "Circuit round the TV",
+      "Through the CTI"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (right atrium)",
+    "ESC 2019 supraventricular tachycardia guideline"
+   ],
+   "verify": [
+    "Crista AT P-wave morphology"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "pectinate_muscles",
+   "name": "Pectinate muscles",
+   "category": "Landmark",
+   "layer": "landmarks",
+   "labelIds": [
+    "pectinate_muscles"
+   ],
+   "aliases": [
+    "musculi pectinati"
+   ],
+   "core": "Comb-like muscle ridges in the atrial appendages and the front of the RA; the thin wall between them is easy to perforate, and they can mimic thrombus on echo.",
+   "stats": [
+    {
+     "value": "Comb",
+     "label": "= 'pecten'"
+    },
+    {
+     "value": "Thin wall",
+     "label": "between ridges"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Ridges fan from the **crista** into the **RA appendage**; the **LAA** has them too",
+     "focus": [
+      "pectinate_muscles",
+      "crista_terminalis",
+      "LAA"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Thin wall between ridges: **lead or catheter perforation** risk"
+    },
+    {
+     "icon": "echo",
+     "text": "On TEE they can mimic **LAA thrombus**",
+     "focus": [
+      "LAA"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "Mark the part of the atrium from the **embryonic atrium**"
+    }
+   ],
+   "anatomy": {
+    "summary": "Parallel muscle bands running from the crista terminalis into the RA appendage; finer ones line the LAA.",
+    "detail": "In the RA they arise from the crista and run forwards like the teeth of a comb into the broad, triangular right appendage. The LAA is long and finger-like with finer pectinate muscles. Between the ridges the atrial wall can be paper-thin."
+   },
+   "function": {
+    "summary": "Add contractile muscle to the appendages without thickening the whole wall.",
+    "detail": "They strengthen the appendage wall and add to atrial contraction. Their pattern also tells morphological right from left atrium, independent of where the chamber sits."
+   },
+   "supply": {
+    "summary": "Atrial branches of the RCA and LCx.",
+    "detail": "Atrial branches of the RCA (right) and LCx (left)."
+   },
+   "relations": [
+    {
+     "with": "Crista terminalis",
+     "why": "Their origin.",
+     "focus": [
+      "crista_terminalis"
+     ]
+    },
+    {
+     "with": "Left atrial appendage",
+     "why": "Contains finer pectinate muscles; slow flow there in AF forms clots.",
+     "focus": [
+      "LAA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Ridges on the anterolateral RA wall in front of the crista.",
+      "id": "raOpen"
+     },
+     {
+      "text": "Fine ridges inside the LAA.",
+      "id": "laOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Perforation by a pacing lead or catheter",
+     "mechanism": "The thin wall between ridges is pierced.",
+     "presentation": "Pericardial effusion or tamponade after device implant or ablation; chest pain, hypotension.",
+     "scenario": "tamp",
+     "hook": "Effusion after lead or catheter"
+    },
+    {
+     "name": "Mistaken for LAA thrombus",
+     "mechanism": "A prominent pectinate ridge looks like a mass on TEE.",
+     "presentation": "Imaging pitfall; contrast or multiple views help decide.",
+     "scenario": null,
+     "hook": "Ridge mistaken for clot"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Rough front, smooth back",
+      "text": "Pectinate muscles make the front of the RA rough; the back (sinus venarum) is smooth."
+     },
+     {
+      "hook": "Two appendages",
+      "text": "The right appendage is broad and triangular; the left is narrow and finger-like."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Thrombus or ridge?",
+      "text": "A thrombus moves independently and has a different texture; pectinate ridges are linear, move with the wall and are seen in several views."
+     },
+     {
+      "hook": "Situs",
+      "text": "Appendage shape and pectinate pattern identify morphological right and left atria in congenital heart disease."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Where are the pectinate muscles found, and what makes the wall there risky for catheters?",
+     "a": "In the atrial appendages and the front of the RA; the wall between the ridges is very thin, so leads and catheters can perforate it.",
+     "keys": [
+      "Appendages + anterior RA",
+      "Thin wall between ridges",
+      "Perforation risk"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "On TEE, how do you tell a pectinate ridge from LAA thrombus?",
+     "a": "Ridges are linear, move with the wall and appear in several views; a thrombus is a mass with independent motion, often with spontaneous echo contrast.",
+     "keys": [
+      "Linear, moves with wall",
+      "Seen in several views",
+      "Thrombus: independent motion"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (right atrium)",
+    "ASE 2016 source-of-embolism guideline"
+   ],
+   "verify": [
+    "Perforation risk wording"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "eustachian_thebesian_valves",
+   "name": "Eustachian and Thebesian valves",
+   "category": "Landmark",
+   "layer": "landmarks",
+   "labelIds": [
+    "eustachian_valve",
+    "thebesian_valve"
+   ],
+   "aliases": [
+    "Eustachian valve",
+    "Thebesian valve",
+    "Chiari network"
+   ],
+   "parts": [
+    {
+     "labelId": "eustachian_valve",
+     "name": "Eustachian valve",
+     "note": "Crescent fold on the front edge of the IVC opening; its ridge continues as the tendon of Todaro."
+    },
+    {
+     "labelId": "thebesian_valve",
+     "name": "Thebesian valve",
+     "note": "Thin fold over part of the coronary sinus ostium."
+    }
+   ],
+   "core": "Remnant flaps at the openings of the IVC (Eustachian) and coronary sinus (Thebesian) in the RA; harmless alone, but they matter for PFO embolism and catheter work.",
+   "stats": [
+    {
+     "value": "IVC",
+     "label": "Eustachian"
+    },
+    {
+     "value": "CS",
+     "label": "Thebesian"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "**Eustachian**: front edge of the **IVC**; **Thebesian**: over the **CS ostium**",
+     "focus": [
+      "eustachian_valve",
+      "thebesian_valve",
+      "IVC",
+      "cs_ostium"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "In the fetus the Eustachian valve steered IVC blood to the **foramen ovale**",
+     "focus": [
+      "fossa_ovalis"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "A large Eustachian valve + **PFO** → paradoxical embolism risk"
+    },
+    {
+     "icon": "key",
+     "text": "Eustachian ridge continues as the **tendon of Todaro**",
+     "focus": [
+      "todaro_tendon"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "Two thin flaps in the RA: one along the front of the IVC opening, one over the CS ostium.",
+    "detail": "The Eustachian valve is a crescent along the anterior edge of the IVC orifice; its ridge continues medially as the Eustachian ridge and the tendon of Todaro. The Thebesian valve is a thin fold over part of the coronary sinus ostium. A lace-like remnant (Chiari network) is found in some hearts."
+   },
+   "function": {
+    "summary": "Fetal flow guides; little function after birth.",
+    "detail": "Before birth the Eustachian valve directed oxygen-rich IVC blood across the foramen ovale into the LA. After birth both are remnants, varying from absent to prominent."
+   },
+   "supply": {
+    "summary": "Atrial branches of the RCA.",
+    "detail": "Small atrial branches of the RCA."
+   },
+   "relations": [
+    {
+     "with": "Fossa ovalis",
+     "why": "A large Eustachian valve keeps directing IVC flow to it, favouring paradoxical embolism through a PFO.",
+     "focus": [
+      "fossa_ovalis"
+     ]
+    },
+    {
+     "with": "Cavotricuspid isthmus",
+     "why": "A big Eustachian ridge can make catheter contact on the CTI difficult.",
+     "focus": [
+      "cti"
+     ]
+    },
+    {
+     "with": "Coronary sinus ostium",
+     "why": "A prominent Thebesian valve makes CS cannulation (CRT leads, EP) harder.",
+     "focus": [
+      "cs_ostium"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Linear echo at the IVC–RA junction.",
+      "id": "subxiphoid_4c"
+     },
+     {
+      "text": "Thin echo in the RA near the IVC with an inferior tilt.",
+      "id": "a4c"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Fold at the IVC opening and over the CS ostium.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Paradoxical embolism through a PFO",
+     "mechanism": "A prominent Eustachian valve channels IVC blood, and any clot in it, towards the fossa ovalis.",
+     "presentation": "Cryptogenic stroke in a younger patient with a PFO and a large Eustachian valve or Chiari network.",
+     "scenario": "planned:pfo",
+     "hook": "Stroke in a young patient with PFO"
+    },
+    {
+     "name": "Difficult CS cannulation",
+     "mechanism": "A Thebesian valve covers part of the ostium and deflects catheters.",
+     "presentation": "Failed or prolonged CRT LV lead placement.",
+     "scenario": null,
+     "hook": "CRT lead won't enter the CS"
+    },
+    {
+     "name": "Mistaken for thrombus or vegetation",
+     "mechanism": "A mobile flap or Chiari network moves in the RA.",
+     "presentation": "Imaging pitfall; rarely, true endocarditis of the Eustachian valve in IV drug use.",
+     "scenario": null,
+     "hook": "Mobile RA flap on echo"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Fetal job",
+      "text": "The Eustachian valve steered oxygen-rich IVC blood across the foramen ovale to the left heart."
+     },
+     {
+      "hook": "Two openings, two flaps",
+      "text": "Eustachian over the IVC, Thebesian over the coronary sinus."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Chiari network",
+      "text": "A lace-like Eustachian remnant; associated with PFO and atrial septal aneurysm. Not a thrombus."
+     },
+     {
+      "hook": "Koch's triangle",
+      "text": "The Eustachian ridge continues as the tendon of Todaro, one side of Koch's triangle."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What did the Eustachian valve do in the fetus?",
+     "a": "It directed oxygenated blood from the IVC across the foramen ovale into the left atrium.",
+     "keys": [
+      "IVC flow",
+      "Across the foramen ovale",
+      "To the LA"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why might a large Eustachian valve matter in a young patient with a cryptogenic stroke?",
+     "a": "It channels IVC blood (and venous clot) towards the fossa ovalis, increasing the chance of paradoxical embolism through a PFO.",
+     "keys": [
+      "Channels IVC flow to fossa",
+      "PFO",
+      "Paradoxical embolism"
+     ]
+    }
+   ],
+   "sources": [
+    "Netter's Atlas of Human Anatomy (right atrium)",
+    "ESC 2018 position paper on PFO management"
+   ],
+   "verify": [
+    "Chiari network association with PFO",
+    "Tendon of Todaro as continuation of the Eustachian ridge"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "membranous_septum",
+   "name": "Membranous septum",
+   "category": "Fibrous skeleton",
+   "layer": "landmarks",
+   "labelIds": [
+    "membranous_septum"
+   ],
+   "aliases": [
+    "pars membranacea"
+   ],
+   "core": "The thin fibrous top of the ventricular septum just under the aortic valve; it is the commonest site of VSDs, and the His bundle runs along its lower edge.",
+   "stats": [
+    {
+     "value": "Commonest",
+     "label": "VSD site (perimembranous)"
+    },
+    {
+     "value": "His bundle",
+     "label": "along its lower edge"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Under the **right and non-coronary cusps**, above the muscular septum",
+     "focus": [
+      "membranous_septum",
+      "AV_cusps.RCC",
+      "AV_cusps.NCC"
+     ]
+    },
+    {
+     "icon": "where",
+     "text": "The **septal tricuspid leaflet** splits it into **AV** and **interventricular** parts",
+     "focus": [
+      "TV_septal"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "**His bundle** runs along its lower rim → **heart block** after VSD closure or TAVI",
+     "focus": [
+      "conduction:his"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Perimembranous VSD**: harsh holosystolic murmur at the left sternal edge"
+    }
+   ],
+   "anatomy": {
+    "summary": "A small fibrous patch at the top of the ventricular septum, beneath the aortic valve and next to the central fibrous body.",
+    "detail": "It lies below the commissure between the right and non-coronary cusps, continuous with the central fibrous body. The hinge of the septal tricuspid leaflet crosses its right side, dividing it into an atrioventricular part (between LV and RA) and an interventricular part (between LV and RV). The penetrating His bundle runs along its posteroinferior edge, on the crest of the muscular septum."
+   },
+   "function": {
+    "summary": "Closes the gap between the muscular septum and the aortic root; electrically inert.",
+    "detail": "It is the last part of the septum to close in the embryo, which is why defects are commonest here. It conducts no impulses; the His bundle runs just beneath it."
+   },
+   "supply": {
+    "summary": "No muscle to supply; nearby His is fed by the AV nodal artery and LAD septals.",
+    "detail": "Fibrous tissue with little blood supply; the adjacent His bundle has a dual supply (AV nodal artery and LAD septal perforators)."
+   },
+   "relations": [
+    {
+     "with": "His bundle",
+     "why": "Runs along its lower edge: VSD closure, TAVI or septal surgery can damage it.",
+     "focus": [
+      "conduction:his"
+     ]
+    },
+    {
+     "with": "Aortic valve",
+     "why": "Sits right above it; a perimembranous VSD can let a cusp prolapse (aortic regurgitation).",
+     "focus": [
+      "aortic_valve"
+     ]
+    },
+    {
+     "with": "Central fibrous body",
+     "why": "Continuous with it.",
+     "focus": [
+      "central_fibrous_body"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Thin segment just below the aortic valve; perimembranous VSD jet towards the RV.",
+      "id": "psax_av"
+     },
+     {
+      "text": "Top of the septum below the aortic valve.",
+      "id": "a5c"
+     },
+     {
+      "text": "Upper septum under the aortic root.",
+      "id": "plax"
+     }
+    ],
+    "cut": [
+     {
+      "text": "Thin pale area under the aortic cusps.",
+      "id": "lvOpen"
+     },
+     {
+      "text": "Top of the septum next to the AV valves.",
+      "id": "a4c"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign; a large VSD causes LV (and later RV) hypertrophy."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Perimembranous ventricular septal defect",
+     "mechanism": "The membranous septum fails to close, so blood shunts from the LV to the RV.",
+     "presentation": "Harsh holosystolic murmur at the left sternal edge; a large shunt causes heart failure in infancy and later pulmonary hypertension.",
+     "scenario": "planned:vsd",
+     "hook": "Harsh holosystolic murmur, LSE"
+    },
+    {
+     "name": "Complete heart block after TAVI or VSD closure",
+     "mechanism": "A valve frame or device presses on the His bundle beneath the membranous septum.",
+     "presentation": "New LBBB or complete heart block with a wide escape after the procedure; may need a pacemaker.",
+     "scenario": "chbV",
+     "hook": "New block after TAVI"
+    },
+    {
+     "name": "Gerbode defect (LV-to-RA shunt)",
+     "mechanism": "A defect in the AV part of the membranous septum connects the LV to the RA.",
+     "presentation": "High-velocity jet into the RA that can be mistaken for TR (and overestimate PA pressure).",
+     "scenario": null,
+     "hook": "LV→RA jet mimicking TR"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Commonest VSD site",
+      "text": "Perimembranous VSDs are the most common type."
+     },
+     {
+      "hook": "Small hole, loud murmur",
+      "text": "A small VSD has a high pressure gradient and a loud murmur; a large one may be quieter."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "TAVI and the His",
+      "text": "A short membranous septum or a deep valve implant raises the risk of conduction block and a pacemaker after TAVI."
+     },
+     {
+      "hook": "Gerbode trap",
+      "text": "An LV-to-RA jet looks like severe TR with a very high velocity; do not read it as severe pulmonary hypertension."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does a perimembranous VSD cause a holosystolic murmur?",
+     "a": "LV pressure exceeds RV pressure throughout systole, so blood flows through the defect from the start to the end of systole.",
+     "keys": [
+      "LV > RV pressure",
+      "Whole of systole",
+      "Holosystolic"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Two days after TAVI, a new LBBB then complete heart block. Explain the anatomy.",
+     "a": "The His bundle and left bundle emerge beneath the membranous septum just below the aortic annulus; the valve frame compresses or injures them.",
+     "keys": [
+      "His under membranous septum",
+      "Valve frame below annulus",
+      "Compression → block"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2020 adult congenital heart disease guideline",
+    "ESC 2021 pacing guideline (post-TAVI conduction)",
+    "Netter's Atlas of Human Anatomy (heart interior)"
+   ],
+   "verify": [
+    "Perimembranous VSD as commonest type (proportion not stated)",
+    "Short membranous septum length as TAVI pacing predictor"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "pericardium",
+   "name": "Pericardium",
+   "category": "Pericardium",
+   "layer": "pericardium",
+   "labelIds": [
+    "pericardium"
+   ],
+   "aliases": [
+    "pericardial sac",
+    "epicardium"
+   ],
+   "core": "A tough sac around the heart with a thin film of fluid inside; inflamed, filled with fluid or scarred, it can stop the heart filling.",
+   "stats": [
+    {
+     "value": "15–50 mL",
+     "label": "normal fluid"
+    },
+    {
+     "value": "> 10 mmHg",
+     "label": "pulsus paradoxus"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "**Fibrous** outer sac + **serous** layer (parietal and visceral)",
+     "focus": [
+      "pericardium"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**Pericarditis**: diffuse ST↑ with **PR depression**, no reciprocal changes (except aVR)"
+    },
+    {
+     "icon": "danger",
+     "text": "**Tamponade**: hypotension, raised JVP, muffled sounds, **pulsus paradoxus**"
+    },
+    {
+     "icon": "echo",
+     "text": "Fluid in **PLAX** lies **in front of the descending aorta**; RA/RV collapse in tamponade",
+     "focus": [
+      "descending_aorta"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Constriction**: Kussmaul sign, septal bounce, pericardial knock"
+    }
+   ],
+   "anatomy": {
+    "summary": "A fibrous sac lined by a serous membrane whose inner (visceral) layer is the epicardium.",
+    "detail": "The fibrous pericardium is a tough outer sac fused to the diaphragm and the great vessels. Inside, the serous pericardium has a parietal layer lining the sac and a visceral layer (epicardium) on the heart, with 15–50 mL of fluid between them. Reflections round the great vessels form the transverse sinus (behind the aorta and PA) and the oblique sinus (behind the LA). The phrenic nerves run on its sides."
+   },
+   "function": {
+    "summary": "Limits sudden dilatation, lubricates motion and couples the two ventricles.",
+    "detail": "It lowers friction, keeps the heart in place and limits acute overfilling. Because its volume is fixed, filling of one ventricle affects the other (interdependence), which is what exaggerates breathing effects in tamponade and constriction."
+   },
+   "supply": {
+    "summary": "Pericardiophrenic and internal thoracic branches; pain carried by the phrenic nerve.",
+    "detail": "Blood from the pericardiophrenic and internal thoracic arteries. The parietal layer is sensitive (phrenic nerve), so pericardial pain can refer to the shoulder tip and trapezius ridge."
+   },
+   "relations": [
+    {
+     "with": "Phrenic nerves",
+     "why": "Run on its surface: pericarditis pain refers to the trapezius ridge; surgery can injure them."
+    },
+    {
+     "with": "Descending aorta",
+     "why": "In PLAX, pericardial fluid stops in front of it; pleural fluid extends behind it.",
+     "focus": [
+      "descending_aorta"
+     ]
+    },
+    {
+     "with": "Ascending aorta",
+     "why": "Lies inside the pericardium: a type A dissection can bleed into it (tamponade).",
+     "focus": [
+      "aortic_root"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Echo-free space behind the LV, in front of the descending aorta.",
+      "id": "plax"
+     },
+     {
+      "text": "Best window for size, RV diastolic collapse and pericardiocentesis.",
+      "id": "subxiphoid_4c"
+     },
+     {
+      "text": "RA systolic collapse; respiratory variation of mitral inflow.",
+      "id": "a4c"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Pericarditis: diffuse ST elevation with PR depression (ST depression and PR elevation in aVR). Effusion: low voltage and electrical alternans."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Acute pericarditis",
+     "mechanism": "Inflammation of the pericardium (often viral) irritates the epicardium beneath it.",
+     "presentation": "Sharp pleuritic chest pain, better sitting forward; friction rub; diffuse ST elevation with PR depression.",
+     "scenario": "peri",
+     "hook": "Pain better sitting forward, PR↓"
+    },
+    {
+     "name": "Cardiac tamponade",
+     "mechanism": "Fluid under pressure compresses the heart, so the chambers cannot fill.",
+     "presentation": "Hypotension, raised JVP, muffled heart sounds (Beck's triad), pulsus paradoxus > 10 mmHg; RA/RV collapse on echo.",
+     "scenario": "tamp",
+     "hook": "Beck's triad + pulsus paradoxus"
+    },
+    {
+     "name": "Constrictive pericarditis",
+     "mechanism": "A stiff, scarred pericardium stops filling after early diastole.",
+     "presentation": "Raised JVP that rises on inspiration (Kussmaul), oedema, ascites; pericardial knock; septal bounce on echo.",
+     "scenario": "planned:constriction",
+     "hook": "Kussmaul sign, septal bounce"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Pericarditis ECG",
+      "text": "Diffuse concave ST elevation with PR depression and no reciprocal ST depression (except aVR) favours pericarditis over STEMI."
+     },
+     {
+      "hook": "Beck's triad",
+      "text": "Hypotension, raised JVP and muffled heart sounds suggest tamponade."
+     },
+     {
+      "hook": "Pain sitting forward",
+      "text": "Pericarditis pain is sharp, worse lying flat and better sitting forward."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Pulsus paradoxus",
+      "text": "An inspiratory fall in systolic BP > 10 mmHg: in tamponade the RV fills at the expense of the LV in a fixed space."
+     },
+     {
+      "hook": "Tamponade is clinical",
+      "text": "Echo shows the fluid and chamber collapse, but tamponade is a clinical diagnosis; drain an unstable patient now."
+     },
+     {
+      "hook": "Constriction vs restriction",
+      "text": "Constriction: septal bounce, respiratory variation, preserved or high septal e'. Restriction: thick or infiltrated muscle, low e'."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Annulus reversus",
+      "text": "In constriction the septal e' exceeds the lateral e', the reverse of normal."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "How can the ECG help tell acute pericarditis from STEMI?",
+     "a": "Pericarditis: diffuse concave ST elevation, PR depression, no reciprocal ST depression (except aVR). STEMI: regional ST elevation with reciprocal depression.",
+     "keys": [
+      "Diffuse vs regional",
+      "PR depression",
+      "No reciprocal change"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Name Beck's triad and the condition it suggests.",
+     "a": "Hypotension, raised JVP and muffled heart sounds: cardiac tamponade.",
+     "keys": [
+      "Hypotension",
+      "Raised JVP",
+      "Muffled sounds → tamponade"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Explain the mechanism of pulsus paradoxus in tamponade.",
+     "a": "In a fixed pericardial space, inspiration increases RV filling, which pushes the septum left and reduces LV filling; LV stroke volume and systolic BP fall by more than 10 mmHg.",
+     "keys": [
+      "Fixed space",
+      "Inspiration fills the RV",
+      "Septum shifts, LV underfills",
+      "SBP fall > 10 mmHg"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2022 pericardial diseases guideline (2015 guideline update)",
+    "ASE 2013 pericardial disease recommendations"
+   ],
+   "verify": [
+    "Normal fluid 15–50 mL",
+    "Guideline name/year for pericardial diseases",
+    "Annulus reversus definition"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "epicardial_fat",
+   "name": "Epicardial fat",
+   "category": "Surface",
+   "layer": "pericardium",
+   "labelIds": [
+    "epicardial_fat"
+   ],
+   "aliases": [
+    "pericardial fat",
+    "EAT"
+   ],
+   "core": "Fat under the visceral pericardium that fills the grooves around the coronary arteries; on echo it can mimic an effusion, and in excess it is linked with coronary disease and AF.",
+   "stats": [
+    {
+     "value": "Front only",
+     "label": "fat vs effusion on echo"
+    },
+    {
+     "value": "Grooves",
+     "label": "around the coronaries"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Fills the **AV and interventricular grooves** around the coronaries",
+     "focus": [
+      "epicardial_fat",
+      "artery:RCA",
+      "artery:LAD"
+     ]
+    },
+    {
+     "icon": "echo",
+     "text": "An **anterior** echo-free space only = usually **fat**, not effusion"
+    },
+    {
+     "icon": "key",
+     "text": "**Metabolically active**: linked with CAD and AF"
+    },
+    {
+     "icon": "key",
+     "text": "**Lipomatous hypertrophy** of the IAS spares the fossa (dumbbell shape)",
+     "focus": [
+      "IAS",
+      "fossa_ovalis"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "Fat between the myocardium and the visceral pericardium, thickest in the grooves and over the RV.",
+    "detail": "It lies directly on the myocardium with no fascia in between, beneath the visceral pericardium (epicardium). It is thickest in the AV and interventricular grooves, along the coronary arteries and veins, over the RV free wall and at the apex."
+   },
+   "function": {
+    "summary": "Cushions the coronaries and acts as a local energy store and hormone source.",
+    "detail": "It protects and supports the coronary vessels and stores fatty acids for the myocardium. It also releases inflammatory signals into the muscle and vessels beneath it, which may promote atherosclerosis and atrial fibrosis when it is excessive."
+   },
+   "supply": {
+    "summary": "Shares the coronary microcirculation of the muscle below.",
+    "detail": "Fed by small branches of the coronary arteries, the same microcirculation as the myocardium underneath."
+   },
+   "relations": [
+    {
+     "with": "Coronary arteries",
+     "why": "Run inside it; surgeons dissect them out of the fat in bypass surgery.",
+     "focus": [
+      "artery:LAD",
+      "artery:RCA"
+     ]
+    },
+    {
+     "with": "Pericardium",
+     "why": "Lies beneath the visceral layer; true effusion is between the visceral and parietal layers.",
+     "focus": [
+      "pericardium"
+     ]
+    },
+    {
+     "with": "Interatrial septum",
+     "why": "Fat can infiltrate it (lipomatous hypertrophy), sparing the fossa ovalis.",
+     "focus": [
+      "IAS"
+     ]
+    }
+   ],
+   "seenOn": {
+    "echo": [
+     {
+      "text": "Echo-poor band in front of the RV free wall, moving with the heart.",
+      "id": "plax"
+     },
+     {
+      "text": "Fat over the RV in the subcostal view.",
+      "id": "subxiphoid_4c"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "No direct sign."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Mistaken for pericardial effusion",
+     "mechanism": "Epicardial fat is echo-poor and lies in front of the RV.",
+     "presentation": "Imaging pitfall: an anterior space with no posterior fluid is usually fat.",
+     "scenario": null,
+     "hook": "Anterior-only space = fat"
+    },
+    {
+     "name": "Lipomatous hypertrophy of the interatrial septum",
+     "mechanism": "Fat accumulates in the septum, sparing the thin fossa ovalis.",
+     "presentation": "Dumbbell-shaped thick septum on echo or CT; usually harmless, sometimes atrial arrhythmias.",
+     "scenario": null,
+     "hook": "Dumbbell septum, fossa spared"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Fat or fluid?",
+      "text": "A space in front of the heart alone is usually fat; a true effusion also collects behind the LV."
+     },
+     {
+      "hook": "Coronaries live in fat",
+      "text": "The main coronary arteries run in the grooves, buried in epicardial fat."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Fat and disease",
+      "text": "More epicardial fat (on CT) is linked with coronary atherosclerosis and AF; it is an imaging marker, not yet a treatment target."
+     },
+     {
+      "hook": "Lipomatous septum",
+      "text": "A thick septum that spares the fossa ovalis is fat, not a tumour; MRI or CT confirms fat signal."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "On PLAX you see an echo-poor space in front of the RV but nothing behind the LV. What is it most likely to be?",
+     "a": "Epicardial fat: an effusion would also collect behind the LV.",
+     "keys": [
+      "Epicardial fat",
+      "No posterior fluid",
+      "Not an effusion"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A thick, dumbbell-shaped interatrial septum that spares the fossa ovalis. Diagnosis?",
+     "a": "Lipomatous hypertrophy of the interatrial septum: fat infiltrating the septum around, but not in, the thin fossa. Usually benign.",
+     "keys": [
+      "Lipomatous hypertrophy",
+      "Fossa spared",
+      "Benign"
+     ]
+    }
+   ],
+   "sources": [
+    "ASE 2013 pericardial disease recommendations",
+    "Netter's Atlas of Human Anatomy (heart surface)"
+   ],
+   "verify": [
+    "Link of epicardial fat with CAD and AF (wording)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B4"
+   }
+  },
+  {
+   "id": "sa_node",
+   "name": "Sinoatrial (SA) node",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "sa_node",
+    "conduction:sa"
+   ],
+   "aliases": [
+    "SA node",
+    "sinus node",
+    "sinoatrial node"
+   ],
+   "core": "The heart's natural pacemaker: a strip of cells at the SVC–RA junction whose resting voltage drifts up on its own, so it fires first and sets the rate.",
+   "stats": [
+    {
+     "value": "60–100/min",
+     "label": "intrinsic rate"
+    },
+    {
+     "value": "≈ 60 %",
+     "label": "fed by the RCA"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Under the epicardium at the **SVC–RA junction**, top of the **crista terminalis**",
+     "focus": [
+      "conduction:sa",
+      "SVC",
+      "crista_terminalis"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "**Phase 4 drift** (funny current, If) makes it the **fastest clock**"
+    },
+    {
+     "icon": "ecg",
+     "text": "Sinus P: **upright in I, II, aVF**, negative in aVR"
+    },
+    {
+     "icon": "danger",
+     "text": "**Sick sinus**: bradycardia, pauses, tachy-brady syndrome"
+    },
+    {
+     "icon": "supply",
+     "text": "**SA nodal artery**: RCA ≈ 60 %, LCx ≈ 40 %",
+     "focus": [
+      "artery:SAN"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A spindle-shaped strip under the epicardium where the SVC meets the RA, running down the crista terminalis.",
+    "detail": "It lies just under the epicardium in the sulcus terminalis, at the top of the crista terminalis, and is built around the SA nodal artery. It is about 1–2 cm long, larger than it looks on diagrams, and connects to the atrial muscle through exit routes along the crista."
+   },
+   "function": {
+    "summary": "Generates each heartbeat through spontaneous phase 4 depolarisation; nerves tune the rate.",
+    "detail": "Its cells have no stable resting potential. In phase 4 the funny current (If, through HCN4 channels) and calcium release slowly depolarise them to threshold; phase 0 is a slow calcium upstroke. The steepest phase 4 slope wins, so it overdrives slower pacemakers below it. Sympathetic tone steepens the slope (faster); vagal tone flattens it and hyperpolarises the cells (slower)."
+   },
+   "supply": {
+    "summary": "SA nodal artery, from the RCA in about 60 % and the LCx in about 40 %.",
+    "detail": "The SA nodal artery runs through the node; its origin does not follow coronary dominance."
+   },
+   "relations": [
+    {
+     "with": "SA nodal artery",
+     "why": "Runs through the node; RCA or LCx occlusion can stop it.",
+     "focus": [
+      "artery:SAN"
+     ]
+    },
+    {
+     "with": "Crista terminalis",
+     "why": "The impulse leaves down the crista.",
+     "focus": [
+      "crista_terminalis"
+     ]
+    },
+    {
+     "with": "SVC and right phrenic nerve",
+     "why": "Ablation or surgery at the SVC–RA junction can injure the node.",
+     "focus": [
+      "SVC"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Top of the crista terminalis at the SVC opening.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Sinus rhythm: every P upright in I, II and aVF, followed by a QRS, rate 60–100."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Sinus bradycardia",
+     "mechanism": "Strong vagal tone, drugs (beta-blockers, calcium blockers), hypothyroidism or nodal disease flatten phase 4.",
+     "presentation": "Rate < 60 with normal P waves; fine in athletes and sleep, symptomatic if severe.",
+     "scenario": "sinusBrady",
+     "hook": "Rate < 60, normal P waves"
+    },
+    {
+     "name": "Sinus arrest",
+     "mechanism": "The node stops firing for a while.",
+     "presentation": "A pause with no P wave that is not a multiple of the P–P interval; an escape beat may end it.",
+     "scenario": "sinusArrest",
+     "hook": "Pause not a multiple of P–P"
+    },
+    {
+     "name": "Sinoatrial exit block",
+     "mechanism": "The node fires but the impulse fails to leave it.",
+     "presentation": "A pause that is an exact multiple of the P–P interval.",
+     "scenario": "saExit",
+     "hook": "Pause = 2 × P–P"
+    },
+    {
+     "name": "Tachy-brady syndrome",
+     "mechanism": "A diseased node and atrium alternate between AF or flutter and long pauses after they stop.",
+     "presentation": "Palpitations then dizziness or syncope when the tachycardia ends; often needs a pacemaker so rate control is safe.",
+     "scenario": "af",
+     "hook": "AF ends → long pause, syncope"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why the SA node leads",
+      "text": "It has the steepest phase 4 slope, so it reaches threshold first and resets all slower pacemakers (overdrive suppression)."
+     },
+     {
+      "hook": "Funny current",
+      "text": "If (HCN4) is a slow inward current that opens as the cell repolarises: it is what makes the node a clock."
+     },
+     {
+      "hook": "Sinus P wave",
+      "text": "The impulse spreads down and to the left, so the P wave is upright in II and negative in aVR."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Arrest vs exit block",
+      "text": "A pause that is an exact multiple of the P–P interval is exit block; one that is not is arrest."
+     },
+     {
+      "hook": "Ivabradine",
+      "text": "Blocks If: slows the sinus rate without lowering BP or contractility (used in HFrEF and inappropriate sinus tachycardia)."
+     },
+     {
+      "hook": "Pace for symptoms",
+      "text": "In sinus node disease, pace when bradycardia or pauses clearly cause symptoms; asymptomatic slow rates need no pacing."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Sinus node recovery time",
+      "text": "After overdrive pacing, a long corrected recovery time suggests sinus node disease, but the test has low sensitivity."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the SA node the heart's pacemaker rather than the AV node?",
+     "a": "Its phase 4 depolarisation is fastest, so it reaches threshold first and resets (overdrives) the slower AV junction and Purkinje pacemakers.",
+     "keys": [
+      "Fastest phase 4",
+      "Reaches threshold first",
+      "Overdrive suppression"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "What do sympathetic and vagal stimulation do to the SA node?",
+     "a": "Sympathetic (β1, cAMP) increases If and calcium currents, steepening phase 4: faster. Vagal (ACh, M2) opens potassium channels and reduces If: hyperpolarised, flatter phase 4, slower.",
+     "keys": [
+      "Sympathetic: steeper phase 4",
+      "Vagal: hyperpolarise, flatter",
+      "Rate changes"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A rhythm strip shows a pause exactly twice the P–P interval. Name it and the mechanism.",
+     "a": "Sinoatrial exit block (2:1): the node fires on time but one impulse fails to reach the atrium.",
+     "keys": [
+      "SA exit block",
+      "Node fires",
+      "Impulse not conducted out"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2021 cardiac pacing guideline",
+    "Guyton & Hall Textbook of Medical Physiology (cardiac rhythm)",
+    "Netter's Atlas of Human Anatomy (conduction system)"
+   ],
+   "verify": [
+    "SA node length 1–2 cm",
+    "Exit routes along the crista"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "internodal_routes",
+   "name": "Internodal routes (right atrium)",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "internodal_anterior",
+    "internodal_middle",
+    "internodal_posterior",
+    "conduction:tracts"
+   ],
+   "aliases": [
+    "internodal tracts",
+    "atrial conduction routes"
+   ],
+   "parts": [
+    {
+     "labelId": "internodal_anterior",
+     "name": "Anterior route",
+     "note": "Runs forwards round the SVC; gives Bachmann's bundle to the left atrium."
+    },
+    {
+     "labelId": "internodal_middle",
+     "name": "Middle route",
+     "note": "Runs through the interatrial septum to the top of the AV node (fast input)."
+    },
+    {
+     "labelId": "internodal_posterior",
+     "name": "Posterior route",
+     "note": "Runs down the crista terminalis and Eustachian ridge to the back of the AV node (slow input)."
+    }
+   ],
+   "core": "Preferential paths through right atrial muscle that carry the sinus impulse to the AV node; they are fast because of fibre direction, not because they are insulated cables.",
+   "stats": [
+    {
+     "value": "≈ 1 m/s",
+     "label": "atrial conduction"
+    },
+    {
+     "value": "< 120 ms",
+     "label": "normal P wave"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "**Anterior, middle, posterior** routes from the SA node to the **AV node**",
+     "focus": [
+      "conduction:tracts",
+      "conduction:sa",
+      "conduction:avn"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "**Fibre orientation** makes them fast; they are **not insulated**"
+    },
+    {
+     "icon": "ecg",
+     "text": "The **first part of the P wave** is right atrial activation"
+    },
+    {
+     "icon": "key",
+     "text": "Feed the **fast** (septal) and **slow** (posterior) inputs to the AV node",
+     "focus": [
+      "conduction:avn_fast",
+      "conduction:avn_slow"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "Three classic routes (anterior, middle, posterior) through ordinary RA muscle from the SA node towards the AV node.",
+    "detail": "Textbooks name an anterior route (which also gives Bachmann's bundle), a middle route through the septum and a posterior route along the crista terminalis and the Eustachian ridge. They are bundles of well-aligned working muscle, not insulated tracts like the bundle branches; whether they are truly 'specialised' is debated."
+   },
+   "function": {
+    "summary": "Carry the impulse quickly to the AV node so atrial activation finishes before the ventricles fire.",
+    "detail": "Atrial muscle conducts at about 1 m/s, faster along the fibres. The right atrium activates first (the first half of the P wave), then the left through Bachmann's bundle and the septum. The impulse reaches the AV node about 30–40 ms after the SA node fires."
+   },
+   "supply": {
+    "summary": "Atrial branches of the RCA and LCx, including the SA nodal artery.",
+    "detail": "Atrial branches of the RCA and LCx."
+   },
+   "relations": [
+    {
+     "with": "Crista terminalis",
+     "why": "The posterior route runs along it.",
+     "focus": [
+      "crista_terminalis"
+     ]
+    },
+    {
+     "with": "Bachmann's bundle",
+     "why": "Leaves from the anterior route to the LA.",
+     "focus": [
+      "conduction:bach"
+     ]
+    },
+    {
+     "with": "Cavotricuspid isthmus",
+     "why": "Part of the RA floor where the typical flutter circuit runs.",
+     "focus": [
+      "cti"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "RA septal and lateral walls between the SA node and Koch's triangle.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "P wave: right atrium first (early P), left atrium last; normal P < 120 ms and < 2.5 mm in II."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Typical atrial flutter",
+     "mechanism": "A macro re-entry runs round the tricuspid ring through the RA muscle and the cavotricuspid isthmus.",
+     "presentation": "Sawtooth waves in II, III, aVF at about 300/min; ventricular rate often 150 (2:1).",
+     "scenario": "flutter",
+     "hook": "Sawtooth waves, rate 150"
+    },
+    {
+     "name": "Right atrial enlargement",
+     "mechanism": "A bigger RA takes longer to activate and generates more voltage early in the P wave.",
+     "presentation": "Tall P wave in II (≥ 2.5 mm, 'P pulmonale'), as in pulmonary hypertension or tricuspid disease.",
+     "scenario": null,
+     "hook": "Tall P in II (≥ 2.5 mm)"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Not cables",
+      "text": "The internodal routes are normal atrial muscle with aligned fibres, not insulated wires."
+     },
+     {
+      "hook": "P wave = two atria",
+      "text": "The early P wave is RA, the late P wave is LA."
+     },
+     {
+      "hook": "Tall P = big RA",
+      "text": "A peaked P wave ≥ 2.5 mm in II suggests right atrial enlargement."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Flutter rate clue",
+      "text": "A regular narrow tachycardia at about 150 is flutter with 2:1 block until proven otherwise."
+     },
+     {
+      "hook": "Anatomy of the inputs",
+      "text": "The septal (fast) and posterior (slow) inputs to the AV node are what make AVNRT possible."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Are the internodal routes insulated tracts like the bundle branches?",
+     "a": "No. They are bands of ordinary atrial muscle whose aligned fibres conduct faster; there is no insulating sheath.",
+     "keys": [
+      "Atrial muscle",
+      "Aligned fibres",
+      "Not insulated"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Which part of the P wave reflects RA activation, and what P-wave change suggests RA enlargement?",
+     "a": "The first part. RA enlargement gives a tall peaked P ≥ 2.5 mm in II (P pulmonale).",
+     "keys": [
+      "Early P = RA",
+      "Tall P ≥ 2.5 mm in II"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2019 supraventricular tachycardia guideline",
+    "Guyton & Hall Textbook of Medical Physiology (cardiac rhythm)"
+   ],
+   "verify": [
+    "Debate on specialised internodal tracts",
+    "SA-to-AV-node time 30–40 ms"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "bachmann_bundle",
+   "name": "Bachmann's bundle",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "bachmann_bundle",
+    "conduction:bach"
+   ],
+   "aliases": [
+    "Bachmann",
+    "interatrial bundle"
+   ],
+   "core": "A thick band of atrial muscle across the roof of the atria that carries the sinus impulse quickly to the left atrium; when it fails, the P wave widens and AF becomes more likely.",
+   "stats": [
+    {
+     "value": "≥ 120 ms",
+     "label": "P wave = interatrial block"
+    },
+    {
+     "value": "Fastest",
+     "label": "atrial route"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Crosses the **roof of the atria** behind the aorta, from the **SVC** to the **LAA**",
+     "focus": [
+      "conduction:bach",
+      "LAA"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Activates the **LA** quickly so both atria contract almost together"
+    },
+    {
+     "icon": "ecg",
+     "text": "Block → **P ≥ 120 ms**; advanced: **biphasic P in II, III, aVF**"
+    },
+    {
+     "icon": "danger",
+     "text": "Advanced interatrial block → **AF and stroke** risk"
+    }
+   ],
+   "anatomy": {
+    "summary": "A band of parallel muscle fibres crossing the front of the atrial roof, from the RA near the SVC to the LA and its appendage.",
+    "detail": "It runs in the interatrial groove behind the ascending aorta, over the front of the atrial roof, linking the RA near the SVC to the LA wall and the base of the LAA. It is ordinary atrial myocardium with highly parallel fibres."
+   },
+   "function": {
+    "summary": "The main fast route from the right to the left atrium.",
+    "detail": "Its aligned fibres conduct fastest of all atrial routes, so the LA starts activating within about 30–40 ms of the RA and the P wave stays under 120 ms. Other links (coronary sinus muscle, the fossa rim) carry the impulse when it fails."
+   },
+   "supply": {
+    "summary": "Atrial branches, often from the SA nodal artery.",
+    "detail": "Atrial branches of the RCA or LCx, often from the SA nodal artery."
+   },
+   "relations": [
+    {
+     "with": "Left atrial appendage",
+     "why": "Its end reaches the LAA region.",
+     "focus": [
+      "LAA"
+     ]
+    },
+    {
+     "with": "Ascending aorta",
+     "why": "Lies just in front of it.",
+     "focus": [
+      "aortic_root"
+     ]
+    },
+    {
+     "with": "Left atrium",
+     "why": "Without it, the LA activates late from below (via the CS), which gives a biphasic inferior P wave.",
+     "focus": [
+      "LA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Roof of the atria behind the aorta.",
+      "id": "laOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Partial interatrial block: P ≥ 120 ms. Advanced: P ≥ 120 ms and biphasic (+/−) in II, III, aVF."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Interatrial block",
+     "mechanism": "Fibrosis or ischaemia slows or blocks conduction in the bundle, so the LA activates late or from below.",
+     "presentation": "Wide P (≥ 120 ms); advanced block gives biphasic inferior P waves and predicts AF and stroke (Bayés syndrome).",
+     "scenario": "iab",
+     "hook": "P ≥ 120 ms, biphasic inferior P"
+    },
+    {
+     "name": "Left atrial enlargement",
+     "mechanism": "A large LA takes longer to activate, prolonging the late P wave.",
+     "presentation": "Broad notched P in II (P mitrale) and a deep negative terminal P in V1, as in mitral stenosis.",
+     "scenario": null,
+     "hook": "Notched P in II, deep negative V1"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Right to left fast",
+      "text": "Bachmann's bundle carries the impulse quickly to the LA so both atria contract almost together."
+     },
+     {
+      "hook": "Wide P",
+      "text": "A P wave of 120 ms or more means slow interatrial conduction or a big LA."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Bayés syndrome",
+      "text": "Advanced interatrial block (biphasic P in II, III, aVF) is associated with AF and embolic stroke."
+     },
+     {
+      "hook": "Negative V1 terminal P",
+      "text": "A deep, wide negative P terminal in V1 (≥ 1 small box deep and wide) suggests LA enlargement."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "What is the role of Bachmann's bundle?",
+     "a": "It is the fast muscle bridge from the RA to the LA across the atrial roof, so the LA activates soon after the RA.",
+     "keys": [
+      "RA → LA",
+      "Fast",
+      "Atrial roof"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "P wave 140 ms, biphasic in II, III and aVF. Name it and its clinical meaning.",
+     "a": "Advanced interatrial block: Bachmann's bundle is blocked and the LA activates retrogradely from below. It is linked with AF and stroke (Bayés syndrome).",
+     "keys": [
+      "Advanced interatrial block",
+      "Retrograde LA activation",
+      "AF and stroke risk"
+     ]
+    }
+   ],
+   "sources": [
+    "Bayés de Luna 2012 consensus on interatrial blocks",
+    "Guyton & Hall Textbook of Medical Physiology (cardiac rhythm)"
+   ],
+   "verify": [
+    "Conduction speed ≈ 1.5–1.7 m/s (not shown on card)",
+    "Bayés syndrome association wording"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "his_bundle",
+   "name": "His bundle",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "his_bundle",
+    "his_bifurcation",
+    "conduction:his"
+   ],
+   "aliases": [
+    "bundle of His",
+    "AV bundle"
+   ],
+   "parts": [
+    {
+     "labelId": "his_bifurcation",
+     "name": "Bifurcation",
+     "note": "Where the His divides into the right bundle and the left bundle fan, on the septal crest."
+    }
+   ],
+   "core": "The only normal electrical bridge through the fibrous skeleton: it pierces the central fibrous body and splits into the bundle branches, so disease here causes sudden, dangerous block.",
+   "stats": [
+    {
+     "value": "35–55 ms",
+     "label": "HV interval"
+    },
+    {
+     "value": "Only",
+     "label": "AV connection"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Pierces the **central fibrous body**, runs under the **membranous septum**",
+     "focus": [
+      "conduction:his",
+      "central_fibrous_body",
+      "membranous_septum"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "**All-or-none** conduction: no gradual PR lengthening"
+    },
+    {
+     "icon": "ecg",
+     "text": "Block below the node → **Mobitz II** or complete block with a **wide escape**"
+    },
+    {
+     "icon": "danger",
+     "text": "Injured by **TAVI**, valve surgery, VSD closure",
+     "focus": [
+      "aortic_valve"
+     ]
+    },
+    {
+     "icon": "supply",
+     "text": "**Dual** supply: AV nodal artery + LAD septals",
+     "focus": [
+      "artery:AVN",
+      "artery:S1"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "Leaves the AV node, pierces the central fibrous body and runs on the crest of the muscular septum before it divides.",
+    "detail": "The penetrating part passes through the central fibrous body; the branching part runs along the crest of the muscular septum, just under the membranous septum and the non-coronary/right cusp commissure, then divides into the right bundle and the left bundle fan."
+   },
+   "function": {
+    "summary": "Carries the impulse quickly from the AV node to the bundle branches; all-or-none behaviour.",
+    "detail": "Fast sodium-dependent conduction (about 1.5–2 m/s), with no decremental slowing: it either conducts normally or fails. The His-to-ventricle time (HV interval) is normally 35–55 ms. An escape pacemaker in the His itself is narrow-complex; below it, escape is slow and wide."
+   },
+   "supply": {
+    "summary": "Dual: AV nodal artery and septal perforators of the LAD.",
+    "detail": "The penetrating His gets the AV nodal artery; the branching part also gets LAD septal branches."
+   },
+   "relations": [
+    {
+     "with": "Central fibrous body",
+     "why": "The His is the only normal route through it.",
+     "focus": [
+      "central_fibrous_body"
+     ]
+    },
+    {
+     "with": "Membranous septum and aortic annulus",
+     "why": "Lie just above it: TAVI frames and VSD devices can compress it.",
+     "focus": [
+      "membranous_septum",
+      "aortic_valve"
+     ]
+    },
+    {
+     "with": "AV node",
+     "why": "Above it; block in the node is usually benign, block in the His is not.",
+     "focus": [
+      "conduction:avn"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Crest of the septum under the membranous septum and aortic root.",
+      "id": "a4c"
+     },
+     {
+      "text": "Apex of Koch's triangle, where it enters the fibrous body.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Infranodal block: Mobitz II (sudden dropped beats, fixed PR) or complete block with wide escape. HV interval needs an EP study."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Mobitz II second-degree block",
+     "mechanism": "Intermittent all-or-none failure in the His or bundles.",
+     "presentation": "Constant PR, then a P wave suddenly not conducted; often wide QRS; risk of complete block.",
+     "scenario": "mobitz2",
+     "hook": "Fixed PR, sudden dropped beat"
+    },
+    {
+     "name": "Complete heart block (infranodal)",
+     "mechanism": "Disease or damage of the His–Purkinje system stops all conduction.",
+     "presentation": "P waves and QRS dissociated; slow wide escape (20–40/min); syncope (Stokes–Adams).",
+     "scenario": "chbV",
+     "hook": "Wide escape 20–40/min, syncope"
+    },
+    {
+     "name": "Block after TAVI or valve surgery",
+     "mechanism": "The frame or sutures injure the His and left bundle just under the annulus.",
+     "presentation": "New LBBB or complete block in the days after the procedure.",
+     "scenario": "chbV",
+     "hook": "New LBBB/CHB after TAVI"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "The only bridge",
+      "text": "The fibrous skeleton insulates atria from ventricles; the His is the only normal way through."
+     },
+     {
+      "hook": "Mobitz II = below the node",
+      "text": "Fixed PR with sudden dropped beats means His or bundle disease: pacemaker territory."
+     },
+     {
+      "hook": "Wide escape is dangerous",
+      "text": "A slow wide escape comes from below the His and can stop without warning."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Atropine trap",
+      "text": "Atropine speeds the sinus and AV node but not the His; in infranodal block it can worsen the ratio by sending more impulses to a failing His."
+     },
+     {
+      "hook": "Conduction system pacing",
+      "text": "Pacing the His or left bundle area uses the native system for a narrow paced QRS."
+     },
+     {
+      "hook": "HV interval",
+      "text": "HV ≥ 70–100 ms on EP study in syncope with bundle branch block supports pacing."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Longitudinal dissociation",
+      "text": "Fibres in the His are pre-destined to bundle branches, so pacing the His can correct some bundle branch blocks."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is Mobitz II more dangerous than Mobitz I?",
+     "a": "Mobitz II is block in the His–Purkinje system (all-or-none, can progress suddenly to complete block with a slow wide escape). Mobitz I is usually in the AV node and benign.",
+     "keys": [
+      "Mobitz II: infranodal",
+      "Sudden progression",
+      "Wide unreliable escape"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Why can the His bundle be damaged during TAVI?",
+     "a": "It runs just below the membranous septum under the aortic annulus; the valve frame presses on it and the left bundle.",
+     "keys": [
+      "Below aortic annulus",
+      "Under membranous septum",
+      "Frame compression"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Complete heart block with a wide escape at 30/min. Why may atropine fail or worsen it?",
+     "a": "The block is infranodal; atropine acts on the SA and AV nodes, not the His–Purkinje system, and more atrial impulses can worsen conduction. Use pacing (transcutaneous then transvenous) or isoprenaline as a bridge.",
+     "keys": [
+      "Infranodal",
+      "Atropine acts on nodes only",
+      "Pace"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2021 cardiac pacing guideline",
+    "Guyton & Hall Textbook of Medical Physiology (conduction)",
+    "Netter's Atlas of Human Anatomy (conduction system)"
+   ],
+   "verify": [
+    "HV interval 35–55 ms",
+    "His conduction velocity 1.5–2 m/s",
+    "HV ≥ 70 ms pacing threshold (ESC 2021 wording)",
+    "Model His length 0.84 cm vs real ≈ 1–2 cm (see STATUS)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "right_bundle_branch",
+   "name": "Right bundle branch",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "rbb",
+    "conduction:rbb",
+    "conduction:moderator"
+   ],
+   "aliases": [
+    "RBB"
+   ],
+   "parts": [
+    {
+     "labelId": "conduction:moderator",
+     "name": "Right bundle in the moderator band",
+     "note": "The RBB crosses the RV cavity inside the moderator band to the anterior papillary muscle."
+    }
+   ],
+   "core": "A thin cord down the right side of the septum that crosses to the RV free wall in the moderator band; block widens the QRS with an rsR′ in V1.",
+   "stats": [
+    {
+     "value": "≥ 120 ms",
+     "label": "QRS in complete RBBB"
+    },
+    {
+     "value": "rsR′",
+     "label": "in V1"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Thin cord down the **RV septal surface**, then across in the **moderator band**",
+     "focus": [
+      "conduction:rbb",
+      "moderator_band"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**RBBB**: rsR′ in V1, wide slurred S in I and V6"
+    },
+    {
+     "icon": "danger",
+     "text": "New RBBB: think **PE**, **anterior MI**, ASD"
+    },
+    {
+     "icon": "key",
+     "text": "Bumped by a **right heart catheter** → transient RBBB; dangerous if LBBB already present"
+    },
+    {
+     "icon": "supply",
+     "text": "Mainly **LAD septal perforators**",
+     "focus": [
+      "artery:S1"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A long, thin, insulated cord down the right side of the septum to the anterior papillary muscle, via the moderator band.",
+    "detail": "It continues from the His on the right side of the septum, runs under the endocardium (often deep in the muscle in its middle part) and crosses the RV cavity inside the moderator band to the base of the anterior papillary muscle, where it fans into the RV Purkinje network."
+   },
+   "function": {
+    "summary": "Activates the RV; because the RV is thin, losing it changes the late QRS, not the start.",
+    "detail": "Normally both ventricles activate together. In RBBB the LV and septum activate normally (initial QRS unchanged), then the RV activates late by slow muscle-to-muscle spread: a late rightward, anterior force (R′ in V1, wide S in I and V6)."
+   },
+   "supply": {
+    "summary": "Mainly LAD septal perforators, partly the AV nodal artery.",
+    "detail": "Septal perforators of the LAD for most of its length; its start shares the AV nodal artery."
+   },
+   "relations": [
+    {
+     "with": "Moderator band",
+     "why": "Carries it across the RV to the anterior papillary muscle.",
+     "focus": [
+      "moderator_band"
+     ]
+    },
+    {
+     "with": "LAD septal perforators",
+     "why": "Its blood supply: anterior MI can block it.",
+     "focus": [
+      "artery:S1"
+     ]
+    },
+    {
+     "with": "RV",
+     "why": "Stretch from pulmonary embolism or ASD strains it.",
+     "focus": [
+      "RV_cavity"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "RV septal surface and the moderator band.",
+      "id": "rvOpen"
+     },
+     {
+      "text": "Right side of the septum.",
+      "id": "a4c"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Complete RBBB: QRS ≥ 120 ms, rsR′ in V1–V2, wide slurred S in I and V6; secondary T inversion in V1–V2."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Right bundle branch block",
+     "mechanism": "Block in the RBB delays RV activation.",
+     "presentation": "QRS ≥ 120 ms, rsR′ in V1, wide S in I and V6; often a normal variant, but new RBBB needs a cause.",
+     "scenario": "rbbb",
+     "hook": "rsR′ V1, wide S in I and V6"
+    },
+    {
+     "name": "Bifascicular block",
+     "mechanism": "RBBB plus left anterior (or posterior) fascicular block leaves one fascicle working.",
+     "presentation": "RBBB with left axis deviation (or right axis); risk of complete heart block, especially with syncope.",
+     "scenario": "bifasc",
+     "hook": "RBBB + axis deviation"
+    },
+    {
+     "name": "Complete block during right heart catheterisation",
+     "mechanism": "A catheter bumps the RBB in a patient who already has LBBB.",
+     "presentation": "Sudden asystole or complete block on the table.",
+     "scenario": null,
+     "hook": "Catheter + existing LBBB → CHB"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Read V1 for RBBB",
+      "text": "rsR′ ('rabbit ears') in V1 and a wide S in I and V6."
+     },
+     {
+      "hook": "Start is normal",
+      "text": "The septum and LV still activate normally, so the first part of the QRS is unchanged; only the end is wide."
+     },
+     {
+      "hook": "Causes of new RBBB",
+      "text": "PE, anterior MI, ASD, RV strain; it can also be a normal variant."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "RBBB does not hide STEMI",
+      "text": "Unlike LBBB, RBBB leaves ST elevation readable."
+     },
+     {
+      "hook": "Pace a catheter case",
+      "text": "In LBBB, have pacing ready before a right heart catheter: bumping the RBB can cause complete block."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the first part of the QRS normal in RBBB?",
+     "a": "The septum (from the left side) and the LV still activate through the left bundle; only the late RV activation is delayed.",
+     "keys": [
+      "Septum via left bundle",
+      "LV normal",
+      "Late RV only"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Describe the ECG of complete RBBB.",
+     "a": "QRS ≥ 120 ms, rsR′ in V1–V2, wide slurred S in I and V6, often T inversion in V1–V2.",
+     "keys": [
+      "QRS ≥ 120 ms",
+      "rsR′ V1",
+      "Wide S in I and V6"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Sudden breathlessness, sinus tachycardia and new RBBB. What diagnosis must you consider and why does it cause RBBB?",
+     "a": "Pulmonary embolism: sudden RV pressure and stretch slow conduction in the thin, long right bundle.",
+     "keys": [
+      "Pulmonary embolism",
+      "RV stretch",
+      "Thin vulnerable RBB"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2021 cardiac pacing guideline",
+    "AHA/ACCF/HRS 2009 ECG interpretation recommendations (part III)"
+   ],
+   "verify": [
+    "RBB blood supply wording",
+    "RBBB criteria (AHA/HRS 2009)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "left_bundle_branch",
+   "name": "Left bundle branch",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "conduction:lbb",
+    "conduction:lsf",
+    "lbb_septal_fascicle"
+   ],
+   "aliases": [
+    "LBB",
+    "left bundle"
+   ],
+   "parts": [
+    {
+     "labelId": "conduction:lsf",
+     "name": "Septal fascicle",
+     "note": "Mid-septal fibres that fire first, giving the left-to-right septal activation (septal q waves)."
+    },
+    {
+     "labelId": "lbb_septal_fascicle",
+     "name": "Septal fascicle",
+     "note": "Mid-septal fibres that fire first, giving the left-to-right septal activation (septal q waves)."
+    }
+   ],
+   "core": "A broad fan on the left side of the septum that activates the septum and LV; block widens the QRS, removes septal q waves and makes STEMI hard to read.",
+   "stats": [
+    {
+     "value": "≥ 120 ms",
+     "label": "QRS in complete LBBB"
+    },
+    {
+     "value": "≥ 150 ms",
+     "label": "+ EF ≤ 35 % → CRT"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "A **broad fan** down the **left septal surface**, splitting into fascicles",
+     "focus": [
+      "conduction:lbb",
+      "IVS"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Its **septal fibres** fire first: septum activates **left to right** (small q in I, V6)",
+     "focus": [
+      "conduction:lsf"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**LBBB**: broad R in I, aVL, V6 with no q; deep S in V1"
+    },
+    {
+     "icon": "danger",
+     "text": "LBBB **hides STEMI**: use **Sgarbossa** criteria"
+    },
+    {
+     "icon": "key",
+     "text": "LBBB + low EF + QRS ≥ 150 ms → **CRT**"
+    }
+   ],
+   "anatomy": {
+    "summary": "A wide fan, not a cord, leaving the His under the aortic root and spreading down the left septal surface.",
+    "detail": "It emerges under the commissure between the right and non-coronary aortic cusps and spreads as a broad sheet down the left side of the septum, dividing into the anterior, posterior and (variable) septal fascicles, which reach the papillary muscles and Purkinje network."
+   },
+   "function": {
+    "summary": "Activates the septum (left to right) and the LV quickly and in sync.",
+    "detail": "Septal fibres fire first, so the septum depolarises from left to right: the small q in I, aVL, V5–V6 and the small r in V1. In LBBB the septum is activated from the right, the LV activates slowly from muscle to muscle, and contraction becomes dyssynchronous (the septum moves early, the lateral wall late)."
+   },
+   "supply": {
+    "summary": "Dual: LAD septal perforators and the PDA (RCA).",
+    "detail": "Its broad trunk gets LAD septal branches in front and PDA septal branches behind, so complete LBBB usually means extensive disease."
+   },
+   "relations": [
+    {
+     "with": "Aortic valve",
+     "why": "Emerges just under it: TAVI and aortic surgery commonly cause new LBBB.",
+     "focus": [
+      "aortic_valve",
+      "membranous_septum"
+     ]
+    },
+    {
+     "with": "Interventricular septum",
+     "why": "Spreads over its left surface.",
+     "focus": [
+      "IVS"
+     ]
+    },
+    {
+     "with": "Fascicles",
+     "why": "Divides into the anterior and posterior fascicles.",
+     "focus": [
+      "conduction:laf",
+      "conduction:lpf"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Fan on the left septal surface below the aortic valve.",
+      "id": "lvOpen"
+     },
+     {
+      "text": "Left side of the septum.",
+      "id": "a4c"
+     }
+    ],
+    "echo": [
+     {
+      "text": "LBBB: early inward septal 'flash' and late lateral contraction (dyssynchrony).",
+      "id": "a4c"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Complete LBBB: QRS ≥ 120 ms, QS or rS in V1, broad notched R in I, aVL, V5–V6, no septal q; ST–T opposite to the QRS."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Left bundle branch block",
+     "mechanism": "Block in the main left bundle makes the septum activate from the right and the LV late.",
+     "presentation": "QRS ≥ 120 ms, deep S in V1, broad notched R in I, aVL, V6, no q; often with structural heart disease.",
+     "scenario": "lbbb",
+     "hook": "Deep S V1, broad R V6, no q"
+    },
+    {
+     "name": "LBBB-induced cardiomyopathy",
+     "mechanism": "Dyssynchronous contraction wastes work and the LV slowly dilates.",
+     "presentation": "Falling EF with LBBB and no other cause; improves with CRT or conduction system pacing.",
+     "scenario": null,
+     "hook": "EF falls with LBBB"
+    },
+    {
+     "name": "Hidden STEMI in LBBB",
+     "mechanism": "LBBB distorts the ST segment, masking ischaemic ST elevation.",
+     "presentation": "Chest pain with LBBB: concordant ST elevation ≥ 1 mm or excessively discordant ST (modified Sgarbossa) suggests occlusion.",
+     "scenario": "lbbb",
+     "hook": "Concordant ST change = occlusion"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Septal q waves",
+      "text": "The left septal fibres fire first, so the septum depolarises left to right: small q in I and V6, small r in V1."
+     },
+     {
+      "hook": "LBBB pattern",
+      "text": "Deep S in V1, broad notched R in I, aVL and V6, no q waves."
+     },
+     {
+      "hook": "New LBBB with pain",
+      "text": "LBBB masks ST elevation; use the Sgarbossa criteria and the clinical picture."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Modified Sgarbossa",
+      "text": "Concordant ST elevation ≥ 1 mm, concordant ST depression ≥ 1 mm in V1–V3, or discordant ST elevation ≥ 25 % of the S depth suggest acute occlusion."
+     },
+     {
+      "hook": "CRT indication",
+      "text": "Symptomatic HFrEF with EF ≤ 35 %, LBBB and QRS ≥ 150 ms despite therapy: CRT."
+     },
+     {
+      "hook": "LBBB after TAVI",
+      "text": "Common; follow up for progression to complete block."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Left bundle branch area pacing",
+      "text": "Pacing the left bundle area can correct LBBB and is an alternative to biventricular CRT."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is there a small q wave in I and V6 normally, and why does it disappear in LBBB?",
+     "a": "The left septal fibres fire first, activating the septum left to right (away from I and V6). In LBBB the septum is activated from the right, so the initial force points leftward and the q disappears.",
+     "keys": [
+      "Septum activates L → R",
+      "Away from I and V6",
+      "LBBB: R → L, no q"
+     ]
+    },
+    {
+     "level": "student",
+     "q": "Describe the ECG of complete LBBB.",
+     "a": "QRS ≥ 120 ms, QS or rS in V1, broad notched R in I, aVL, V5–V6, no septal q, ST–T opposite to the QRS.",
+     "keys": [
+      "QRS ≥ 120 ms",
+      "Deep S in V1",
+      "Broad notched R in V6, no q"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Chest pain, known LBBB, 2 mm concordant ST elevation in V5. What does it mean?",
+     "a": "Concordant ST elevation ≥ 1 mm meets Sgarbossa/modified Sgarbossa criteria for acute coronary occlusion: activate the cath lab.",
+     "keys": [
+      "Concordant ST↑ ≥ 1 mm",
+      "Sgarbossa positive",
+      "Acute occlusion → cath lab"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2023 acute coronary syndromes guideline",
+    "ESC 2021 cardiac pacing guideline (CRT)",
+    "AHA/ACCF/HRS 2009 ECG interpretation recommendations (part III)"
+   ],
+   "verify": [
+    "Modified Sgarbossa thresholds (25 % ratio)",
+    "CRT class I criteria (QRS ≥ 150 ms, LBBB, EF ≤ 35 %)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "left_anterior_fascicle",
+   "name": "Left anterior fascicle",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "lbb_anterior_fascicle",
+    "conduction:laf"
+   ],
+   "aliases": [
+    "LAF",
+    "left anterior hemifascicle"
+   ],
+   "core": "A thin, long branch of the left bundle to the anterolateral papillary muscle; it is the most often blocked fascicle and its block swings the axis far to the left.",
+   "stats": [
+    {
+     "value": "≤ −45°",
+     "label": "axis in LAFB"
+    },
+    {
+     "value": "Single",
+     "label": "LAD supply"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Runs **up and forwards** to the **anterolateral papillary muscle**",
+     "focus": [
+      "conduction:laf",
+      "papillary_muscles.ALPM"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**LAFB**: axis ≤ −45°, **qR in aVL**, rS in II, III, aVF"
+    },
+    {
+     "icon": "danger",
+     "text": "**Thin + single supply** → the commonest fascicular block"
+    },
+    {
+     "icon": "key",
+     "text": "RBBB + LAFB = **bifascicular block**"
+    }
+   ],
+   "anatomy": {
+    "summary": "A thin fascicle running anterosuperiorly across the left septal surface to the anterolateral papillary muscle.",
+    "detail": "It leaves the left bundle and runs up and forwards towards the base of the anterolateral papillary muscle, branching into the Purkinje network of the anterior and lateral LV."
+   },
+   "function": {
+    "summary": "Activates the anterior and upper lateral LV.",
+    "detail": "With it blocked, the LV activates first from the posterior fascicle (inferior wall), then upwards and leftwards: the main QRS force points up and left (left axis deviation) with little widening."
+   },
+   "supply": {
+    "summary": "LAD septal perforators only.",
+    "detail": "Septal branches of the LAD, so anterior MI can block it."
+   },
+   "relations": [
+    {
+     "with": "Anterolateral papillary muscle",
+     "why": "Its target.",
+     "focus": [
+      "papillary_muscles.ALPM"
+     ]
+    },
+    {
+     "with": "LAD",
+     "why": "Single blood supply.",
+     "focus": [
+      "artery:LAD"
+     ]
+    },
+    {
+     "with": "Right bundle branch",
+     "why": "Shares the LAD supply, so they often fail together (bifascicular block).",
+     "focus": [
+      "conduction:rbb"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Upper left septal surface towards the anterolateral papillary muscle.",
+      "id": "lvOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "LAFB: axis −45° or more negative, qR in I and aVL, rS in II, III, aVF, QRS < 120 ms."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Left anterior fascicular block",
+     "mechanism": "The thin fascicle fails, often from fibrosis, hypertension or anterior MI.",
+     "presentation": "Left axis deviation (≤ −45°), qR in aVL, rS in the inferior leads.",
+     "scenario": "lafb",
+     "hook": "Axis ≤ −45°, qR aVL"
+    },
+    {
+     "name": "Bifascicular block (RBBB + LAFB)",
+     "mechanism": "Only the posterior fascicle still conducts.",
+     "presentation": "RBBB with left axis deviation; with syncope, consider complete heart block.",
+     "scenario": "bifasc",
+     "hook": "RBBB + left axis"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why it blocks most",
+      "text": "It is thin, long and has a single (LAD) supply."
+     },
+     {
+      "hook": "Axis tells you",
+      "text": "LAFB swings the axis to −45° or beyond, with qR in aVL."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Exclude other causes",
+      "text": "Before calling LAFB, exclude inferior MI (Q waves in II, III, aVF) as a cause of left axis."
+     },
+     {
+      "hook": "Bifascicular + syncope",
+      "text": "Bifascicular block with unexplained syncope: EP study or ambulatory monitoring; pacing if HV is prolonged or block is caught."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is the left anterior fascicle the most commonly blocked?",
+     "a": "It is thin and long and has a single blood supply from LAD septal branches.",
+     "keys": [
+      "Thin and long",
+      "Single LAD supply"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "ECG: QRS 150 ms with rsR′ in V1, axis −60°. Name the pattern and its risk.",
+     "a": "Bifascicular block (RBBB + LAFB); only the left posterior fascicle conducts, so there is a risk of complete heart block, especially with syncope.",
+     "keys": [
+      "RBBB + LAFB",
+      "Bifascicular",
+      "Risk of CHB"
+     ]
+    }
+   ],
+   "sources": [
+    "AHA/ACCF/HRS 2009 ECG interpretation recommendations (part III)",
+    "ESC 2021 cardiac pacing guideline"
+   ],
+   "verify": [
+    "LAFB axis cut-off −45°"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "left_posterior_fascicle",
+   "name": "Left posterior fascicle",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "lbb_posterior_fascicle",
+    "conduction:lpf"
+   ],
+   "aliases": [
+    "LPF",
+    "left posterior hemifascicle"
+   ],
+   "core": "A short, broad branch of the left bundle to the posteromedial papillary muscle; because it is broad and doubly supplied, isolated block is rare and means extensive disease.",
+   "stats": [
+    {
+     "value": "> +90°",
+     "label": "axis in LPFB"
+    },
+    {
+     "value": "Dual",
+     "label": "LAD + PDA supply"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Short and broad, **down and back** to the **posteromedial papillary muscle**",
+     "focus": [
+      "conduction:lpf",
+      "papillary_muscles.PMPM"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**LPFB**: right axis (> +90°), **rS in I/aVL**, qR in III/aVF"
+    },
+    {
+     "icon": "key",
+     "text": "Rare: **exclude RVH, lateral MI, thin build** first"
+    },
+    {
+     "icon": "danger",
+     "text": "Origin of **fascicular VT** (RBBB + left axis, verapamil-sensitive)"
+    }
+   ],
+   "anatomy": {
+    "summary": "A short, broad fan running down and back over the left septal surface to the posteromedial papillary muscle.",
+    "detail": "It leaves the left bundle as a wide band and spreads inferiorly and posteriorly to the base of the posteromedial papillary muscle and the inferior LV Purkinje network."
+   },
+   "function": {
+    "summary": "Activates the inferior and posterior LV.",
+    "detail": "With it blocked, the LV activates first from the anterior fascicle (upper wall), then downwards and rightwards: right axis deviation."
+   },
+   "supply": {
+    "summary": "Dual: LAD septal perforators and the PDA.",
+    "detail": "Supplied by LAD septal branches and PDA septal branches; this, and its width, protect it."
+   },
+   "relations": [
+    {
+     "with": "Posteromedial papillary muscle",
+     "why": "Its target.",
+     "focus": [
+      "papillary_muscles.PMPM"
+     ]
+    },
+    {
+     "with": "PDA",
+     "why": "Part of its dual supply.",
+     "focus": [
+      "artery:PDA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Lower left septal surface towards the posteromedial papillary muscle.",
+      "id": "lvOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "LPFB: axis > +90°, rS in I and aVL, qR in III and aVF, QRS < 120 ms, after excluding RVH and lateral MI."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Left posterior fascicular block",
+     "mechanism": "Extensive septal disease blocks even this broad fascicle.",
+     "presentation": "Right axis deviation with rS in I and aVL; with RBBB it is a high-risk bifascicular block.",
+     "scenario": "lpfb",
+     "hook": "Right axis, rS in I and aVL"
+    },
+    {
+     "name": "Idiopathic fascicular VT",
+     "mechanism": "Re-entry in the Purkinje fibres of the posterior fascicle.",
+     "presentation": "Young patient with a regular wide tachycardia, RBBB pattern and left axis; stops with IV verapamil.",
+     "scenario": "planned:fascicularVT",
+     "hook": "RBBB + left axis, verapamil works"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Rare on its own",
+      "text": "Broad and doubly supplied, so isolated LPFB is rare."
+     },
+     {
+      "hook": "Right axis causes",
+      "text": "Before calling LPFB, exclude RVH, lateral MI, PE and a thin, vertical heart."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "RBBB + LPFB",
+      "text": "Means only the anterior fascicle remains; high risk of complete heart block."
+     },
+     {
+      "hook": "Verapamil-sensitive VT",
+      "text": "Fascicular VT (RBBB + left axis) in a structurally normal heart responds to verapamil; do not assume SVT with aberrancy."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is isolated left posterior fascicular block rare?",
+     "a": "The fascicle is short and broad and has a dual blood supply (LAD and PDA).",
+     "keys": [
+      "Short and broad",
+      "Dual supply"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "A 25-year-old has a regular wide tachycardia with RBBB pattern and left axis, normal echo. Likely diagnosis and drug?",
+     "a": "Idiopathic left fascicular VT (posterior fascicle re-entry); IV verapamil usually terminates it.",
+     "keys": [
+      "Fascicular VT",
+      "Structurally normal heart",
+      "IV verapamil"
+     ]
+    }
+   ],
+   "sources": [
+    "AHA/ACCF/HRS 2009 ECG interpretation recommendations (part III)",
+    "ESC 2022 ventricular arrhythmias guideline"
+   ],
+   "verify": [
+    "LPFB axis cut-off > +90°"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "purkinje_network",
+   "name": "Purkinje network",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "conduction:purk"
+   ],
+   "aliases": [
+    "Purkinje fibres"
+   ],
+   "core": "A fast-conducting mesh under the endocardium that spreads the impulse through both ventricles within milliseconds; its cells also trigger PVCs and some ventricular fibrillation.",
+   "stats": [
+    {
+     "value": "2–4 m/s",
+     "label": "fastest in the heart"
+    },
+    {
+     "value": "20–40/min",
+     "label": "escape rate"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Mesh under the **endocardium** at the ends of the bundle branches",
+     "focus": [
+      "conduction:purk"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Fastest conduction → both ventricles activate within **~ 80–100 ms**"
+    },
+    {
+     "icon": "danger",
+     "text": "Purkinje triggers start **PVCs, VF storms** after MI"
+    },
+    {
+     "icon": "key",
+     "text": "Longest action potential → prone to **EADs** (torsades)"
+    }
+   ],
+   "anatomy": {
+    "summary": "A subendocardial network at the ends of the bundle branches, including false tendons that cross the LV cavity.",
+    "detail": "Purkinje fibres spread from the bundle branches over the endocardium of both ventricles, mostly in the lower two thirds, and enter the working muscle through transitional cells. Free-running strands (false tendons) cross the LV cavity."
+   },
+   "function": {
+    "summary": "Spreads activation almost simultaneously through the endocardium; activation then moves endocardium to epicardium.",
+    "detail": "Purkinje fibres conduct at 2–4 m/s (large, fast sodium current and many gap junctions), so the whole endocardium activates within a few tens of milliseconds and the normal QRS is narrow (< 120 ms). Muscle then conducts outwards at about 0.5–1 m/s. As a pacemaker they are slow (20–40/min) and normally suppressed."
+   },
+   "supply": {
+    "summary": "Bathed by cavity blood and fed by the overlying coronary branches.",
+    "detail": "Subendocardial Purkinje fibres partly get oxygen straight from cavity blood, so they often survive an infarct and can then trigger arrhythmias."
+   },
+   "relations": [
+    {
+     "with": "Bundle branches",
+     "why": "Its source.",
+     "focus": [
+      "conduction:lbb",
+      "conduction:rbb"
+     ]
+    },
+    {
+     "with": "Papillary muscles",
+     "why": "Activated early through Purkinje fibres so the valves are held before ventricular pressure rises.",
+     "focus": [
+      "papillary_muscles.ALPM",
+      "papillary_muscles.PMPM"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Fine network on the endocardium of both ventricles.",
+      "id": "sax"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "A narrow QRS (< 120 ms) means activation used the Purkinje system; a beat that starts in the muscle is wide."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Premature ventricular contractions",
+     "mechanism": "An ectopic focus (often Purkinje or outflow tract) fires early; the beat spreads slowly through muscle.",
+     "presentation": "Early wide QRS without a P wave, then a compensatory pause.",
+     "scenario": "pvc",
+     "hook": "Early wide QRS, compensatory pause"
+    },
+    {
+     "name": "Purkinje-triggered VF or electrical storm",
+     "mechanism": "Surviving Purkinje fibres at the edge of an infarct fire early beats that trigger VF.",
+     "presentation": "Recurrent VF days after MI, each started by the same short-coupled PVC; ablation of the trigger can stop it.",
+     "scenario": null,
+     "hook": "Recurrent VF from the same PVC"
+    },
+    {
+     "name": "Torsades de pointes",
+     "mechanism": "A long QT lengthens the already long Purkinje action potential; early afterdepolarisations fire.",
+     "presentation": "Polymorphic VT twisting round the baseline after a long QT.",
+     "scenario": null,
+     "hook": "Long QT → twisting VT"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Why the QRS is narrow",
+      "text": "Purkinje fibres conduct about 3–4 times faster than muscle, so both ventricles activate together."
+     },
+     {
+      "hook": "Wide beat = muscle route",
+      "text": "A beat that starts in the muscle (PVC, paced, BBB) spreads slowly and is wide."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Survives infarction",
+      "text": "Purkinje fibres fed from the cavity survive MI and can trigger VF storms; target them with ablation if drugs fail."
+     },
+     {
+      "hook": "Long action potential",
+      "text": "The longest action potential in the heart makes Purkinje cells the source of EADs and torsades."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why is a normal QRS narrow but a PVC wide?",
+     "a": "Normally activation spreads through the fast Purkinje network (2–4 m/s); a PVC starts in the muscle and spreads slowly cell to cell (about 0.5–1 m/s).",
+     "keys": [
+      "Purkinje fast",
+      "Muscle slow",
+      "PVC uses muscle route"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Recurrent VF three days after a large MI, each episode starting with the same short-coupled PVC. Mechanism and option?",
+     "a": "Triggers from surviving Purkinje fibres at the infarct border. Treat ischaemia and electrolytes, antiarrhythmics (amiodarone), sedation; catheter ablation of the triggering PVC if storms continue.",
+     "keys": [
+      "Purkinje triggers",
+      "Infarct border",
+      "Ablate the trigger"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2022 ventricular arrhythmias guideline",
+    "Guyton & Hall Textbook of Medical Physiology (conduction)"
+   ],
+   "verify": [
+    "Purkinje velocity 2–4 m/s",
+    "Ventricular activation 80–100 ms"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "accessory_pathway",
+   "name": "Accessory pathway (left lateral)",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "conduction:ap"
+   ],
+   "aliases": [
+    "AP",
+    "bypass tract",
+    "Kent bundle"
+   ],
+   "core": "A strand of muscle that bridges the AV ring outside the AV node; it pre-excites the ventricles (WPW) and can carry re-entrant tachycardias, or AF at dangerous rates.",
+   "stats": [
+    {
+     "value": "< 120 ms",
+     "label": "short PR"
+    },
+    {
+     "value": "Delta",
+     "label": "slurred QRS start"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Bridges the **mitral annulus** (left lateral), bypassing the **AV node**",
+     "focus": [
+      "conduction:ap",
+      "mitral_valve"
+     ]
+    },
+    {
+     "icon": "ecg",
+     "text": "**WPW**: short PR, **delta wave**, wide QRS"
+    },
+    {
+     "icon": "danger",
+     "text": "**Pre-excited AF**: irregular wide fast QRS; **avoid AV-node blockers**"
+    },
+    {
+     "icon": "key",
+     "text": "**Ablation** cures it"
+    }
+   ],
+   "anatomy": {
+    "summary": "A thin strand of working muscle crossing the AV groove; this model shows a left lateral pathway across the mitral annulus.",
+    "detail": "Accessory pathways form where the fibrous AV ring failed to insulate fully during development. They can sit anywhere round the mitral or tricuspid annulus; left free wall pathways are the most common."
+   },
+   "function": {
+    "summary": "Conducts fast, without the AV node's delay, and can complete a re-entry circuit.",
+    "detail": "Its sodium-dependent muscle conducts quickly and non-decrementally. In sinus rhythm the ventricle near it activates early (delta wave, short PR) and the rest via the normal system (fusion). It can form a circuit with the AV node: down the node, up the pathway (orthodromic AVRT, narrow) or the reverse (antidromic, wide)."
+   },
+   "supply": {
+    "summary": "Not applicable (a strand of ordinary muscle).",
+    "detail": "It shares the blood supply of the surrounding AV groove muscle."
+   },
+   "relations": [
+    {
+     "with": "Mitral annulus",
+     "why": "A left lateral pathway crosses it.",
+     "focus": [
+      "mitral_valve"
+     ]
+    },
+    {
+     "with": "AV node",
+     "why": "The other half of the AVRT circuit.",
+     "focus": [
+      "conduction:avn"
+     ]
+    },
+    {
+     "with": "Coronary sinus",
+     "why": "Used to map left-sided pathways; posteroseptal pathways can lie inside it.",
+     "focus": [
+      "coronary_sinus"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Across the left AV groove at the mitral annulus.",
+      "id": "valves"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "WPW: PR < 120 ms, delta wave, QRS > 110–120 ms, secondary ST–T change. Delta-wave polarity localises the pathway."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Wolff–Parkinson–White syndrome",
+     "mechanism": "Pre-excitation plus re-entry through the pathway and the AV node.",
+     "presentation": "Short PR and delta wave in sinus rhythm; episodes of regular narrow tachycardia (orthodromic AVRT).",
+     "scenario": "wpw",
+     "hook": "Short PR, delta wave, AVRT"
+    },
+    {
+     "name": "Pre-excited atrial fibrillation",
+     "mechanism": "AF impulses race down the pathway, which has no AV-node delay.",
+     "presentation": "Irregular, very fast, wide QRS of changing shape; can degenerate into VF.",
+     "scenario": null,
+     "hook": "Irregular, wide, very fast QRS"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "WPW triad",
+      "text": "Short PR (< 120 ms), delta wave and a wide QRS."
+     },
+     {
+      "hook": "Why the PR is short",
+      "text": "The pathway skips the AV-node delay, so the ventricle starts early."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Never block the node in pre-excited AF",
+      "text": "AV-node blockers (adenosine, verapamil, digoxin, beta-blockers) can push more impulses down the pathway and cause VF. Unstable: DC cardioversion; stable: procainamide or ibutilide; then ablation."
+     },
+     {
+      "hook": "Orthodromic AVRT",
+      "text": "Narrow regular tachycardia, down the node and up the pathway; vagal manoeuvres or adenosine are fine here."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Risk stratification",
+      "text": "Shortest pre-excited R–R interval in AF ≤ 250 ms marks a high-risk pathway."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Why does WPW cause a short PR interval and a delta wave?",
+     "a": "The pathway bypasses the AV-node delay, so part of the ventricle activates early through slow muscle-to-muscle spread (delta wave) before the normal system takes over.",
+     "keys": [
+      "Bypasses AV-node delay",
+      "Early ventricular activation",
+      "Slow muscle spread = delta"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Irregular wide-complex tachycardia at 250/min with changing QRS shapes in a young man with WPW. What must you avoid and what do you give?",
+     "a": "Avoid AV-nodal blockers (adenosine, verapamil, digoxin, beta-blockers). If unstable: DC cardioversion; if stable: procainamide or ibutilide; then ablation.",
+     "keys": [
+      "Pre-excited AF",
+      "No AV-node blockers",
+      "Cardiovert / procainamide",
+      "Ablation"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2019 supraventricular tachycardia guideline"
+   ],
+   "verify": [
+    "Left free wall as the commonest site",
+    "SPERRI ≤ 250 ms high-risk cut-off"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "cavotricuspid_isthmus",
+   "name": "Cavotricuspid isthmus (CTI)",
+   "category": "Conduction",
+   "layer": "conduction",
+   "labelIds": [
+    "cti",
+    "conduction:cti"
+   ],
+   "aliases": [
+    "CTI",
+    "flutter isthmus"
+   ],
+   "core": "The strip of RA floor between the IVC and the tricuspid annulus; the typical flutter circuit must pass through it, so a line of ablation across it cures typical flutter.",
+   "stats": [
+    {
+     "value": "≈ 300/min",
+     "label": "flutter waves"
+    },
+    {
+     "value": "≈ 150",
+     "label": "ventricular rate at 2:1"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "RA floor between the **IVC** and the **tricuspid annulus**",
+     "focus": [
+      "cti",
+      "IVC",
+      "tricuspid_valve"
+     ]
+    },
+    {
+     "icon": "does",
+     "text": "Slow conduction here holds the **typical flutter** circuit together"
+    },
+    {
+     "icon": "ecg",
+     "text": "Typical flutter: **negative sawtooth in II, III, aVF**, positive in V1"
+    },
+    {
+     "icon": "key",
+     "text": "**CTI ablation** with bidirectional block cures typical flutter"
+    },
+    {
+     "icon": "danger",
+     "text": "The **RCA** runs close to its lateral end",
+     "focus": [
+      "artery:RCA"
+     ]
+    }
+   ],
+   "anatomy": {
+    "summary": "A band of RA floor bounded by the IVC opening and Eustachian ridge behind and the tricuspid annulus in front.",
+    "detail": "It runs from the IVC orifice to the hinge of the posterior and septal tricuspid leaflets, below the coronary sinus ostium. Its surface is uneven: pouches, pectinate ridges and the Eustachian ridge can make catheter contact difficult. The RCA runs in the AV groove near its lateral end."
+   },
+   "function": {
+    "summary": "A narrow, slow-conducting gate in the right atrial circuit round the tricuspid ring.",
+    "detail": "The crista terminalis behind and the tricuspid annulus in front act as barriers, so a wave circling the tricuspid ring must pass through the isthmus. In typical flutter it goes up the septum and down the lateral wall (counter-clockwise viewed from the ventricle) at about 300/min."
+   },
+   "supply": {
+    "summary": "RA branches of the RCA.",
+    "detail": "Atrial branches of the RCA."
+   },
+   "relations": [
+    {
+     "with": "Tricuspid annulus",
+     "why": "Its anterior boundary.",
+     "focus": [
+      "tricuspid_valve"
+     ]
+    },
+    {
+     "with": "Eustachian ridge and IVC",
+     "why": "Its posterior boundary; a big Eustachian ridge makes ablation harder.",
+     "focus": [
+      "eustachian_valve",
+      "IVC"
+     ]
+    },
+    {
+     "with": "Right coronary artery",
+     "why": "Runs near the lateral isthmus: deep lesions there can injure it.",
+     "focus": [
+      "artery:RCA"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "Floor of the RA between the IVC opening and the tricuspid valve.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "Typical (counter-clockwise) flutter: negative sawtooth flutter waves in II, III, aVF, positive in V1, at about 300/min."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "Typical atrial flutter",
+     "mechanism": "A macro re-entry circles the tricuspid annulus and passes through the isthmus.",
+     "presentation": "Sawtooth waves in II, III, aVF at about 300/min; often 2:1 block giving a regular rate of about 150; clot risk as in AF.",
+     "scenario": "flutter",
+     "hook": "Sawtooth II, III, aVF; rate 150"
+    },
+    {
+     "name": "Flutter with 1:1 conduction",
+     "mechanism": "Class IC drugs slow the flutter rate so the AV node can conduct every wave.",
+     "presentation": "Very fast wide-complex tachycardia; give an AV-node blocker with IC drugs.",
+     "scenario": null,
+     "hook": "IC drug → 1:1 flutter, wide QRS"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Regular 150",
+      "text": "A regular narrow tachycardia at about 150 bpm is flutter with 2:1 block until proven otherwise."
+     },
+     {
+      "hook": "Sawtooth waves",
+      "text": "Look in II, III, aVF; adenosine can slow the ventricular rate and unmask them."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Ablate the isthmus",
+      "text": "A CTI line with bidirectional block cures typical flutter in over 90 %; anticoagulate as for AF."
+     },
+     {
+      "hook": "IC drugs need a blocker",
+      "text": "Flecainide or propafenone can slow flutter to a rate the AV node conducts 1:1; always combine with an AV-node blocker."
+     }
+    ],
+    "fellow": []
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Regular narrow tachycardia at exactly 150/min. What should you suspect and how can you reveal it?",
+     "a": "Atrial flutter with 2:1 block; look for sawtooth waves in II, III, aVF, and give adenosine or vagal manoeuvres to slow AV conduction and unmask them.",
+     "keys": [
+      "Flutter 2:1",
+      "Sawtooth in inferior leads",
+      "Adenosine unmasks"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Why does ablation across the cavotricuspid isthmus cure typical flutter?",
+     "a": "The flutter circuit circles the tricuspid annulus and must pass through the isthmus; a complete line of block there interrupts the circuit.",
+     "keys": [
+      "Circuit round the TV",
+      "Obligatory isthmus",
+      "Line of block"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2019 supraventricular tachycardia guideline",
+    "Netter's Atlas of Human Anatomy (right atrium)"
+   ],
+   "verify": [
+    "CTI ablation success > 90 %",
+    "Model CTI length 1.9 cm vs real ≈ 2.5–3.5 cm (see STATUS)"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
+   }
+  },
+  {
+   "id": "koch_triangle",
+   "name": "Koch's triangle",
+   "category": "Conduction",
+   "layer": "landmarks",
+   "labelIds": [
+    "koch_triangle",
+    "todaro_tendon",
+    "tendon_of_todaro",
+    "tv_septal_hinge"
+   ],
+   "aliases": [
+    "triangle of Koch"
+   ],
+   "parts": [
+    {
+     "labelId": "todaro_tendon",
+     "name": "Tendon of Todaro",
+     "note": "Fibrous cord from the Eustachian ridge to the central fibrous body: the upper border."
+    },
+    {
+     "labelId": "tendon_of_todaro",
+     "name": "Tendon of Todaro",
+     "note": "Fibrous cord from the Eustachian ridge to the central fibrous body: the upper border."
+    },
+    {
+     "labelId": "tv_septal_hinge",
+     "name": "Septal tricuspid hinge",
+     "note": "Attachment of the septal leaflet: the lower border."
+    },
+    {
+     "labelId": null,
+     "name": "Compact AV node",
+     "note": "At the apex, next to the central fibrous body."
+    }
+   ],
+   "core": "A triangle on the RA septal wall that marks where the AV node lies; its apex holds the compact node and its base the slow pathway, the target of AVNRT ablation.",
+   "stats": [
+    {
+     "value": "Apex",
+     "label": "= compact AV node"
+    },
+    {
+     "value": "Base",
+     "label": "= slow pathway (AVNRT)"
+    }
+   ],
+   "quick": [
+    {
+     "icon": "where",
+     "text": "Bounded by the **tendon of Todaro**, **septal tricuspid hinge** and **CS ostium**",
+     "focus": [
+      "koch_triangle",
+      "todaro_tendon",
+      "TV_septal",
+      "cs_ostium"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Compact AV node** at the **apex**, then the His enters the fibrous body",
+     "focus": [
+      "conduction:avn",
+      "conduction:his"
+     ]
+    },
+    {
+     "icon": "key",
+     "text": "**Slow pathway** near the **base** (CS ostium): AVNRT ablation site",
+     "focus": [
+      "conduction:avn_slow"
+     ]
+    },
+    {
+     "icon": "danger",
+     "text": "Ablating towards the apex risks **complete heart block**"
+    }
+   ],
+   "anatomy": {
+    "summary": "A triangle on the RA septal wall: tendon of Todaro above, septal tricuspid leaflet hinge below, CS ostium at the base.",
+    "detail": "The tendon of Todaro (a fibrous continuation of the Eustachian ridge) runs to the central fibrous body; the hinge of the septal tricuspid leaflet runs below it; the coronary sinus ostium closes the base. The compact AV node lies near the apex, where the two sides meet at the central fibrous body; the His bundle enters the fibrous body there."
+   },
+   "function": {
+    "summary": "A map for finding the AV node and its fast and slow inputs.",
+    "detail": "The fast pathway enters the node from above (the septum near the apex); the slow pathway runs along the base near the CS ostium. In AVNRT these two form a circuit. Ablating the slow pathway at the base stops AVNRT while sparing the compact node at the apex."
+   },
+   "supply": {
+    "summary": "AV nodal artery, from the crux.",
+    "detail": "The AV nodal artery reaches the node from below, coming up from the crux."
+   },
+   "relations": [
+    {
+     "with": "AV node",
+     "why": "Lies at its apex.",
+     "focus": [
+      "av_node",
+      "conduction:avn"
+     ]
+    },
+    {
+     "with": "Coronary sinus ostium",
+     "why": "Its base; slow-pathway ablation is done just in front of it.",
+     "focus": [
+      "cs_ostium"
+     ]
+    },
+    {
+     "with": "Central fibrous body",
+     "why": "The apex meets it, where the His penetrates.",
+     "focus": [
+      "central_fibrous_body"
+     ]
+    }
+   ],
+   "seenOn": {
+    "cut": [
+     {
+      "text": "RA septal wall: tendon of Todaro, septal leaflet hinge and the CS ostium.",
+      "id": "raOpen"
+     }
+    ],
+    "ecg": [
+     {
+      "text": "AVNRT: regular narrow tachycardia with retrograde P buried in or just after the QRS (pseudo-r′ in V1, pseudo-S in II)."
+     }
+    ]
+   },
+   "complications": [
+    {
+     "name": "AV nodal re-entrant tachycardia (AVNRT)",
+     "mechanism": "A circuit forms between the slow and fast pathways in Koch's triangle: down the slow, up the fast (typical).",
+     "presentation": "Sudden regular palpitations at 150–250/min; P waves hidden or a pseudo-r′ in V1; stops with vagal manoeuvres or adenosine.",
+     "scenario": "planned:avnrt",
+     "hook": "Regular narrow tachy, pseudo-r′ V1"
+    },
+    {
+     "name": "AV block from ablation or surgery",
+     "mechanism": "Energy or sutures near the apex of the triangle injure the compact node or His.",
+     "presentation": "Complete heart block after AVNRT ablation, ASD repair or tricuspid surgery; may need a pacemaker.",
+     "scenario": "chbJ",
+     "hook": "CHB after septal ablation/surgery"
+    }
+   ],
+   "pearls": {
+    "student": [
+     {
+      "hook": "Find the AV node",
+      "text": "The compact AV node sits at the apex of Koch's triangle, near the central fibrous body."
+     },
+     {
+      "hook": "Three borders",
+      "text": "Tendon of Todaro, septal tricuspid leaflet hinge, coronary sinus ostium."
+     }
+    ],
+    "resident": [
+     {
+      "hook": "Ablate low, not high",
+      "text": "Slow-pathway ablation is done at the base near the CS ostium; moving towards the apex raises the risk of AV block."
+     },
+     {
+      "hook": "Pseudo-r′",
+      "text": "In typical AVNRT the retrograde P wave falls at the end of the QRS: pseudo-r′ in V1 and pseudo-S in II, III, aVF."
+     }
+    ],
+    "fellow": [
+     {
+      "hook": "Junctional rhythm during ablation",
+      "text": "Accelerated junctional beats during slow-pathway ablation are a sign of a good site; fast junctional rhythm with VA block warns of injury to the node."
+     }
+    ]
+   },
+   "saq": [
+    {
+     "level": "student",
+     "q": "Name the three borders of Koch's triangle and what lies at its apex.",
+     "a": "Tendon of Todaro, the hinge of the septal tricuspid leaflet and the coronary sinus ostium (base). The compact AV node lies at the apex.",
+     "keys": [
+      "Tendon of Todaro",
+      "Septal TV hinge",
+      "CS ostium",
+      "AV node at apex"
+     ]
+    },
+    {
+     "level": "resident",
+     "q": "Where is AVNRT ablated, and why there rather than at the apex?",
+     "a": "At the slow pathway near the base of the triangle (in front of the CS ostium). The compact AV node and His are at the apex; ablating there would cause complete heart block.",
+     "keys": [
+      "Slow pathway at base",
+      "Near CS ostium",
+      "Apex = node → block risk"
+     ]
+    }
+   ],
+   "sources": [
+    "ESC 2019 supraventricular tachycardia guideline",
+    "Netter's Atlas of Human Anatomy (right atrium)"
+   ],
+   "verify": [
+    "Position of Koch's triangle landmarks in the model (see STATUS)",
+    "Junctional rhythm during ablation as success marker"
+   ],
+   "review": {
+    "status": "draft",
+    "batch": "B5"
    }
   }
  ]
