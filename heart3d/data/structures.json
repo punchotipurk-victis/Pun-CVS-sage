@@ -7628,7 +7628,7 @@
    ],
    "sources": [
     "ASE 2015 chamber quantification (RA pressure from IVC)",
-    "ESC 2022 pericardial diseases guideline"
+    "ESC 2025 myocarditis and pericarditis guideline"
    ],
    "verify": [
     "IVC cut-offs 2.1 cm / 50 % collapse",
@@ -8766,12 +8766,11 @@
     }
    ],
    "sources": [
-    "ESC 2022 pericardial diseases guideline (2015 guideline update)",
+    "ESC 2025 myocarditis and pericarditis guideline",
     "ASE 2013 pericardial disease recommendations"
    ],
    "verify": [
     "Normal fluid 15–50 mL",
-    "Guideline name/year for pericardial diseases",
     "Annulus reversus definition"
    ],
    "review": {
