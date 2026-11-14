@@ -333,7 +333,7 @@ host.addEventListener("pointermove", e => { const p = ptrs.get(e.pointerId); if 
   interacting(); });
 function endPtr(e){ if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId);
   if (gesture && ptrs.size === 0){ if (gesture.moved < 6 && Date.now() - gesture.start < 600){ const lab = gesture.target && gesture.target.closest && gesture.target.closest(".lab");
-      if (lab) { if(lab.dataset.tap)conduction.select(lab.dataset.tap);else select(lab.dataset.id, null); }
+      if (lab) { pickLabel(lab); }
       else { const now = Date.now(); rayAt(e.clientX,e.clientY);const network=conduction.pick(e.clientX,e.clientY,ray.ray);
         if(network){conduction.select(network.id);lastTap=0}else{if (now - lastTap < 320) focusAt(e.clientX, e.clientY); else tapAt(e.clientX, e.clientY); lastTap = now;} } } gesture = null; } }
 host.addEventListener("pointerup", endPtr); host.addEventListener("pointercancel", endPtr);
@@ -383,7 +383,7 @@ function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(s
   cavityAnchors(); refreshCond();
   const rng = $(".rngOff"), lim = C0.body ? 5 : 1.5; if (+rng.max !== lim){ rng.min = -lim; rng.max = lim; }
   $(".depthLbl").textContent = C0.body ? "Slide through the heart" : "Fine-tune"; $(".bFlip").hidden = !C0.body; labelsDirty = true; dirty(); }
-/* default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" counts as on until phase C dims it).
+/* Default layers when a view is entered (EXPLORE_DATA.VIEW_LAYERS; "fade" enables the layer and dims its All labels).
    Conduction follows its default only on a student's own view change (it starts the beat and the ECG strip). */
 function viewDefaults(view, withConduction){ const V = D.VIEW_LAYERS[view]; if (!V) return;
   for (const [k, v] of Object.entries(V)) if (k !== "conduction" || withConduction) st.layers[k] = v !== "off";
@@ -451,17 +451,31 @@ const extOf = { RA: ["RA_wall", "RA"], RV_cavity: ["RV_free_wall"], LA: ["LA_wal
     else if (a.where === "cav"){ const ci = intNames.indexOf(a.id); a.cands = spread(HI.tissue.geometry, tc, l => l === ci); }
     else if (a.where === "valve"){ const lis = (D.VALVE_GROUPS[a.id] || [a.id]).map(n => intNames.indexOf(n)), vi = HI.items.map(it => it.frames[0]).filter(Boolean).find(m => lis.some(li => m.userData.labels.includes(li))); if (vi) a.cands = spread(vi.geometry, vi.userData.labels, l => lis.includes(l), 14); }
     else if (a.where === "lm"){ const lm = JI.landmarks[a.id], ti = intNames.indexOf(a.id); a.cands = [...(Array.isArray(lm?.points) ? lm.points.map(p => new T.Vector3(...p)) : []), ...(ti > 0 ? spread(HI.tissue.geometry, tl, l => l === ti, 6) : [])]; }
-    a.home = a.p.clone(); }
+    a.home = a.p.clone(); a.layoutHome=a.p.clone(); }
   for (const a of anchors){ const el = document.createElement("button"); el.type = "button"; el.className = "lab lab-" + a.layer; el.textContent = a.text; el.dataset.id = a.id; el.hidden = true; if (a.nrm) a.nw = toWorldDir(a.nrm);
     labelLayer.appendChild(el); a.el = el; a.w = toWorld(a.p); }
 })();
 let labelsDirty = true, lastLabelCheck = 0;
+let valveFrameKey='';
+const valveAnchorCache=new Map();
+function refreshValveAnchors(){
+  const frames=HI.items.map(it=>it.frames.find(m=>m?.visible)),key=frames.map(m=>m?.uuid||'').join('|');if(key===valveFrameKey)return false;valveFrameKey=key;
+  for(const a of anchors.filter(a=>a.where==='valve')){
+    const ids=(D.VALVE_GROUPS[a.id]||[a.id]).map(id=>intNames.indexOf(id)),mesh=frames.find(m=>m&&ids.some(id=>m.userData.labels.includes(id)));if(!mesh)continue;
+    const cacheKey=mesh.uuid+':'+a.id;let cached=valveAnchorCache.get(cacheKey);
+    if(!cached){const P=mesh.geometry.attributes.position,indices=[];for(let i=0;i<P.count;i++)if(ids.includes(mesh.userData.labels[i]))indices.push(i);
+      const at=centroidAnchor(mesh.geometry,mesh.userData.labels,id=>ids.includes(id));if(!at)continue;
+      cached={p:at.p,cands:indices.filter((_,i)=>i%Math.max(1,Math.floor(indices.length/24))===0).map(i=>new T.Vector3().fromBufferAttribute(P,i))};valveAnchorCache.set(cacheKey,cached);}
+    a.home.copy(cached.p);a.p.copy(cached.p);a.w=toWorld(a.p);a.cands=cached.cands;a.valveFrame=mesh.uuid;
+  }return true;
+}
 const ray = new T.Raycaster();
 function occluded(w, targets){ const d = cam.position.distanceTo(w); ray.set(cam.position, w.clone().sub(cam.position).normalize()); ray.far = d - .35;
   const hits = ray.intersectObjects(targets, false); return hits.some(h => !removed(h.point)); }
 let refreshCond = () => {}, condLive = false; const condHidden = new Set(), condAt = new Map();   // set once the conduction view exists
 const viewKey = () => st.mode === "cut" ? st.cut : st.mode === "xray" ? "seeThrough" : "external";
 function updateLabelVisibility(){
+  refreshValveAnchors();
   const centreW = centre, m = st.mode, ext = m === "ext", cut = m === "cut", occT = ext ? [HM.mesh] : cut ? [HI.tissue, ...HI.valves.children.filter(v => v.visible)] : [];
   for (const a of anchors){ let show = a.layer !== "conduction" && !!st.layers[a.layer];
     if (a.home && !a.p.equals(a.home)){ a.p.copy(a.home); a.w = toWorld(a.p); }
@@ -480,6 +494,9 @@ function updateLabelVisibility(){
         if (d < -.3) return c; const w = c.w.clone().addScaledVector(P.normal, .08 - d); return { p: w.clone().applyMatrix4(H2B.clone().invert()), w }; };
       const tries = a.cands.map(p => onFace({ p, w: toWorld(p) })).filter(c => !(cut && removed(c.w)) && (a.where !== "ext" || !ext || c.w.clone().sub(centreW).normalize().dot(cam.position.clone().sub(c.w).normalize()) > .35)).sort((x, y) => x.w.distanceToSquared(cam.position) - y.w.distanceToSquared(cam.position)).slice(0, 16);
       for (const c of tries) if (!occT.length || !occluded(c.w, occT)){ a.p = c.p.clone(); a.w = c.w; show = true; break; } }
+    if(eligible&&a.where==='valve'&&D.VALVE_GROUPS[a.id]&&!show){
+      for(const p of a.cands||[]){const w=toWorld(p);if(!removed(w)&&!occluded(w,occT)){a.p.copy(p);a.w=w;show=true;break}}
+    }
     a.vis = show; }
   // conduction names in a cut: hidden when the part is not drawn in this view, cut away, or behind a wall
   // (the name may move to another visible point of the same part, as for anatomy names)
@@ -601,11 +618,11 @@ function deform(p){const v=p.clone(),z=v.z,w=T.MathUtils.smoothstep(z,-1,1.5),u=
   v.z+=BEAT_SHAPE.axialLift*u*(z>=0?1-T.MathUtils.clamp(z/BEAT_SHAPE.apexZ,0,1):T.MathUtils.clamp(1+z/BEAT_SHAPE.baseDepth,0,1));return v;}
 /* T6.2-B: a dissection view draws only the conduction parts it teaches (EXPLORE_DATA.VIEW_CONDUCTION), and only where they lie on the visible anatomy */
 const cutView=()=>st.mode==="cut"&&!CUTS[st.cut].body;
-const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,
-  cutView,partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
+const conduction=CONDUCTION_VIEW.create({T,world,cam,host,labelLayer,beatify,clips,deform,removed,reduced,externalLabels:true,palette:EXPLORE_UI.palette,endocardium:{geometry:HI.tissue.geometry,names:intNames},
+  cutView,cutMode:()=>st.mode==='cut',externalMode:()=>st.mode==='ext',epicardium:HM.mesh.geometry,keptTissue:w=>!occluded(w,[HI.tissue,...HI.valves.children.filter(m=>m.visible)]),partHidden:id=>cutView()&&!!D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id),
   cycleMs:()=>60000/C.SC.normal.rh.rate,
   clocks:activationClock,
-  onSelect:id=>select('conduction:'+id,null),onChange:()=>{if(conductionReady){syncClock();dirty()}}});
+  onSelect:id=>{if(st.labelMode==='all'&&D.LABEL_GROUPS.avJunction.members.includes('conduction:'+id))avJunctionExpanded=true;select('conduction:'+id,null)},onChange:()=>{if(conductionReady){syncClock();dirty()}}});
 Object.assign(window.CONDUCTION_VIEW,conduction);
 ecg.LEGACY_TA=ECG.LEGACY_TIMING.TA_AVN;
 const ecgStrip=CONDUCTION_VIEW.strip({root:$('.conduction-panel'),engine:ecg,getContext:()=>ecgContext,view:conduction});
@@ -630,7 +647,8 @@ function syncActivation(){
 function syncClock(){
   const ms=conduction.state.ms,rr=60000/C.SC.normal.rh.rate,v=ecg.curEv(ecgContext.ev,ms+200).v;
   if(st.beat){const ventricularTime=v?ms+200-v.t-v.on:ms-CGRAPH.constants.TA_AVN-conduction.state.mode.avDelay-ecg.ONSET.normal;
-    st.t=((ventricularTime/rr)%1+1)%1;beatU.uSys.value=sysCurve(st.t);HI.setPhase(st.t);}
+    st.t=((ventricularTime/rr)%1+1)%1;beatU.uSys.value=sysCurve(st.t);HI.setPhase(st.t);
+    if(refreshValveAnchors()&&st.mode!=='ext'&&(st.labelMode!=='explore'||D.VALVE_OF[st.sel]||D.VALVE_GROUPS[st.sel]))labelsDirty=true;}
   conduction.update(ms);ecgStrip.draw(ms,false);
   if(conductionReady)syncActivation();
 }
@@ -656,16 +674,24 @@ function updateFocus(id,hit){
     }attr.needsUpdate=true;
   }
 }
+let avJunctionExpanded=false;
+const avJunctionLabel=document.createElement('button');avJunctionLabel.type='button';avJunctionLabel.className='lab lab-conduction';avJunctionLabel.dataset.id='group:avJunction';avJunctionLabel.hidden=true;avJunctionLabel.setAttribute('aria-expanded','false');labelLayer.appendChild(avJunctionLabel);
+function pickLabel(el){if(el.dataset.id==='group:avJunction'){avJunctionExpanded=true;avJunctionLabel.setAttribute('aria-expanded','true');callouts?.invalidate();dirty();return}
+  if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null);
+}
 function calloutCandidates(){
+  if(st.labelMode==='explore'&&!st.sel)return [];
+  const exploring=st.labelMode==='explore';
   const rect=host.getBoundingClientRect();
   const project=p=>{const w=toWorld(deform(p)),v=w.clone().project(cam),rest=toWorld(p).project(cam);
     const point={x:rect.left+(v.x*.5+.5)*rect.width,y:rect.top+(-v.y*.5+.5)*rect.height};
     return {point,rest:{x:rect.left+(rest.x*.5+.5)*rect.width,y:rect.top+(-rest.y*.5+.5)*rect.height},
       visible:!removed(w)&&v.z>-1&&v.z<1&&point.x>=rect.left&&point.x<=rect.right&&point.y>=rect.top&&point.y<=rect.bottom};
   };
-  const entries=anchors.filter(a=>a.layer!=='conduction').map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
+  const entries=anchors.filter(a=>a.layer!=='conduction'&&(!exploring||a.id===st.sel)).map(a=>({id:a.id,el:a.el,text:a.text,layer:a.layer,allowed:!!st.layers[a.layer],...project(a.p),anchor:a}));
   entries.forEach(e=>e.visible=e.visible&&e.anchor.vis);
-  for(const label of conduction.labels){label.el.dataset.id='conduction:'+label.id;
+  for(const e of entries)if(e.anchor.where==='valve')e.rest=project(e.anchor.layoutHome).rest;
+  for(const label of conduction.labels){if(exploring&&st.sel!=='conduction:'+label.id)continue;label.el.dataset.id='conduction:'+label.id;
     const at=condAt.get(label.id),p=conduction.midpoint(label.id),entry={id:'conduction:'+label.id,el:label.el,text:D.CONDUCTION_SHORT[label.id],layer:'conduction',allowed:st.layers.conduction,...project(at||label.part.anchor)};
     const shown=at?!!conduction.state.enabled:p.visible&&!condHidden.has(label.id);entry.visible=entry.visible&&shown;if(shown)entry.tap=at?{x:entry.x,y:entry.y}:{x:p.x,y:p.y};entries.push(entry);
   }
@@ -680,6 +706,13 @@ function calloutCandidates(){
       marker.visible=projected.visible;marker.position.copy(toWorld(deform(p)));
     }
   }
+  const group=D.LABEL_GROUPS.avJunction;
+  for(const e of entries)e.fade=st.labelMode==='all'&&D.VIEW_LAYERS[viewKey()]?.[e.layer]==='fade';
+  if(st.labelMode==='all'&&!avJunctionExpanded){
+    const anchor=entries.find(e=>e.id===group.anchor);
+    for(const e of entries)if(group.members.includes(e.id)){e.allowed=false;e.visible=false}
+    if(anchor)entries.push({...anchor,id:'group:avJunction',el:avJunctionLabel,text:group.text,allowed:st.layers.conduction,visible:!condHidden.has('avn')&&anchor.point!=null,fade:false});
+  }else entries.push({id:'group:avJunction',el:avJunctionLabel,text:group.text,layer:'conduction',allowed:false,visible:false});
   return entries;
 }
 
@@ -705,15 +738,24 @@ $(".bNone").onclick = () => { for (const k in st.layers) st.layers[k] = false; s
 const tog = (sel, get, set) => { const b = $(sel); const sync = () => { b.setAttribute("aria-pressed", get()); b.querySelector(".st").textContent = get() ? "On" : "Off"; }; b.onclick = () => { set(!get()); sync(); applyMode(); }; sync(); };
 $('.bConduction').onclick=()=>{st.layers.conduction=!st.layers.conduction;syncLayers();};
 $('.bIsochrones').onclick=()=>{isochrones=!!D.UI_FLAGS.activationTimingMap&&!isochrones;syncActivation();dirty()};
+const timingText=CGRAPH.spec.display.tissueWave.timingMapText;
+$('.bIsochrones').replaceChildren(document.createTextNode(timingText.button+' '),Object.assign(document.createElement('b'),{className:'st',textContent:'Off'}));
+$('.bIsochrones').title=timingText.hint;
+const timingHelp=document.createElement('div');timingHelp.className='timing-map-help';timingHelp.hidden=true;
+for(const key of ['hint','legendTitle','legendAtria','explain','compare','caveat']){const p=document.createElement('p');p.dataset.timingText=key;p.textContent=timingText[key]||'TODO(content)';timingHelp.appendChild(p)}
+$('.activationLegend').appendChild(timingHelp);
 $('.bSeeThrough').onclick=()=>{if(st.mode==='cut')return;st.mode=st.mode==='xray'?'ext':'xray';viewDefaults(st.mode==='xray'?'seeThrough':'external',true);applyMode()};
-function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;labelsDirty=true;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
+function labelMode(value){if(!['explore','relevant','all'].includes(value))throw Error('Invalid label mode');st.labelMode=value;avJunctionExpanded=false;avJunctionLabel.setAttribute('aria-expanded','false');labelsDirty=true;$$('[data-label-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.labelMode===value));callouts?.invalidate();dirty()}
 $$('[data-label-mode]').forEach(b=>b.onclick=()=>labelMode(b.dataset.labelMode));
-labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)});
+labelLayer.addEventListener('click',e=>{const el=e.target.closest('.lab');if(!el||el.hidden)return;pickLabel(el)});
 tog(".bCor", () => st.coronaries, v => st.coronaries = v);
 tog(".bBeat", () => st.beat, v => { st.beat = v; if (!v){ beatU.uSys.value = 0; HI.setPhase(0); } kick(); });
 $$(".views button[data-v]").forEach(b => b.onclick = () => b.dataset.v === "Reset" ? resetView() : setView(b.dataset.v));
 $(".bZin").onclick = () => zoom(1/1.25); $(".bZout").onclick = () => zoom(1.25); $(".bZreset").onclick = () => { if (st.mode === "cut") chooseCut(st.cut, false); else resetView(); };
 $(".legend").innerHTML = D.LEGEND.map(([n, cs]) => `<span>${cs.map(c => `<i style="background:${c}"></i>`).join("")}${esc(n)}</span>`).join("");
+const labelLegend=document.createElement('div');labelLegend.className='label-border-legend';labelLegend.setAttribute('aria-label','Label border colours');
+for(const [name,colour] of Object.entries({...EXPLORE_UI.labelColours,selected:'#FFFFFF'})){const span=document.createElement('span'),swatch=document.createElement('i');swatch.style.borderColor=colour;span.append(swatch,document.createTextNode(name));labelLegend.appendChild(span)}
+$('.outside-legends').appendChild(labelLegend);
 
 /* on-screen silhouette of what is drawn (outer surface, or the kept tissue in a cut), cached per camera/viewer state */
 const silCache={key:'',pts:[]},silV=new T.Vector3();
@@ -728,7 +770,7 @@ function silhouette(){
 }
 callouts=EXPLORE_UI.callouts({stage:$('.model-stage'),viewer:host,layer:labelLayer,candidates:calloutCandidates,selection:()=>st.sel,
   mode:()=>st.labelMode,view:()=>st.mode==='cut'?st.cut:st.mode==='xray'?'seeThrough':'external',relevant:D.RELEVANT_LABELS,status:$('.labelStatus'),
-  silhouette,list:$('.labelList'),pick:el=>{if(el.dataset.tap)conduction.select(el.dataset.tap);else select(el.dataset.id,null)}});
+  silhouette,list:$('.labelList'),pick:pickLabel});
 document.fonts?.addEventListener('loadingdone',()=>{callouts.invalidate();dirty()});
 
 /* ---------- render loop: runs only while shown; idles when nothing moves ---------- */
@@ -765,6 +807,7 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),
+  activationSeedSources:()=>activation.seedSources(conduction.state.mode),
   activationState:()=>({ready:activationEntry.ready,error:activationEntry.error,worker:activation.worker,cacheSize:activation.cache.size,isochrones,diagnostics:activationEntry.diagnostics,clocks:{a:activationDisplay.uniforms.uActA.value,v:activationDisplay.uniforms.uActV.value},enabled:activationDisplay.uniforms.uActEnabled.value>0}),
   activationAt(i,mesh='outer'){const k=mesh==='outer'?0:mesh==='interior'?1:-1,m=activationEntry.meshes?.[k],a=activationMeshes[k];if(!m||i<0||i>=m.tA.length)return null;return {tA:m.tA[i],tV:m.tV[i],class:m.classes[i],strength:m.strength[i],p:Array.from(a.positions.subarray(i*3,i*3+3)),label:a.names[a.labels[i]],wall:a.walls[a.wall[i]],cavity:a.cavity?a.names[a.cavity[i]]:null,aha:k===0?HM.attr.aha[i]:null}},
   activationCount:mesh=>activationMeshes[mesh==='interior'?1:0].positions.length/3,
@@ -775,11 +818,20 @@ window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDe
     focusVertices:focusRecords.reduce((n,r)=>n+r.mesh.geometry.attributes.aFocus.array.reduce((s,x)=>s+(x>.5),0),0),
     colours:{impulse:CONDUCTION_VIEW.parts[0].pair[0].material.userData.wave.uHot.value.getHexString(),muscle:activationDisplay.uniforms.uActHot.value.getHexString(),after:activationDisplay.uniforms.uActAfter.value.getHexString()}}),
   now:()=>conduction.now(),seek:ms=>conduction.seek(ms),tapStruct:id=>conduction.select(id),
+  probeConduction(x,y){rayAt(x,y);return conduction.pick(x,y,ray.ray)?.id||null},
   frameCost:()=>frameCost,
-  playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m||!cutView())return m;updateLabelVisibility();   // T6.2-B: in a cut, the visible point of the part
-    if(condHidden.has(id))return {...m,visible:false};const at=condAt.get(id);if(!at)return m;const r=cvs.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
-    const occ=[HI.tissue,...HI.valves.children.filter(v=>v.visible)],pts=[at,...conduction.parts.filter(p=>p.id===id).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&!occluded(w,occ)});
-    for(const p of pts){const [x,y]=scr(p);rayAt(x,y);if(conduction.pick(x,y,ray.ray)?.id===id)return {...m,x,y,point:p.toArray()};}   // a point where a tap selects this part
+  playback:options=>conduction.playback(options),conductionMidpoint:id=>{const m=conduction.midpoint(id);if(!m)return m;const cut=!!cutView();if(cut)updateLabelVisibility();
+    if(cut&&D.VIEW_CONDUCTION[st.cut]&&!D.VIEW_CONDUCTION[st.cut].includes(id))return {...m,visible:false};const at=condAt.get(id)||new T.Vector3(...m.point);const r=host.getBoundingClientRect(),scr=p=>{const v=toWorld(deform(p)).project(cam);return [r.left+(v.x*.5+.5)*r.width,r.top+(-v.y*.5+.5)*r.height]};
+    const occ=cut?[HI.tissue,...HI.valves.children.filter(v=>v.visible)]:[],pts=[at,...conduction.parts.filter(p=>p.id===id&&!p.illustrative&&!p.cap).flatMap(p=>p.samples||[])].filter(p=>{const w=toWorld(p);return !removed(w)&&(!cut||!occluded(w,occ))});
+    // Prefer a point whose neighbours also select this part (±6 px in the cut junction, ±2 px elsewhere), so a
+    // real pointer event that lands a pixel off the projected point cannot flip to a neighbour (B6). Fall back to
+    // any exact point when the part is too thin on screen for that margin (e.g. the LBB trunk on a phone).
+    const cross=n=>[[-n,0],[0,-n],[0,0],[0,n],[n,0]],picks=(x,y,offsets)=>offsets.every(([dx,dy])=>{rayAt(x+dx,y+dy);return conduction.pick(x+dx,y+dy,ray.ray)?.id===id});
+    const margin=cross(cut&&['avn','his','lbb'].includes(id)?6:2);
+    for(const p of pts){const [x,y]=scr(p);if(picks(x,y,margin))return {...m,x,y,visible:true,point:p.toArray()};}   // a point where a tap selects this part
+    for(const p of [new T.Vector3(...m.point),...pts]){const [cx,cy]=scr(p);for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2){const x=cx+dx,y=cy+dy;
+      if(picks(x,y,margin))return {...m,x,y,visible:true,point:p.toArray()};}}
+    for(const p of pts){const [x,y]=scr(p);if(picks(x,y,[[0,0]]))return {...m,x,y,visible:true,point:p.toArray()};}
     const [x,y]=scr(at);return {...m,x,y,point:at.toArray()};},
   conductionState:()=>({enabled:st.layers.conduction,...conduction.state,cacheSize:conduction.cacheSize(),rings:conduction.rings.filter(r=>r.userData.block).map(r=>r.userData.block),opacity:extMat.opacity}),
   ecgSample(lead,ms){return ecg.leadVal(ecg.vecAt(ecgContext,ms),lead)},
