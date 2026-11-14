@@ -11,7 +11,7 @@ const T = window.THREE, D = EXPLORE_DATA, C = CONTENT, SIM = SIMC;
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const host = $(".viewer"), labelLayer = $(".labels"), panel = $(".panel");
-let callouts=null, selectionHit=null;const virtualLabels=new Map();
+let callouts=null, selectionHit=null, cardsPanel=null, cardView=null;const virtualLabels=new Map();
 function getData(k){ try { if (window[k]) return window[k]; } catch (e) {} try { if (window.parent && window.parent !== window && window.parent[k]) return window.parent[k]; } catch (e) {} return null; }
 const JM = getData("PUN_HEART_MESH"), JI = getData("PUN_HEART_INTERIOR");
 if (!T || !JM || !JI || !CGRAPH.spec){ host.innerHTML = '<p class="fallback">The refined 3D heart opens from the Pun CVS Lab site (its data is stored in the site page). Open the site and choose 3D Heart.</p>'; window.EXPLORE_APP = { ready: false, error: "no data" }; return; }
@@ -374,6 +374,7 @@ function applyMode(){ const m = st.mode, cut = m === "cut", xr = m === "xray"; i
   $('.conduction-panel').classList.toggle('enabled',st.layers.conduction);
   if (cut) applyCut(); else { plane.set(new T.Vector3(0, 0, 1), 1e5); plane2.copy(plane); }
   $$(".segMode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === (xr?"ext":m))); $(".cutctl").hidden = !cut; $(".bFace").disabled = !cut;
+  if(cardsPanel){const key=viewKey();if(key!==cardView){cardView=key;select(null,null)}}
   labelsDirty = true; dirty(); }
 function applyCut(){ const C0 = CUTS[st.cut], nH = C0.n.clone().multiplyScalar(st.flip), pH = C0.c.clone().addScaledVector(C0.n, st.off);
   const nW = toWorldDir(nH), pW = toWorld(pH); plane.setFromNormalAndCoplanarPoint(nW, pW);
@@ -394,6 +395,7 @@ function chooseCut(k, fromUser){ st.cut = k; st.coronaries=false; st.off = 0; st
 /* "Find in this view" = the view's Relevant labels (EXPLORE_DATA.RELEVANT_LABELS) */
 const findName = id => id.startsWith("conduction:") ? D.CONDUCTION_SHORT[id.slice(11)] || id : D.SHORT[id] || id;
 function showView(k){ const C0 = CUTS[k], find = (D.RELEVANT_LABELS[k] || []).filter(id => id.startsWith("conduction:") ? id.slice(11) in D.CONDUCTION_SHORT : anchors.some(a => a.id === id)); st.sel = null; selectionHit=null; updateFocus(null,null); conduction.state.selected=null;conduction.update(conduction.state.ms);marker.visible = false;
+  if (cardsPanel) { cardsPanel.render(null); window.__lastCard=C0.name; dirty(); return; }
   panel.innerHTML = `<span class="eyebrow">${esc(C0.group)}</span><h2>${esc(C0.name)}</h2><p>${esc(C0.about)}</p>` +
     (find.length ? `<div class="glabel">Find in this view (tap a name)</div><div class="chips">${find.map(id => `<button class="chip" data-find="${esc(id)}">${esc(findName(id))}</button>`).join("")}</div>` : "");
   panel.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const id = b.dataset.find; if (id.startsWith("conduction:")){ if (!st.layers.conduction){ st.layers.conduction = true; syncLayers(); } conduction.select(id.slice(11)); } else select(id, null); }); window.__lastCard = C0.name; dirty(); }
@@ -606,7 +608,8 @@ function select(id, hit){
   if(id!==st.sel)selectionHit=hit;else if(hit)selectionHit=hit;
   hit=hit||selectionHit;
   updateFocus(id,hit);
-  if(!id?.startsWith("conduction:")&&conduction.state.selected){conduction.state.selected=null;conduction.update(conduction.state.ms)} st.sel = id; panel.innerHTML = card(id, hit); panel.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (!goSim(b.dataset.go)) b.classList.add("nogo"); });
+  if(!id?.startsWith("conduction:")&&conduction.state.selected){conduction.state.selected=null;conduction.update(conduction.state.ms)} st.sel = id;
+  if (!cardsPanel?.render(id)) { panel.innerHTML = card(id, hit); panel.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (!goSim(b.dataset.go)) b.classList.add("nogo"); }); }
   if (hit && hit.point){ marker.position.copy(hit.point); marker.visible = true; } else marker.visible = false;
   window.__lastCard = panel.querySelector("h2") ? panel.querySelector("h2").textContent : ""; dirty(); }
 
@@ -702,10 +705,11 @@ function calloutCandidates(){
     if(p){if(!base){const el=document.createElement('button');el.type='button';el.className='lab selected-callout';el.dataset.id=st.sel;el.hidden=true;labelLayer.appendChild(el);virtualLabels.set(st.sel,el);
         base={id:st.sel,el,layer:'chambers',text:st.sel};entries.push(base)}
       const projected=project(p);for(const e of entries)if(e.id===st.sel)e.visible=false;
-      const selected={...base,...projected,text:panel.querySelector('h2')?.textContent||base.text,allowed:true};entries[entries.indexOf(base)]=selected;
+      const selected={...base,...projected,text:cardsPanel?.callout()||panel.querySelector('h2')?.textContent||base.text,allowed:true};entries[entries.indexOf(base)]=selected;
       marker.visible=projected.visible;marker.position.copy(toWorld(deform(p)));
     }
   }
+  if(cardsPanel?.partName())for(const e of entries)if(e.id===st.sel)e.text=cardsPanel.callout();
   const group=D.LABEL_GROUPS.avJunction;
   for(const e of entries)e.fade=st.labelMode==='all'&&D.VIEW_LAYERS[viewKey()]?.[e.layer]==='fade';
   if(st.labelMode==='all'&&!avJunctionExpanded){
@@ -792,18 +796,22 @@ function loop(now){ if (!active()){ running = false; return; }
   if ((conduction.state.playing && (st.beat || st.layers.conduction)) || now - lastMove < 400 || labelsDirty) requestAnimationFrame(loop); else running = false; }
 function size(){ const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return; const c = renderer.domElement;
   if (c.width !== Math.round(w*renderer.getPixelRatio()) || c.height !== Math.round(h*renderer.getPixelRatio())){ renderer.setSize(w, h, false); c.style.width = w + "px"; c.style.height = h + "px"; cam.aspect = w/h; cam.updateProjectionMatrix(); } }
-new ResizeObserver(() => dirty()).observe(host);
+function resizeViewer(){ size(); labelsDirty=true; callouts?.invalidate(); dirty(); }
+new ResizeObserver(resizeViewer).observe(host);
 new IntersectionObserver(es=>{viewerVisible=es[0].isIntersecting;if(viewerVisible)dirty()}).observe(host);
 new IntersectionObserver(es => { onScreen = es[0].isIntersecting; kick(); }, { rootMargin: "80px 0px" }).observe($("#explore"));
 document.addEventListener("visibilitychange", kick);
 window.addEventListener("message", e => { const d = e.data; if (!d || d.pun !== "lab") return; if (typeof d.visible === "boolean"){ shown = d.visible; kick(); } });
 
 /* ---------- start ---------- */
+cardsPanel=H3PANEL.create({root:$('.x3-panel'),content:panel,workspace:$('.model-workspace'),
+  select:id=>{if(id.startsWith('conduction:')){if(!st.layers.conduction){st.layers.conduction=true;syncLayers()}conduction.select(id.slice(11))}else select(id,null)},
+  relevant:()=>D.RELEVANT_LABELS[viewKey()]||[],name:findName,goSim,resize:resizeViewer});
 conductionReady=true;
 paint(st.colour); applyMode(); resetView(); select(null, null);syncLayersUI();ecgStrip.draw(conduction.state.ms,true);
 $(".busy").hidden = true;
 condLive = true; refreshCond = () => conduction.refreshVisibility(); refreshCond();
-window.EXPLORE_APP = { ready: true, st, CUTS, anchors, viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
+window.EXPLORE_APP = { ready: true, st, CUTS, anchors, panel:()=>cardsPanel.state(), viewDefaults: v => viewDefaults(v, true), setMode(m){ if(typeof m === "object")return conductionMode(m); const was = st.mode; st.mode = m; applyMode(); if (m === "cut" && was !== "cut") chooseCut(st.cut, false); }, setCut(k, off = 0, flip = 1){ chooseCut(k, true); st.off = off; st.flip = flip; $(".rngOff").value = off; applyCut(); faceCut(); },
   conduction(on){st.layers.conduction=!!on;syncLayers();},
   isochrones(on){isochrones=!!on&&!!D.UI_FLAGS.activationTimingMap;syncActivation();dirty();},
   activationReady:()=>activation.request(conduction.state.mode),

@@ -268,8 +268,38 @@ table.phys{border-collapse:collapse;width:100%;font-size:.88rem}
 .x3 .activation-slot{min-height:26px}
 .x3 .advanced{position:relative}.x3 .advanced>summary{cursor:pointer;font:600 .95rem var(--f-display);padding:6px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
 .x3 .advancedControls{position:absolute;right:0;top:calc(100% + 5px);z-index:8;display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:12px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;max-width:min(360px,90vw)}
-@media(min-width:1700px){.x3 .model-workspace{grid-template-columns:minmax(0,1fr) 320px}.x3 .model-workspace>.panel{position:sticky;top:12px;max-height:78vh;overflow:auto}}
+@media(min-width:760px){.x3 .model-workspace{grid-template-columns:minmax(0,1fr) 320px}.x3 .model-workspace.panel-collapsed{grid-template-columns:minmax(0,1fr) 28px}}
+@media(min-width:1024px){.x3 .model-workspace{grid-template-columns:minmax(0,1fr) clamp(360px,28vw,400px)}}
 @media(max-width:900px){.x3 .model-stage .viewer{height:62vh;min-height:340px}.x3 .labels .lab.callout{max-width:150px;font-size:.8rem}.x3 .advancedControls{left:0;right:auto}.x3 .segLabelMode button{padding:6px 9px}}
+/* T7.1b: At a glance. All card styling stays inside the panel. */
+.x3 .x3-panel{position:relative;min-width:0;margin:0;padding:0;border-radius:14px;background:var(--surface);overflow-wrap:anywhere}
+.x3-panel .panel{display:block;padding:12px 14px;min-width:0;font-family:system-ui,sans-serif;font-weight:400;overflow-anchor:none}
+.x3-panel .x3-panel-toggle{position:absolute;top:8px;right:5px;z-index:1;width:24px;height:27px;padding:0;font-size:19px;line-height:1}
+.x3-panel .eyebrow{display:block;padding-right:25px;font-size:11px;color:var(--accent)}
+.x3-panel h2{font-size:20px;line-height:1.2;margin:4px 20px 6px 0}
+.x3-panel p{font-size:13px;line-height:1.4;margin:0 0 8px}
+.x3-panel h3{font:600 11px var(--f-mono,monospace);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.x3-panel .x3-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:6px 0}
+.x3-panel .x3-stats>div{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:6px 4px;text-align:center}
+.x3-panel .x3-stats strong{display:block;color:var(--accent);font-size:14px;line-height:1.2}
+.x3-panel .x3-stats span{display:block;font-size:10px;color:var(--muted);line-height:1.25;margin-top:4px}
+.x3-panel .x3-bite{display:flex;gap:8px;align-items:flex-start;padding:3px 0;font-size:13px;line-height:1.35}
+.x3-panel .x3-icon{flex:0 0 24px;height:24px;display:grid;place-items:center;background:var(--paper);border-radius:7px;color:#d9b45a}
+.x3-panel .x3-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.x3-panel [data-icon="where"]{color:#7aa7ff}.x3-panel [data-icon="does"]{color:#3fc1a5}.x3-panel [data-icon="supply"]{color:#e0645c}.x3-panel [data-icon="danger"]{color:#ff8a5c}.x3-panel [data-icon="ecg"]{color:#c38bff}.x3-panel [data-icon="echo"]{color:#58c7e6}.x3-panel [data-icon="exam"]{color:#e7c14f}
+.x3-panel .x3-part,.x3-panel .x3-pearl,.x3-panel .x3-saq{padding:9px 10px;margin:8px 0;border:1px solid var(--rule);border-radius:10px;background:var(--paper);font-size:13px;line-height:1.4}
+.x3-panel .x3-part{border-left:3px solid var(--accent)}.x3-panel .x3-part p,.x3-panel .x3-pearl p{margin:3px 0 0}
+.x3-panel .x3-part p{font-size:12px;line-height:1.35}
+.x3-panel .x3-watch{border-left:2px solid #ff8a5c;padding:4px 0 4px 9px;margin:6px 0;font-size:13px;line-height:1.4}.x3-panel .x3-watch p{margin:3px 0 0;color:var(--muted)}
+.x3-panel .chip{white-space:normal;font-size:11px}.x3-panel .x3-soon{display:inline-block;opacity:.6;border-style:dashed;cursor:default}
+.x3-panel .x3-levels{display:flex;flex-wrap:wrap;gap:4px}.x3-panel .x3-levels button,.x3-panel .x3-check{font-size:12px;padding:4px 8px}
+.x3-panel [aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}.x3-panel button:disabled{opacity:.4;cursor:default}
+.x3-panel textarea{display:block;width:100%;box-sizing:border-box;min-height:54px;background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:6px;font:inherit;resize:vertical;margin:7px 0}
+.x3-panel .x3-answer{margin-top:8px}.x3-panel .x3-answer label{display:flex;gap:7px;align-items:flex-start;margin:5px 0}.x3-panel .x3-answer input{width:auto;flex:none;margin-top:3px}.x3-panel .x3-score{display:block;margin-top:8px;color:var(--accent)}
+@media(min-width:760px){.x3 .x3-panel{position:sticky;top:12px;height:min(70vh,760px)}.x3-panel .panel{height:100%;overflow-y:auto;box-sizing:border-box}.panel-collapsed .x3-panel{height:40px}.panel-collapsed .x3-panel-toggle{right:1px}}
+@media(min-width:760px) and (max-width:900px){.x3 .x3-panel{height:62vh;min-height:340px}}
+@media(min-width:760px) and (max-width:1023px){.x3-panel .x3-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:759px){.x3 .model-workspace.panel-collapsed{grid-template-columns:minmax(0,1fr)}.panel-collapsed .x3-panel{min-height:42px}}
 </style></head><body class="pg-sim">
 <div class="wrap">
 <header>
