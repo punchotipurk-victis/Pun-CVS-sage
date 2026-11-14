@@ -13,13 +13,14 @@ Checks (two-page mode):
   - tapping the cut face of the IVS in the four-chamber section opens the interventricular septum card
   - the top-right switcher in this section shows exactly [heart3d, pathology]
   - no page or console errors in the site or the labs
-  - explore: every viewpoint and External / Internal (cut) render; the structure card sits BELOW the 3D view
+  - explore: every viewpoint and External / Internal (cut) render; the glance panel sits beside the model (below on phone)
+  - structure-card schema, references, part mapping, level persistence, SAQs, chips, collapse and responsive layout
   - pathology: every scenario runs, its name shows and the 12-lead changes from normal
   - deep link #pathology/<scenario> opens that scenario
   - the hidden page stops its render loop and resumes when shown again
   - 400 px: no sideways scroll on either page; the switcher fits
 """
-import argparse, asyncio, hashlib, json, os, sys
+import argparse, asyncio, hashlib, json, os, sys, subprocess
 from playwright.async_api import async_playwright
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -28,6 +29,7 @@ ap = argparse.ArgumentParser(); ap.add_argument("index"); ap.add_argument("--sho
 ap.add_argument("--quick", action="store_true", help="only 6 scenarios")
 ap.add_argument("--b6", action="store_true", help="run the conduction picking/performance regression three times")
 ap.add_argument("--redesign", action="store_true", help="run only the T6.2-C acceptance checks")
+ap.add_argument("--cards", action="store_true", help="run only the T7.1a+b card acceptance checks")
 ap.add_argument("--activation-audit", help="write tissue map audit JSON independently of screenshots"); A = ap.parse_args()
 fails = []
 def check(ok, msg, extra=""):
@@ -155,7 +157,8 @@ async def explore_checks(pg, fr, tag):
     await fr.evaluate("EXPLORE_APP.labelMode('all')")
     order = await fr.evaluate("""(() => { const v = document.querySelector('.viewer').getBoundingClientRect(), p = document.querySelector('.panel').getBoundingClientRect();
         return {viewerH: Math.round(v.height), viewerW: Math.round(v.width), panelTop: Math.round(p.top), viewerBottom: Math.round(v.bottom), pageW: innerWidth, pageH: innerHeight}; })()""")
-    check(order["panelTop"] >= order["viewerBottom"] - 1, f"[{tag}] structure card sits below the 3D view", str(order))
+    placement = await fr.evaluate("(()=>{const v=document.querySelector('.viewer').getBoundingClientRect(),p=document.querySelector('.x3-panel').getBoundingClientRect();return innerWidth>=760?p.left>=v.right:p.top>=v.bottom})()")
+    check(placement, f"[{tag}] structure card sits beside the model on desktop and below on phone", str(order))
     check(order["viewerW"] >= order["pageW"]*0.5 and order["viewerH"] >= order["pageH"]*0.55, f"[{tag}] large 3D view", str(order))
     viewer = await fr.query_selector(".model-stage")
     async def snap(name, js):
@@ -250,19 +253,19 @@ async def explore_checks(pg, fr, tag):
     rel = await fr.evaluate("""(()=>{const out={},L0={...EXPLORE_APP.st.layers},b0=EXPLORE_APP.st.beat,m0=EXPLORE_APP.st.labelMode;for(const [k,ids] of Object.entries(EXPLORE_DATA.RELEVANT_LABELS)){if(!ids.length)continue;
       EXPLORE_APP.setBeat(false,0);if(k==='external'||k==='seeThrough'){EXPLORE_APP.setMode(k==='external'?'ext':'xray');EXPLORE_APP.setView('Front')}else{EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut(k)}
       EXPLORE_APP.viewDefaults(k);EXPLORE_APP.labelMode('relevant');EXPLORE_APP.render();EXPLORE_APP.render();
-      const shown=EXPLORE_APP.visibleLabels().map(x=>x.id).filter(id=>ids.includes(id)),chips=[...document.querySelectorAll('.panel [data-find]')].map(b=>b.dataset.find);
+      const shown=EXPLORE_APP.visibleLabels().map(x=>x.id).filter(id=>ids.includes(id)),chips=[...document.querySelectorAll('.panel [data-select]')].map(b=>b.dataset.select);
       out[k]={n:ids.length,shown:shown.length,chipsMatch:k==='external'||k==='seeThrough'||JSON.stringify(chips)===JSON.stringify(ids)}}
       EXPLORE_APP.labelMode(m0);EXPLORE_APP.setMode('ext');EXPLORE_APP.resetView();for(const k in L0)EXPLORE_APP.setLayer(k,L0[k]);EXPLORE_APP.setBeat(b0);return out})()""")
     check(all(4 <= v['n'] <= 20 and v['chipsMatch'] and v['shown'] >= min(3, v['n']) for v in rel.values()) and len(rel) == 9, f"[{tag}] Relevant sets: 4–20 per view, Find chips match, at least 3 shown per view", str(rel))
-    leaf = await fr.evaluate("(()=>{EXPLORE_APP.select('MV_AML',null);const c=document.querySelector('.panel h2').textContent;EXPLORE_APP.select(null,null);return [c,EXPLORE_DATA.RELEVANT_LABELS.valves.includes('MV_AML'),EXPLORE_DATA.RELEVANT_LABELS.valves.includes('mitral_valve')]})()")
+    leaf = await fr.evaluate("(()=>{EXPLORE_APP.select('MV_AML',null);const c=EXPLORE_APP.panel().partName;EXPLORE_APP.select(null,null);return [c,EXPLORE_DATA.RELEVANT_LABELS.valves.includes('MV_AML'),EXPLORE_DATA.RELEVANT_LABELS.valves.includes('mitral_valve')]})()")
     check('anterior leaflet' in leaf[0].lower() and not leaf[1] and leaf[2], f"[{tag}] one name per valve on the model; a leaflet tap names the leaflet", str(leaf))
     lbl = await fr.evaluate("(()=>{const a=EXPLORE_APP.anchors,f=id=>a.find(x=>x.id===id&&x.where==='cav');return {LA:f('LA')?.home.toArray(),RV:f('RV_cavity')?.home.toArray()}})()")
     check(lbl['LA'] and lbl['RV'] and lbl['LA'][0] < 0 and lbl['RV'][0] > 2.5, f"[{tag}] chamber names point into their own cavity (exported label anchors)", str(lbl))
     # dissection views: a view card lists what to find, and its chips open cards
     await fr.evaluate("EXPLORE_APP.setMode('cut'); EXPLORE_APP.setCut('valves'); EXPLORE_APP.render()")
-    vc = await fr.evaluate("[document.querySelector('.panel h2').textContent, document.querySelectorAll('.panel [data-find]').length]")
-    check("Valves from above" in vc[0] and vc[1] >= 6, f"[{tag}] dissection view card lists what to find", str(vc))
-    await fr.click(".panel [data-find]"); await pg.wait_for_timeout(200)
+    vc = await fr.evaluate("[document.querySelector('.panel h2').textContent, document.querySelectorAll('.panel [data-select]').length]")
+    check("Tap a structure" in vc[0] and vc[1] >= 6, f"[{tag}] dissection empty panel lists what to find", str(vc))
+    await fr.locator(".panel [data-select]").first.click(); await pg.wait_for_timeout(200)
     check(await fr.evaluate("document.querySelector('.panel h2').textContent") != vc[0], f"[{tag}] a 'find' chip opens that structure's card")
     # turned dissection views stay labelled: back of the 4-chamber cut, side of the valve view (B3/B4)
     for k in ("a4c", "valves"):
@@ -430,7 +433,7 @@ async def conduction_view_checks(pg, fr):
                 dropped.append([mode,tap,selected['selected']])
                 await fr.locator('.viewer').click(position={'x':point['x']-origin['x'],'y':point['y']-origin['y']})
                 selected=await fr.evaluate("({selected:CONDUCTION_VIEW.state.selected,title:EXPLORE_APP.card()})")
-            expected=await fr.evaluate("id=>CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)   # T6.2-B: full name in the card
+            expected=await fr.evaluate("id=>H3CARDS.byTap('conduction:'+id)?.card.name||CONTENT.STRUCT[CGRAPH.spec.display.pick.taps[id]]?.name||CGRAPH.spec.display.shortNames[id]",tap)
             if selected!={'selected':tap,'title':expected}:errors.append([mode,tap,selected])
             counts[mode]+=1
         # Exercise the view's teaching callouts. All-mode grouping/layout has its
@@ -837,7 +840,7 @@ async def ui_phase_a_checks(pg,fr):
                   f'UI {name}: All callouts sit inside the viewer, off the heart, without overlaps or crossing lines',
                   f"{len(boxes['b'])} callouts, {len(boxes['b'])-offHeart} over the heart, {crossings} crossings")
         layout=await fr.evaluate("(()=>{const p=document.querySelector('.panel').getBoundingClientRect(),s=document.querySelector('.model-stage').getBoundingClientRect();return {side:p.left>=s.right,below:p.top>=s.bottom}})()")
-        check(layout['side'] if width>1700 else layout['below'],f'UI {name}: card uses the appropriate side/below placement',str(layout))
+        check(layout['side'] if width>=760 else layout['below'],f'UI {name}: card uses the appropriate side/below placement',str(layout))
         await capture('all')
         await fr.evaluate("EXPLORE_APP.seeThrough(true);EXPLORE_APP.render()")
         check(await fr.evaluate('EXPLORE_APP.uiState().seeThrough') and await fr.locator('.bSeeThrough').is_visible(),f'UI {name}: See-through is available in External')
@@ -855,7 +858,117 @@ async def ui_phase_a_checks(pg,fr):
     await pg.set_viewport_size({'width':1440,'height':900})
     await fr.evaluate("EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null,null);EXPLORE_APP.labelMode('explore');EXPLORE_APP.conduction(false);EXPLORE_APP.resetView();EXPLORE_APP.playback({playing:true,speed:1});scrollTo(0,0)")
 
+async def cards_checks(pg, fr):
+    """T7.1 session 1: the shipped card data, panel, and responsive interactions."""
+    await pg.set_viewport_size({'width':1280,'height':800})
+    await pg.evaluate("location.hash='#heart3d'")
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.setBeat(false,0);EXPLORE_APP.setMode('xray');EXPLORE_APP.labelMode('explore');H3CARDS.setLevel('student')")
+    check(await fr.evaluate("!!H3CARDS.byTap('MV_PML').part.name && H3CARDS.all.length===55"), 'CARDS: 55 cards loaded and posterior leaflet maps to its parent and part')
+    for tap, cid in [('av_node','av_node'),('MV_PML','mitral_valve'),('artery:LAD','artery_lad')]:
+        state=await fr.evaluate("id=>{EXPLORE_APP.select(id);EXPLORE_APP.render();return EXPLORE_APP.panel()}",tap)
+        check(state['cardId']==cid and state['sections']==['high-yield','watch','pearls','saq'],f'CARDS: {tap} fills the glance panel',str(state))
+        glance=await fr.evaluate("(()=>{const p=document.querySelector('.panel'),v=document.querySelector('.viewer').getBoundingClientRect(),w=document.querySelector('.model-workspace').getBoundingClientRect(),r=p.getBoundingClientRect(),b=p.querySelector('.x3-bites').getBoundingClientRect();return {ratio:v.width/w.width,side:r.left>=v.right,sameHeight:Math.abs(r.height-v.height)<3,visible:b.bottom<=r.bottom&&p.scrollTop===0}})()")
+        check(glance['ratio']>=.6 and glance['side'] and glance['sameHeight'] and glance['visible'],f'CARDS: {tap} keeps 60% canvas and shows stats + bites without panel scrolling',str(glance))
+        if tap=='MV_PML':
+            check('posterior' in state['partName'].lower() and await fr.evaluate("EXPLORE_APP.visibleLabels().some(l=>l.text===H3CARDS.byTap('MV_PML').card.name+' — '+H3CARDS.byTap('MV_PML').part.name)"),'CARDS: leaflet part appears in the panel and selected callout')
+            if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_desktop_part.png'))
+    await fr.evaluate("EXPLORE_APP.select('av_node')")
+    if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_desktop_open.png'))
+    await fr.locator('[data-level="resident"]').click()
+    await pg.reload();fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP?.ready',timeout=180000)
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('av_node')")
+    check(await fr.evaluate("EXPLORE_APP.panel().level==='resident' && document.querySelector('[data-level=resident]').getAttribute('aria-pressed')==='true'"),'CARDS: Resident preference survives reload')
+    await fr.locator('.x3-check').click()
+    check(await fr.locator('.x3-answer').is_visible() and await fr.locator('.x3-answer input').count()>=2,'CARDS: Check reveals model answer and key points')
+    await fr.locator('.x3-answer input').nth(0).check();await fr.locator('.x3-answer input').nth(1).check()
+    check((await fr.locator('.x3-score').inner_text()).startswith('2 / '),'CARDS: ticking two key points updates score')
+    await fr.evaluate("EXPLORE_APP.select('MV_PML')")
+    check(await fr.locator('.x3-answer').is_hidden() and await fr.locator('.x3-saq textarea').input_value()=='' and await fr.locator('.x3-answer input:checked').count()==0,'CARDS: changing structure resets answer and ticks')
+    check(await fr.locator('.x3-soon').count()>0 and await fr.evaluate("[...document.querySelectorAll('.x3-soon')].every(e=>e.tagName==='SPAN'&&!e.hasAttribute('data-go')&&e.title==='Coming with the Pathology simulator')"),'CARDS: planned scenarios are non-clickable with the agreed tooltip')
+    empty=await fr.evaluate("H3CARDS.all.find(c=>!c.pearls.fellow?.length).labelIds[0]")
+    await fr.evaluate('id=>EXPLORE_APP.select(id)',empty)
+    check(await fr.locator('[data-level=fellow]').is_disabled() and await fr.locator('[data-level=fellow]').get_attribute('title')=='Fellow pearls coming later','CARDS: empty Fellow level is disabled')
+    await fr.evaluate("EXPLORE_APP.select('av_node')")
+    await fr.locator('.x3-run').first.click();await pg.wait_for_function("location.hash.startsWith('#pathology/')")
+    check(await pg.evaluate("location.hash==='#pathology/avb1'"),'CARDS: real scenario chip opens the existing pathology deep link')
+    await pg.evaluate("location.hash='#heart3d'")
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('MV_PML');EXPLORE_APP.render()")
+    before=await fr.locator('.viewer').evaluate('e=>e.clientWidth')
+    await fr.locator('.x3-panel-toggle').click();await pg.wait_for_timeout(300)
+    await fr.evaluate('EXPLORE_APP.render()')
+    collapsed=await fr.evaluate("(()=>{const r=document.querySelector('.viewer').getBoundingClientRect();return {width:r.width,inside:EXPLORE_APP.uiState().callouts.every(c=>c.box.left>=r.left&&c.box.right<=r.right&&c.box.top>=r.top&&c.box.bottom<=r.bottom)}})()")
+    check(not (await fr.evaluate('EXPLORE_APP.panel().open')) and collapsed['width']>before and collapsed['inside'],'CARDS: collapse grows viewer and re-lays callouts inside it',str(collapsed))
+    if A.shots:await fr.locator('.model-workspace').screenshot(path=shot('cards_desktop_collapsed.png'))
+    await pg.reload();fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP?.ready',timeout=180000)
+    check(not await fr.evaluate('EXPLORE_APP.panel().open'),'CARDS: collapsed state survives reload')
+    await fr.locator('.x3-panel-toggle').click()
+    await pg.set_viewport_size({'width':900,'height':800});await pg.wait_for_timeout(300)
+    await fr.evaluate("EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('av_node')")
+    tablet=await fr.evaluate("(()=>{const p=document.querySelector('.x3-panel').getBoundingClientRect(),s=[...document.querySelectorAll('.x3-stats>div')].map(e=>e.getBoundingClientRect());return {width:p.width,wrapped:s[0].top===s[1].top&&s[2].top>s[0].top}})()")
+    check(tablet['width']==320 and tablet['wrapped'],'CARDS: tablet uses 320 px panel and two stats per row',str(tablet))
+    await pg.set_viewport_size({'width':400,'height':800});await pg.wait_for_timeout(300)
+    await fr.evaluate("EXPLORE_APP.select('MV_PML');EXPLORE_APP.render()")
+    phone=await fr.evaluate("(()=>{const p=document.querySelector('.x3-panel').getBoundingClientRect(),v=document.querySelector('.model-column').getBoundingClientRect();return {stacked:p.top>=v.bottom,noOverflow:document.documentElement.scrollWidth<=innerWidth}})()")
+    check(phone['stacked'] and phone['noOverflow'],'CARDS: phone stacks glance below model with no horizontal scroll',str(phone))
+    if A.shots:
+        await fr.locator('.x3-panel').evaluate("e=>e.scrollIntoView({block:'start'})")
+        await pg.screenshot(path=shot('cards_phone_part.png'))
+    # Prove **bold** is the only markup accepted, including in answers and part notes.
+    safe=await fr.evaluate("(()=>{const c=H3CARDS.byTap('av_node').card,old=c.core;c.core='<img src=x onerror=alert(1)> **bold**';EXPLORE_APP.select('av_node');const ok=!document.querySelector('.panel img')&&document.querySelector('.x3-core b').textContent==='bold'&&document.querySelector('.x3-core').textContent.includes('<img');c.core=old;EXPLORE_APP.select(null);return ok})()")
+    check(safe,'CARDS: text is escaped before rendering bold markup')
+    failsoft=await fr.evaluate("""(()=>{
+      const original=H3CARDS,el=document.getElementById('h3cards'),json=el.textContent;
+      const script=[...document.scripts].find(s=>s.textContent.includes('Structure-card indices are built once')).textContent;
+      const get=Storage.prototype.getItem,set=Storage.prototype.setItem;
+      let missing=false,storage=false;
+      try {
+        el.textContent='invalid JSON';Function(script)();
+        missing=H3CARDS.byTap('av_node')===null;EXPLORE_APP.select('av_node');
+        missing=missing&&document.querySelector('.panel h2').textContent.includes('node');
+        el.textContent=json;
+        Storage.prototype.getItem=Storage.prototype.setItem=()=>{throw Error('Storage unavailable')};
+        Function(script)();storage=H3CARDS.level()==='student'&&H3CARDS.setLevel('resident')==='resident'&&!!H3CARDS.byTap('av_node');
+      } finally {el.textContent=json;Storage.prototype.getItem=get;Storage.prototype.setItem=set;window.H3CARDS=original;EXPLORE_APP.select(null)}
+      return {missing,storage};
+    })()""")
+    check(failsoft['missing'] and failsoft['storage'],'CARDS: missing JSON falls back to old cards; blocked storage remains usable',str(failsoft))
+    await fr.evaluate("EXPLORE_APP.select('av_node');EXPLORE_APP.setMode('cut');EXPLORE_APP.setCut('raOpen')")
+    empty=await fr.evaluate("(()=>{const ids=[...document.querySelectorAll('.panel [data-select]')].map(e=>e.dataset.select);return !EXPLORE_APP.panel().cardId&&document.querySelector('.panel h2').textContent==='Tap a structure'&&JSON.stringify(ids)===JSON.stringify(EXPLORE_DATA.RELEVANT_LABELS.raOpen)})()")
+    check(empty,'CARDS: view change resets selection and shows that view’s Relevant chips')
+    await pg.set_viewport_size({'width':1440,'height':900})
+    await fr.evaluate("H3CARDS.setLevel('student');EXPLORE_APP.setMode('ext');EXPLORE_APP.select(null);EXPLORE_APP.setBeat(true);EXPLORE_APP.playback({playing:true,speed:1})")
+    standalone=os.path.abspath(os.path.join(os.path.dirname(__file__),'../dist/heart3d-standalone.html'))
+    if os.path.exists(standalone):
+        sp=await pg.context.new_page();await sp.goto('file://'+standalone)
+        await sp.wait_for_function('window.EXPLORE_APP?.ready',timeout=180000)
+        loaded=await sp.evaluate("(()=>{EXPLORE_APP.playback({playing:false});EXPLORE_APP.select('MV_PML');return H3CARDS.all.length===55&&EXPLORE_APP.panel().cardId==='mitral_valve'&&!!EXPLORE_APP.panel().partName})()")
+        check(loaded,'CARDS: standalone build loads the model, all cards and leaflet part without a parent')
+        await sp.close()
+
+
 async def main():
+    validator = os.path.join(os.path.dirname(__file__), 'validate_structures.py')
+    for args in ([], ['--builtin']):
+        result = subprocess.run([sys.executable, validator, *args], capture_output=True, text=True, encoding='utf-8')
+        check(result.returncode == 0, 'CARDS: structure validator ' + ('built-in' if args else 'default'), result.stdout.strip())
+    from copy import deepcopy
+    from validate_structures import load, validate
+    source = load('heart3d/data/structures.json')
+    mutations = {
+        'duplicate card': lambda d: d['cards'][1].update(id=d['cards'][0]['id']),
+        'duplicate tap': lambda d: d['cards'][1]['labelIds'].append('av_node'),
+        'unknown tap': lambda d: d['cards'][0]['labelIds'].append('invalid:tap'),
+        'unknown focus': lambda d: d['cards'][0]['quick'][0].update(focus=['invalid:focus']),
+        'unknown scenario': lambda d: d['cards'][0]['complications'][0].update(scenario='invalid:scenario'),
+        'unknown cut': lambda d: d['cards'][0]['seenOn']['cut'][0].update(id='invalid:cut'),
+        'unknown echo': lambda d: d['cards'][0]['seenOn']['echo'][0].update(id='invalid:echo'),
+        'length limit': lambda d: d['cards'][0].update(core='x'*201),
+        'required field': lambda d: d['cards'][0].pop('core'),
+        'field type': lambda d: d['cards'][0].update(core=[]),
+    }
+    for label, mutate in mutations.items():
+        data=deepcopy(source);mutate(data)
+        check(bool(validate(data,builtin=True)[0]), 'CARDS: validator rejects ' + label)
     url = "file://" + os.path.abspath(A.index)
     if A.shots: os.makedirs(A.shots, exist_ok=True)
     async with async_playwright() as p:
@@ -864,10 +977,12 @@ async def main():
         pg.on("pageerror", lambda e: errs.append("page: " + str(e)))
         pg.on("console", lambda m: m.type == "error" and errs.append("console: " + m.text))
         await pg.goto(url); await pg.wait_for_timeout(600)
-        if A.b6 or A.redesign:
+        if A.b6 or A.redesign or A.cards:
             await pg.evaluate("location.hash='#heart3d'"); await pg.wait_for_timeout(700)
             fr=await lab_frame(pg,'heart3d');await fr.wait_for_function('window.EXPLORE_APP',timeout=180000)
-            if A.redesign:
+            if A.cards:
+                await cards_checks(pg,fr)
+            elif A.redesign:
                 await redesign_checks(pg,fr)
                 await review_checks(pg,fr)
             else:
@@ -901,6 +1016,7 @@ async def main():
             await redesign_checks(pg,await lab_frame(pg,"heart3d"))
             await review_checks(pg,await lab_frame(pg,"heart3d"))
             await activation_checks(pg,await lab_frame(pg,"heart3d"))
+            await cards_checks(pg,await lab_frame(pg,"heart3d"))
             await pg.evaluate("location.hash = '#pathology'"); await pg.wait_for_timeout(500); await sim_checks(pg, await lab_frame(pg, "pathology"), "Pathology")
             # deep link
             await pg.evaluate("location.hash = '#pathology/flutter'"); await pg.wait_for_timeout(2000)

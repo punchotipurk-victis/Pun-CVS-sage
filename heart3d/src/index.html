@@ -38,7 +38,7 @@
   <div class="labels"></div></div>
   <div class="labelList chips" role="group" aria-label="Labels in this view (tap one)" hidden></div>
   <div class="views" role="group" aria-label="Viewpoints"><button data-v="Front">Front</button><button data-v="Back">Back</button><button data-v="Left">Left side</button><button data-v="Right">Right side</button><button data-v="Below">Below</button><button data-v="Above">Above</button><button class="bFace" disabled>Face the cut</button><button data-v="Reset">Reset</button></div>
-  </div><aside class="card panel" aria-live="polite"></aside></div>
+  </div><aside class="card x3-panel" aria-label="At a glance"><button class="x3-panel-toggle" type="button" aria-label="Collapse card panel" aria-expanded="true" aria-controls="glance-content">«</button><div id="glance-content" class="panel" aria-live="polite"></div></aside></div>
   <div class="outside-legends">
     <div class="signalLegend" aria-label="Conduction and muscle wave colour key"><span><i class="signal-network"></i>Network</span><span><i class="signal-impulse"></i>Impulse</span><span><i class="signal-muscle"></i>Muscle wave</span><span><i class="signal-block">×</i>Block</span><span class="signal-note">Conduction on: the heart wall turns see-through so the wiring shows</span></div>
     <div class="activation-slot"><div class="activationLegend" hidden><span class="actStatus"></span><span class="isoLegend">A / V <i></i><output></output></span></div></div>
@@ -54,5 +54,6 @@
 </section>
 <!--@INC:src/parts/footer.html--></div>
 <!--@STANDALONE-->
+<!--@JSON:h3cards:data/structures.json-->
 <!--@INC:src/parts/scripts-explore.html-->
 </body></html>
