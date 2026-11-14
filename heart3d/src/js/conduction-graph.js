@@ -20,7 +20,7 @@ function times(side,sources,blockedStructs=[],avDelay=constants.D0){
   const adj={},done=new Set();
   for(const [id,time] of Object.entries(sources)){if(!(id in nodes))throw new Error('Unknown source: '+id);t[id]=time}
   for(const e of edges){
-    if(e.circuitOnly||e.T_ms===null||(side&&e.side!==side)||blocked.has('*')||blocked.has(e.struct)||blocked.has(e.id))continue;
+    if(e.illustrative||e.circuitOnly||e.T_ms===null||(side&&e.side!==side)||blocked.has('*')||blocked.has(e.struct)||blocked.has(e.id))continue;
     const duration=edgeDuration(e,avDelay);
     (adj[e.a]??=[]).push([e.b,duration]);(adj[e.b]??=[]).push([e.a,duration]);
   }

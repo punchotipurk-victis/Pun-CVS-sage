@@ -1,5 +1,5 @@
-/* T6.2(b): contract-driven conduction geometry, picking and a shared playback clock.
-   Tissue activation/isochrones are supplied by T6.2(c); circuits by T8.2. */
+/* T6.2-C: contract-driven conduction geometry, picking and a shared playback clock.
+   Decorative Purkinje branches remain outside the timing graph; circuits come with T8.2. */
 (function(){
 'use strict';
 function create(o){
@@ -7,6 +7,7 @@ function create(o){
   const cycleMs=o.cycleMs||(()=>60000/CONTENT.SC.normal.rh.rate);
   const g=CGRAPH,s=g.spec,d=s.display,group=new T.Group(),parts=[],labels=[],rings=[];
   const colour=key=>o.palette?.[key]||d.colours[key].match(/#[0-9a-f]{6}/i)[0];
+  const redesign=d.redesign,phone=innerWidth<=900;
   world.add(group);group.visible=false;
   const state={enabled:false,ms:0,playing:!o.reduced,speed:o.reduced?.25:1,selected:null,
     mode:{atrial:'sinus',ventricular:'normal',avDelay:g.constants.D0,blocks:[]}};
@@ -20,36 +21,63 @@ function create(o){
     id==='ap'?5:id==='cti'?6:id==='purk'?8:7;
   const front=T.LessEqualDepth,behind=T.GreaterDepth;
   const tapIds=Object.keys(d.shortNames),waveUniforms={uNowA:{value:0},uNowV:{value:-1e9},uPulse:{value:0},
-    uSelectedId:{value:-1},uPull:{value:0},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+    uSelectedId:{value:-1},uPull:{value:0},uWidth:{value:1},uRest:{value:state.playing?0:1},uRestInk:{value:new T.Color(colour('rest'))},uNodeInk:{value:new T.Color('#FFE7A8')},uHot:{value:new T.Color(colour('wavefront'))},uAfter:{value:new T.Color(colour('justFired'))},uBlockedInk:{value:new T.Color(colour('blocked'))}};
+  let fadeFrom=waveUniforms.uRest.value,fadeTo=fadeFrom,fadeStart=performance.now();
   let batch;
+  // Pack interpolants into four slots. Separate scalar varyings made the
+  // software rasterizer carry mostly empty vec4 slots for every vertex.
+  const varyings=`varying vec3 vInk;varying vec4 vData0,vData1,vData2;
+    #define vU vData0.x
+    #define vTime vData0.y
+    #define vSide vData0.z
+    #define vRefractory vData0.w
+    #define vAvNode vData1.x
+    #define vBlocked vData1.y
+    #define vSelected vData1.z
+    #define vVisible vData1.w
+    #define vAlpha vData2.x
+    #define vShade vData2.y
+    #define vNode vData2.z
+  `;
   function material(depthFunc){
     const mat=beatify(new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:depthFunc===behind?.45:1,
       depthWrite:false,depthTest:true,depthFunc,clippingPlanes:clips}));
     const previous=mat.onBeforeCompile;
     mat.onBeforeCompile=shader=>{previous(shader);Object.assign(shader.uniforms,waveUniforms);
       shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
-        attribute vec3 aCenter,aInk;attribute float aU,aTime,aSide,aRefractory,aAvNode,aBlocked,aTap,aVisible;
-        varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uSelectedId,uPull;`)
+        attribute vec3 aCenter,aInk;attribute vec4 aParam,aFlags;attribute vec2 aStyle;
+        #define aU aParam.x
+        #define aTime aParam.y
+        #define aSide aParam.z
+        #define aRefractory aParam.w
+        #define aAvNode aFlags.x
+        #define aBlocked aFlags.y
+        #define aTap aFlags.z
+        #define aVisible aFlags.w
+        #define aAlpha aStyle.x
+        #define aNode aStyle.y
+        ${varyings}
+        uniform float uSelectedId,uPull,uWidth;`)
         .replace('#include <begin_vertex>',`#include <begin_vertex>
-        vSelected=1.0-step(.1,abs(aTap-uSelectedId));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected);
+        vSelected=step(-.5,aTap)*(1.0-step(.1,abs(aTap-uSelectedId)));transformed=aCenter+(transformed-aCenter)*(1.0+vSelected)*uWidth;
+        vAlpha=aAlpha;vNode=aNode;vData2.w=0.0;vShade=.72+.28*abs(normal.y);
         vU=aU;vTime=aTime;vSide=aSide;vRefractory=aRefractory;vAvNode=aAvNode;vBlocked=aBlocked;vInk=aInk;vVisible=aVisible;`)
         // T6.2-B: in cut views the network is drawn only where it lies on the visible cut anatomy: pulled uPull cm toward the
         // camera so subendocardial paths pass the depth test, while paths behind a whole wall stay hidden (no see-through pass).
         .replace('#include <project_vertex>',`#include <project_vertex>
         if(uPull>0.0){mvPosition.xyz+=normalize(-mvPosition.xyz)*uPull;gl_Position=projectionMatrix*mvPosition;}`);
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
-        varying vec3 vInk;varying float vU,vTime,vSide,vRefractory,vAvNode,vBlocked,vSelected,vVisible;
-        uniform float uNowA,uNowV,uPulse;uniform vec3 uHot,uAfter,uBlockedInk;`)
+      shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>','#if NUM_CLIPPING_PLANES > 0\nif(vNode<.5){\n#include <clipping_planes_fragment>\n}\n#endif').replace('#include <common>',`#include <common>
+        ${varyings}
+        uniform float uNowA,uNowV,uPulse,uRest;uniform vec3 uHot,uAfter,uBlockedInk,uRestInk,uNodeInk;`)
         .replace('#include <color_fragment>',`#include <color_fragment>
         if(vVisible<.5)discard;if(vBlocked>.5 && mod(vU*24.0,2.0)>1.0)discard;
         float elapsed=mix(uNowA,uNowV,vSide)-vTime;
         float hot=step(0.0,elapsed)*(1.0-step(12.0,elapsed));
         float after=step(12.0,elapsed)*max(0.0,1.0-elapsed/vRefractory);
-        diffuseColor.rgb=mix(vInk,uBlockedInk,vBlocked);
+        diffuseColor.rgb=mix(mix(vInk,mix(uRestInk,uNodeInk,vNode),uRest),uBlockedInk,vBlocked);
         diffuseColor.rgb=mix(diffuseColor.rgb,uAfter,after*.75);
         diffuseColor.rgb=mix(diffuseColor.rgb,uHot,max(hot,uPulse*vAvNode));
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.0),vSelected*.55);`);
+        diffuseColor.rgb=mix(diffuseColor.rgb*vShade,vec3(1.0),vSelected*.55);diffuseColor.a*=vAlpha;`);
     };mat.customProgramCacheKey=()=> 'conduction-batched-wave-v1';mat.userData.wave=waveUniforms;return mat;
   }
   function addPart(id,geometry,centres,uu,info){
@@ -59,27 +87,40 @@ function create(o){
   }
   function buildBatch(){
     const count=parts.reduce((n,p)=>n+p.geometry.attributes.position.count,0),geometry=new T.BufferGeometry(),arrays={};
-    const fields={position:3,normal:3,aCenter:3,aU:1,aTime:1,aSide:1,aRefractory:1,aAvNode:1,aBlocked:1,aTap:1,aVisible:1,aInk:3};
+    const fields={position:3,normal:3,aCenter:3,aU:1,aTime:1,aSide:1,aRefractory:1,aAvNode:1,aBlocked:1,aTap:1,aVisible:1,aInk:3,aAlpha:1,aNode:1,aParam:4,aFlags:4,aStyle:2};
     for(const [key,width] of Object.entries(fields))arrays[key]=new Float32Array(count*width);
-    const indices=[];let offset=0;
+    const indices=[],glowIndices=[];let offset=0;
     for(const p of parts){p.offset=offset;p.count=p.geometry.attributes.position.count;
       for(const key of ['position','normal','aCenter','aU'])arrays[key].set(p.geometry.attributes[key].array,offset*fields[key]);
       for(const index of p.geometry.index.array)indices.push(index+offset);
+      // A soft 15% halo does not need the core tube's sampling density.
+      // Reuse every second ring and radial vertex; retain the full core radii.
+      if(p.curve&&!p.illustrative){const n=p.geometry.parameters.tubularSegments,r=p.geometry.parameters.radialSegments,stride=r+1;
+        for(let j=0;j<n;j+=2)for(let k=0;k<r;k+=2){const a=j*stride+k,b=Math.min(n,j+2)*stride+k,c=j*stride+(k+2)%r,e=Math.min(n,j+2)*stride+(k+2)%r;glowIndices.push(a+offset,b+offset,c+offset,b+offset,e+offset,c+offset)}
+      }else if(p.nodeId)for(const i of p.geometry.index.array)glowIndices.push(i+offset);
       const ink=new T.Color(p.colour).toArray();
-      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0}
+      for(let i=offset;i<offset+p.count;i++){arrays.aInk.set(ink,i*3);arrays.aTap[i]=p.illustrative?-2:tapIds.indexOf(p.id);arrays.aAvNode[i]=p.nodeId==='AVN'?1:0;arrays.aAlpha[i]=p.alpha??1;arrays.aNode[i]=['SA','AVN'].includes(p.nodeId)?1:0;
+        arrays.aFlags[i*4+2]=arrays.aTap[i];arrays.aStyle[i*2]=arrays.aAlpha[i];arrays.aStyle[i*2+1]=arrays.aNode[i];}
       offset+=p.count;
     }
     for(const [key,width] of Object.entries(fields))geometry.setAttribute(key,new T.BufferAttribute(arrays[key],width));
     geometry.setIndex(indices);geometry.computeBoundingSphere();
     const pair=[behind,front].map((depth,i)=>{const mesh=new T.Mesh(geometry,material(depth));mesh.renderOrder=10+i;group.add(mesh);return mesh});
     for(const p of parts)p.pair=pair;
-    batch={geometry,arrays,pair};
+    // One batched halo, shared geometry; no postprocessing or per-branch draws.
+    const glowMat=material(front);glowMat.opacity=.15;glowMat.blending=T.AdditiveBlending;
+    const baseCompile=glowMat.onBeforeCompile;
+    glowMat.onBeforeCompile=shader=>{baseCompile(shader);shader.vertexShader=shader.vertexShader.replace('*uWidth;','*uWidth*1.6;')};
+    glowMat.customProgramCacheKey=()=> 'conduction-halo-v2';
+    const glowGeometry=new T.BufferGeometry();for(const [key,attr] of Object.entries(geometry.attributes))glowGeometry.setAttribute(key,attr);glowGeometry.setIndex(glowIndices);glowGeometry.boundingSphere=geometry.boundingSphere;
+    const glow=new T.Mesh(glowGeometry,glowMat);glow.renderOrder=12;group.add(glow);
+    batch={geometry,arrays,pair,glow};
   }
   function refreshTiming(){
     const {arrays,geometry}=batch;
-    for(const p of parts){const edge=p.edge,isA=edge?edge.side==='A':p.nodeId?g.nodes[p.nodeId].side==='A':true;
-      const times=isA?timing.a:timing.v;let ta=p.nodeId?times[p.nodeId]:edge?times[edge.a]:timing.a.SA;
-      let tb=p.nodeId?ta:edge?times[edge.b]:1e9;
+    for(const p of parts){const edge=p.edge,isA=p.illustrative?false:edge?edge.side==='A':p.nodeId?g.nodes[p.nodeId].side==='A':true;
+      const times=isA?timing.a:timing.v;let ta=p.terminalId?times[p.terminalId]:p.nodeId?times[p.nodeId]:edge?times[edge.a]:timing.a.SA;
+      let tb=p.terminalId||p.nodeId?ta:edge?times[edge.b]:1e9;
       const blocked=!!(edge&&(timing.blocked.has(edge.struct)||timing.blocked.has(edge.id)||timing.blocked.has('*')));
       if(edge?.side==='AP'){ta=timing.a.AP_A;tb=g.constants.TA_AVN+state.mode.avDelay+22-g.constants.WPW_LEAD}
       // atrialTimes retains the legacy zero-delay HIS alias; this display bridge
@@ -88,34 +129,57 @@ function create(o){
       if(state.mode.atrial==='avnOnly'&&edge?.side==='A'&&edge.kind!=='avn')ta=tb=1e9;
       if(blocked)ta=tb=1e9;
       ta=Number.isFinite(ta)?ta:1e9;tb=Number.isFinite(tb)?tb:1e9;
-      const travel=edge?g.edgeDuration(edge,state.mode.avDelay)||0:p.nodeId?0:1;
+      const travel=edge?g.edgeDuration(edge,state.mode.avDelay)||0:p.nodeId||p.terminalId?0:1;
+      const visible=isVisible(p);
       for(let i=p.offset;i<p.offset+p.count;i++){
         const u=arrays.aU[i];arrays.aTime[i]=Math.min(ta+u*travel,tb+(1-u)*travel);
         arrays.aSide[i]=isA||edge?.side==='AP'?0:1;arrays.aRefractory[i]=isA?s.timing.refractory_ms.atrial:s.timing.refractory_ms.ventricular;
-        arrays.aBlocked[i]=blocked?1:0;arrays.aVisible[i]=isVisible(p)?1:0;
+        arrays.aBlocked[i]=blocked?1:0;arrays.aVisible[i]=visible?1:0;
+        arrays.aParam.set([u,arrays.aTime[i],arrays.aSide[i],arrays.aRefractory[i]],i*4);
+        arrays.aFlags[i*4]=arrays.aAvNode[i];arrays.aFlags[i*4+1]=arrays.aBlocked[i];arrays.aFlags[i*4+3]=arrays.aVisible[i];
       }
     }
-    for(const key of ['aTime','aSide','aRefractory','aBlocked','aVisible'])geometry.attributes[key].needsUpdate=true;
+    for(const key of ['aTime','aSide','aRefractory','aBlocked','aVisible','aParam','aFlags'])geometry.attributes[key].needsUpdate=true;
   }
-  function tube(edge,curve,radius,id=edge.tap){
-    const segments=Math.max(12,Math.ceil(curve.getLength()/.12)),radial=6;
-    const geometry=new T.TubeGeometry(curve,segments,radius,radial,false),centres=[],uu=[];
+  function tube(edge,curve,radii,id=edge.tap,info={}){
+    const [rA,rB]=Array.isArray(radii)?radii:[radii,radii],radius=Math.max(rA,rB);
+    // Thin decorative fibres need fewer faces than the tappable main tubes.
+    // Keep visibility samples dense independently of the rendered mesh.
+    const length=curve.getLength(),segments=Math.max(2,Math.ceil(length/(info.illustrative?.45:.30))),radial=info.illustrative?4:phone?8:12;
+    const geometry=new T.TubeGeometry(curve,segments,1,radial,false),centres=[],uu=[];
     let saFraction=.5;
-    if(!edge){let distance=Infinity;for(let i=0;i<=200;i++){const u=i/200,d=curve.getPointAt(u).distanceToSquared(vector(g.nodes.SA.p));if(d<distance){distance=d;saFraction=u}}}
+    if(!edge&&id==='sa'){let distance=Infinity;for(let i=0;i<=200;i++){const u=i/200,d=curve.getPointAt(u).distanceToSquared(vector(g.nodes.SA.p));if(d<distance){distance=d;saFraction=u}}}
     for(let i=0;i<geometry.attributes.position.count;i++){
-      const u=Math.floor(i/(radial+1))/segments,p=curve.getPointAt(u);centres.push(p.x,p.y,p.z);
-      uu.push(edge?u:u<=saFraction?8*(saFraction-u)/saFraction:10*(u-saFraction)/(1-saFraction));
+      const u=Math.floor(i/(radial+1))/segments,p=curve.getPointAt(u),P=geometry.attributes.position;
+      const r=T.MathUtils.lerp(rA,rB,u);P.setXYZ(i,p.x+(P.getX(i)-p.x)*r,p.y+(P.getY(i)-p.y)*r,p.z+(P.getZ(i)-p.z)*r);centres.push(p.x,p.y,p.z);
+      uu.push(edge||info.illustrative?u:u<=saFraction?8*(saFraction-u)/saFraction:10*(u-saFraction)/(1-saFraction));
     }
-    const pickMaterial=beatify(new T.MeshBasicMaterial({visible:false,clippingPlanes:clips}));
-    const picker=new T.Mesh(new T.TubeGeometry(curve,segments,Math.max(.35,2.5*radius),5,false),pickMaterial);
-    picker.userData.tap=id;group.add(picker);
-    return addPart(id,geometry,centres,uu,{edge,curve,radius,picker,
-      samples:curve.getSpacedPoints(segments*2),anchor:curve.getPointAt(.5)});
+    geometry.computeVertexNormals();
+    return addPart(id,geometry,centres,uu,{edge,curve,radius,radii:[rA,rB],
+      samples:curve.getSpacedPoints(info.illustrative?Math.max(segments*2,Math.ceil(length/.15)):segments*2),anchor:curve.getPointAt(.5),...info});
   }
-  for(const edge of g.edges){
-    if(edge.kind==='sa')continue;
-    const curve=new T.CatmullRomCurve3(edge.points.map(vector),false,'centripetal');
-    tube(edge,curve,d.radiiCm[edge.kind]||.1);
+  const displayEdges=g.edges.filter(e=>e.kind!=='sa');
+  const chains=new Map();
+  for(const e of displayEdges){const key=e.tap+':'+e.kind;if(!chains.has(key))chains.set(key,[]);chains.get(key).push(e)}
+  const continuous=[];
+  for(const edges of chains.values()){
+    const incoming=id=>edges.filter(e=>e.b===id),outgoing=id=>edges.filter(e=>e.a===id),used=new Set();
+    const walk=first=>{const chain=[];let edge=first;while(edge&&!used.has(edge)){used.add(edge);chain.push(edge);edge=incoming(edge.b).length===1&&outgoing(edge.b).length===1?outgoing(edge.b)[0]:null}if(chain.length)continuous.push(chain)};
+    for(const edge of edges)if(incoming(edge.a).length!==1||outgoing(edge.a).length!==1)walk(edge);
+    for(const edge of edges)walk(edge);
+  }
+  for(const edges of continuous){
+    const first=edges[0],profile=first.tap==='rbb'?[.12,.10]:first.id==='AVN-HIS'?[.24,.20]:redesign.tubes.radiusCm[first.kind]||[.1,.08];
+    const curves=edges.map(e=>new T.CatmullRomCurve3(e.points.map(vector),false,'centripetal'));
+    const lengths=curves.map(c=>c.getLength()),total=lengths.reduce((a,b)=>a+b,0);let travelled=0;
+    edges.forEach((edge,i)=>{
+      const radii=[travelled/total,(travelled+lengths[i])/total].map(u=>T.MathUtils.lerp(...profile,u));
+      tube(edge,curves[i],radii);travelled+=lengths[i];
+      for(const [u,id,r] of [[0,edge.a,radii[0]],[1,edge.b,radii[1]]]){
+        const degree=displayEdges.filter(e=>e.a===id||e.b===id).length;
+        if(degree===1)cap(edge,curves[i].getPointAt(u),r,u,curves[i].getTangentAt(u).multiplyScalar(u===0?-1:1));
+      }
+    });
   }
   const saCurve=new T.CatmullRomCurve3(['SA_H','SA','SA_T'].map(id=>vector(g.nodes[id].p)),false,'centripetal');
   tube(null,saCurve,.14,'sa');
@@ -128,9 +192,80 @@ function create(o){
     const n=geometry.attributes.position.count,centres=Array.from({length:n},()=>centre.toArray()).flat();
     const picker=new T.Mesh(new T.SphereGeometry(['SA','AVN'].includes(nodeId)?.45:.35,10,8).translate(...centre.toArray()),
       beatify(new T.MeshBasicMaterial({visible:false,clippingPlanes:clips})));group.add(picker);
-    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples:[centre],picker});
+    const samples=[centre];
+    addPart(id,geometry,centres,new Float32Array(n),{nodeId,radius:radii[0],anchor:centre,samples,picker,alpha:['SA','AVN'].includes(nodeId)?1:0});
   }
-  node('SA',[.35,.2,.2],'sa');node('AVN',[.3,.18,.2],'avn');node('HIS',[.16,.16,.16],'his');node('BIF',[.14,.14,.14],'his');
+  function cap(edge,p,r,u,tangent){const geometry=new T.SphereGeometry(r,phone?8:12,6,0,Math.PI*2,0,Math.PI/2).applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),tangent)).translate(...p.toArray()),n=geometry.attributes.position.count;
+    addPart(edge.tap,geometry,Array.from({length:n},()=>p.toArray()).flat(),new Float32Array(n).fill(u),{edge,radius:r,anchor:p,samples:[p],cap:true});}
+  node('SA',[.45,.24,.22],'sa');node('AVN',[.24,.24,.24],'avn');node('HIS',[.16,.16,.16],'his');node('BIF',[.14,.14,.14],'his');
+  // Align the SA bulge with the exported crista axis, with its epicardial proudness.
+  const sa=parts.find(p=>p.nodeId==='SA'),saAt=vector(g.nodes.SA.p),saAxis=vector(g.nodes.SA_T.p).sub(vector(g.nodes.SA_H.p)).normalize();
+  const saRotation=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),saAxis);
+  sa.geometry.translate(...saAt.clone().negate().toArray()).applyQuaternion(saRotation).translate(...saAt.toArray());
+  if(o.epicardium){const P=o.epicardium.attributes.position,N=o.epicardium.attributes.normal;let closest=0,dd=Infinity;
+    for(let i=0;i<P.count;i++){const distance=new T.Vector3().fromBufferAttribute(P,i).distanceToSquared(saAt);if(distance<dd){dd=distance;closest=i}}
+    sa.geometry.translate(...new T.Vector3().fromBufferAttribute(N,closest).multiplyScalar(.22*.2).toArray());}
+  function buildFan(){
+    const fascicles=redesign.lbbFan.fascicles.map(id=>parts.find(p=>p.edge?.tap===id&&p.curve)).filter(Boolean);
+    for(let k=0;k<fascicles.length-1;k++){
+      const a=fascicles[k],b=fascicles[k+1],pos=[],centres=[],uu=[],idx=[];
+      for(let j=0;j<=16;j++)for(const p of [a,b]){const u=j/16,q=p.curve.getPointAt(u);pos.push(...q.toArray());centres.push(...q.toArray());uu.push(u)}
+      for(let j=0;j<16;j++){const i=j*2;idx.push(i,i+1,i+2,i+1,i+3,i+2)}
+      // Give only the flat ribbon a reverse face; making the whole transparent
+      // batch DoubleSide would add back/front passes for every tube and halo.
+      for(const [a,b,c] of Array.from({length:idx.length/3},(_,i)=>idx.slice(i*3,i*3+3)))idx.push(c,b,a);
+      const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(pos,3));geometry.setIndex(idx);geometry.computeVertexNormals();
+      const samples=[];for(let j=3;j<=13;j++){const u=j/16;samples.push(a.curve.getPointAt(u).lerp(b.curve.getPointAt(u),.5))}
+      addPart('lbb',geometry,centres,uu,{edge:a.edge,anchor:vector(g.nodes.LB1.p),samples,radius:redesign.tubes.radiusCm.fasc[0],alpha:.35,ribbon:true});
+    }
+  }
+  function buildTree(emit=tube){
+    const surface=o.endocardium;if(!surface)return;
+    const {geometry,names}=surface,P=geometry.attributes.position,N=geometry.attributes.normal,C=geometry.attributes.aCavity,L=geometry.attributes.aLabel;
+    let seed=0x62c2026;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+    const pools={LV:[],RV:[]};
+    for(let i=0;i<P.count;i++){
+      const cavity=names[C.getX(i)],label=names[L.getX(i)],side=cavity==='LV_cavity'?'LV':cavity==='RV_cavity'?'RV':null;
+      if(!side||!s.regions.ventricularMuscle.labels.includes(label)||side==='LV'&&P.getZ(i)<1.8&&label!=='IVS'||side==='RV'&&P.getZ(i)<1.5)continue;
+      pools[side].push({p:new T.Vector3().fromBufferAttribute(P,i),n:new T.Vector3().fromBufferAttribute(N,i),label,index:i});
+    }
+    const terminals=Object.entries(g.nodes).filter(([,n])=>n.purkinje);
+    const adjacency=new Map(),index=geometry.index.array;
+    for(let j=0;j<index.length;j+=3)for(let k=0;k<3;k++){const i=index[j+k];if(!adjacency.has(i))adjacency.set(i,[]);adjacency.get(i).push(j)}
+    const snap=(p,pool)=>{
+      let nearest,dd=Infinity;for(const q of pool){const d=q.p.distanceToSquared(p);if(d<dd){dd=d;nearest=q}}
+      const allowed=pool.allowed||(pool.allowed=new Set(pool.map(q=>q.index)));let best=nearest.p.clone(),normal=nearest.n.clone();dd=Infinity;
+      for(const j of adjacency.get(nearest.index)||[]){const ids=[index[j],index[j+1],index[j+2]];if(!ids.every(i=>allowed.has(i)))continue;
+        const vertices=ids.map(i=>new T.Vector3().fromBufferAttribute(P,i)),triangle=new T.Triangle(...vertices),q=triangle.closestPointToPoint(p,new T.Vector3()),d=q.distanceToSquared(p);
+        if(d<dd){dd=d;best=q;const bary=triangle.getBarycoord(q,new T.Vector3());normal=new T.Vector3();ids.forEach((id,k)=>normal.addScaledVector(new T.Vector3().fromBufferAttribute(N,id),bary.getComponent(k)));if(normal.dot(nearest.n)<0)normal.negate()}}
+      return {p:best,n:normal.normalize(),index:nearest.index};
+    };
+    for(const side of ['LV','RV']){
+      const pool=pools[side],limit=Math.round((side==='LV'?120:60)*(phone?.4:1));if(!pool.length)continue;
+      const own=terminals.filter(([id])=>(/^(RB|MOD)/.test(id)?'RV':'LV')===side);
+      const roots=own.map(([id,n])=>({p:vector(n.p),terminalId:id}));
+      if(side==='LV')for(const p of parts.filter(p=>p.edge?.kind==='fasc'&&p.curve))for(const u of [.5,.8])roots.push({p:p.curve.getPointAt(u),terminalId:own.reduce((a,b)=>vector(a[1].p).distanceToSquared(p.curve.getPointAt(u))<vector(b[1].p).distanceToSquared(p.curve.getPointAt(u))?a:b)[0]});
+      let count=0;
+      function branch(start,direction,level,terminalId){
+        if(level===3||count>=limit)return;
+        for(let k=0,n=2+(random()>.55?1:0);k<n&&count<limit;k++){
+          const q=snap(start,pool),normal=q.n.clone().normalize(),angle=(25+15*random())*Math.PI/180*(k%2?1:-1);
+          let dir=direction.clone().addScaledVector(normal,-direction.dot(normal));if(dir.lengthSq()<.01)dir.set(1,0,-.5);
+          dir.normalize().applyAxisAngle(normal,angle);const length=[.8,.5,.3][level],points=[],surfaceIndices=[],depth=.08+.04*random();
+          const surfaces=[];
+          for(let j=0;j<=8;j++){const target=start.clone().addScaledVector(dir,length*j/8),hit=snap(target,pool);points.push(j===0?start.clone():hit.p.clone().addScaledVector(hit.n,-depth));surfaceIndices.push(hit.index);surfaces.push(hit.p.toArray())}
+          if(points[0].distanceTo(points[8])<.1)continue;
+          for(let pass=0;pass<3;pass++)for(let j=1;j<8;j++){const q=points[j-1].clone().add(points[j+1]).multiplyScalar(.5),hit=snap(q,pool);points[j].copy(hit.p).addScaledVector(hit.n,-depth);surfaces[j]=hit.p.toArray()}
+          const curve=new T.CatmullRomCurve3(points,false,'centripetal');
+          const nearest=own.reduce((a,b)=>vector(a[1].p).distanceToSquared(points[4])<vector(b[1].p).distanceToSquared(points[4])?a:b)[0];
+          emit(null,curve,redesign.purkinjeTree.radiusCm,'purk',{illustrative:true,terminalId:nearest,rootTerminal:terminalId,ventricle:side,depthCm:depth,surfaceIndices,surfacePoints:surfaces,controlPoints:points.map(p=>p.toArray()),seed:false,tappable:false});count++;
+          branch(points[8],dir,level+1,terminalId);
+        }
+      }
+      for(const root of roots)branch(root.p,new T.Vector3(random()-.5,random()-.5,-1),0,root.terminalId);
+    }
+  }
+  buildFan();buildTree();
   buildBatch();
   // One leader/label per contract tap id. Node anchors take precedence over curves.
   for(const id of Object.keys(d.shortNames)){
@@ -197,13 +332,24 @@ function create(o){
     }
     update(state.ms);onChange?.();return next;
   }
-  function isVisible(part){return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)}
-  function update(ms){
+  function isVisible(part){
+    if(o.cutMode?.()&&['SA','AVN'].includes(part.nodeId)){const P=part.geometry.attributes.position;let kept=false;for(let i=0;i<P.count&&!kept;i++)kept=!removed(project(new T.Vector3().fromBufferAttribute(P,i)).w);if(!kept)return false}
+    if(part.illustrative&&o.cutMode?.()&&!part.samples.every(p=>!removed(project(p).w)&&o.keptTissue?.(project(p).w)))return false;
+    return !o.partHidden?.(part.id)&&!part.edge?.circuitOnly&&(part.edge?.kind!=='ap'||!!s.modes.ventricular[state.mode.ventricular].ap)
+  }
+  function update(ms,wall=performance.now()){
     state.ms=ms;const rr=cycleMs(),phase=((ms%rr)+rr)%rr;
     const clocks=o.clocks?o.clocks(ms):{a:phase,v:phase-g.constants.TA_AVN-state.mode.avDelay};
     waveUniforms.uNowA.value=clocks.a;waveUniforms.uNowV.value=clocks.v;
     waveUniforms.uSelectedId.value=tapIds.indexOf(state.selected);
-    const cut=!!o.cutView?.();waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;if(batch)batch.pair[0].visible=!cut;
+    const cut=!!(o.cutMode?.()??o.cutView?.());waveUniforms.uPull.value=cut?(d.cutPullCm??.45):0;waveUniforms.uWidth.value=cut?.8:1;
+    waveUniforms.uRest.value=T.MathUtils.lerp(fadeFrom,fadeTo,Math.min(1,Math.max(0,(wall-fadeStart)/300)));
+    if(batch){const external=!!o.externalMode?.();
+      // External explicitly overlays the wiring on its translucent shell: one
+      // core pass suffices. Only See-through needs front/behind classification.
+      batch.pair[0].visible=!cut&&!external;batch.pair[1].material.depthTest=!external;
+      batch.glow.visible=!cut;batch.glow.material.depthTest=!external;
+    }
     waveUniforms.uPulse.value=clocks.a>=timing.a.AVN&&clocks.a<timing.a.AVN+state.mode.avDelay?
       .55+.45*Math.sin((clocks.a-timing.a.AVN)*.11)**2:0;
   }
@@ -258,32 +404,51 @@ function create(o){
     });
     if(leaderDirty){leaderGeometry.attributes.aShow.needsUpdate=true;leaderGeometry.attributes.aScreen.needsUpdate=true}
   }
+  let pickCacheKey='',pickCache=new Map();
   function pick(x,y,ray){
+    const rect=host.getBoundingClientRect();
+    const key=[rect.left,rect.top,rect.width,rect.height].join(',')+'|'+cam.matrixWorld.elements.join(',')+'|'+cam.projectionMatrix.elements.join(',')+'|'+state.ms+'|'+deform(vector(g.nodes.AVN.p)).toArray().join(',')+'|'+clips.map(p=>p.constant).join(',');
+    if(key!==pickCacheKey){pickCacheKey=key;pickCache.clear()}
     if(!state.enabled)return null;const hits=[];
-    for(const p of parts){if(!isVisible(p))continue;let px=Infinity,hit3d=false,point=null;
-      for(const sample of p.samples){const q=project(sample);if(q.z<-1||q.z>1||removed(q.w))continue;
+    for(const p of parts){if(p.illustrative||p.cap||!isVisible(p))continue;let px=Infinity,hit3d=false,point=null;
+      if(!pickCache.has(p))pickCache.set(p,p.samples.map(sample=>project(sample)).filter(q=>q.z>=-1&&q.z<=1&&!removed(q.w)));
+      for(const q of pickCache.get(p)){
         const distance=Math.hypot(q.x-x,q.y-y);if(distance<px){px=distance;point=q.w}
         if(ray.distanceToPoint(q.w)<(p.nodeId?(['SA','AVN'].includes(p.nodeId)?.45:.35):Math.max(.35,2.5*p.radius)))hit3d=true;
       }
-      const rank=p.nodeId?(['SA','AVN'].includes(p.nodeId)?0:1):p.id==='avn'?2:priority(p.id);
+      if(point&&Number.isFinite(px))px=Math.max(0,px-(p.radius||0)*cam.projectionMatrix.elements[5]*rect.height/(2*point.distanceTo(cam.position)));
+      // The visible AV bead owns its projected footprint, including when its
+      // centre is just behind the cut plane but its round surface is exposed.
+      if(p.nodeId==='AVN'){
+        const c=project(p.anchor),r=host.getBoundingClientRect(),radiusPx=p.radius*cam.projectionMatrix.elements[5]*r.height/(2*c.w.distanceTo(cam.position));
+        px=Math.max(0,Math.hypot(c.x-x,c.y-y)-radiusPx);hit3d=px===0;point=c.w;
+      }
+      const rank=p.nodeId==='AVN'?(px===0?-2:0):p.id==='his'?-1:p.nodeId==='SA'?0:p.id==='avn'?2:priority(p.id);
       if(hit3d||px<=d.pick.minScreenPx)hits.push({id:p.id,px,hit3d,point,priority:rank});
     }
     if(!hits.length)return null;
     // A directly targeted centre stays selectable in the tightly packed His/LBB region;
     // contract priority resolves equally close hits and the wider finger fallback.
     const direct=hits.filter(h=>h.px<=3),pool=direct.length?direct:hits;
-    pool.sort((a,b)=>direct.length&&Math.abs(a.px-b.px)>.15?a.px-b.px:a.priority-b.priority||a.px-b.px);return pool[0];
+    pool.sort((a,b)=>Math.abs(a.px-b.px)>1?a.px-b.px:a.priority-b.priority||a.px-b.px||a.id.localeCompare(b.id));return pool[0];
   }
   function select(id){if(!(id in d.shortNames))return false;state.selected=id;update(state.ms);onSelect(id);onChange?.();return true;}
   function enable(on){state.enabled=!!on;group.visible=state.enabled;update(state.ms);placeLabels();onChange?.()}
   function seek(ms){if(!Number.isFinite(ms))throw new TypeError('Seek requires milliseconds');anchor(ms);update(state.ms);onChange?.();return state.ms}
   function advance(){const ms=current();state.ms=ms%(cycleMs()*120);if(ms>=cycleMs()*120)anchor(state.ms);return state.ms}
-  function playback({playing=state.playing,speed=state.speed}={}){if(![1,.25,.1].includes(speed))throw new Error('Invalid speed');anchor();state.playing=!!playing;state.speed=speed;onChange?.()}
+  function playback({playing=state.playing,speed=state.speed}={}){if(![1,.25,.1].includes(speed))throw new Error('Invalid speed');anchor();update(state.ms);
+    if(!!playing!==state.playing){fadeFrom=waveUniforms.uRest.value;fadeTo=playing?0:1;fadeStart=performance.now()}
+    state.playing=!!playing;state.speed=speed;onChange?.();
+    // Paused viewers still render the complete fade, then return to idle.
+    if(!playing){const tick=()=>{update(state.ms);onChange?.();if(performance.now()-fadeStart<300)requestAnimationFrame(tick)};requestAnimationFrame(tick)}
+  }
   function visibility(active){if(suspended===!active)return;anchor();suspended=!active;onChange?.()}
   const clockState=()=>({ms:anchorMs,wall:anchorWall,rate:state.speed,running:state.playing&&!suspended});
   function midpoint(id,rest=false){const l=labels.find(l=>l.id===id);if(!l)return null;const p=project(l.part.anchor,!rest);return {x:p.x,y:p.y,visible:state.enabled&&isVisible(l.part)&&!removed(p.w),point:l.part.anchor.toArray()};}
   setMode({});
   return {state,group,parts,labels,rings,enable,update,refreshVisibility:()=>{if(batch&&timing)refreshTiming()},placeLabels,pick,select,seek,advance,playback,setMode,midpoint,cycleMs,visibility,clockState,now:()=>current()%(cycleMs()*120),
+    fadeState:()=>({from:fadeFrom,to:fadeTo,start:fadeStart,durationMs:300}),
+    treeRecipe(){const out=[];buildTree((edge,curve,radii,id,info)=>out.push(info));return out},
     timing:()=>timing,cacheSize:()=>cache.size,playCircuit(){throw new Error('T8.2')}};
 }
 

@@ -1,0 +1,35 @@
+  ok   T6.2-C: tapered tubes, round caps, AV bead and translucent LBB fan {'tapered': True, 'tree': 180, 'lv': 120, 'rv': 60, 'isolated': True, 'caps': True, 'fan': True, 'av': 0.24, 'rest': 1, 'restInk': 'f3dfa2', 'playingInk': '#22C3AB'}
+  ok   T6.2-C: illustrative tree is subendocardial, ventricle-owned and has no seed or picker {'tapered': True, 'tree': 180, 'lv': 120, 'rv': 60, 'isolated': True, 'caps': True, 'fan': True, 'av': 0.24, 'rest': 1, 'restInk': 'f3dfa2', 'playingInk': '#22C3AB'}
+  ok   T6.2-C: every tree control point lies .05–.15 cm under its own endocardium, outside free zones 
+  ok   T6.2-C: rebuilding the illustrative tree repeats the fixed-seed geometry 
+  ok   REVIEW: decorative branches start exactly on a real root or parent endpoint 
+  ok   T6.2-C: illustrative edges cannot change muscle seeds 
+  ok   T6.2-C: illustrative segments alone never pick 
+  ok   T6.2-C: cream-gold ↔ teal fades for 300 ms, including when paused [{'halfway': 0.5, 'playing': 0, 'duration': 300}, 1]
+  ok   T6.2-C: All collapses the AV junction to one label 
+  ok   T6.2-C: tapping AV junction fans out its member labels 
+  ok   T6.2-C: fade layers dim All labels to .55 ['0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55', '0.55']
+  ok   T6.2-C: Relevant stays ungrouped and selected label border is white 
+  ok   T6.2-C: valve and leaflet anchors follow current exported frames {'frames': 4, 'all': True}
+  ok   T6.2-C: timing map uses all approved timingMapText wording 
+  ok   T6.2-C: external preserves cut subsets, uPull and no hidden-wall pass (rest) 
+  ok   T6.2-C: external preserves cut subsets, uPull and no hidden-wall pass (playing) 
+  ok   T6.2-C: seeThrough preserves cut subsets, uPull and no hidden-wall pass (rest) 
+  ok   T6.2-C: seeThrough preserves cut subsets, uPull and no hidden-wall pass (playing) 
+  ok   T6.2-C: a4c preserves cut subsets, uPull and no hidden-wall pass (rest) 
+  ok   T6.2-C: a4c preserves cut subsets, uPull and no hidden-wall pass (playing) 
+  ok   T6.2-C: raOpen preserves cut subsets, uPull and no hidden-wall pass (rest) 
+  ok   T6.2-C: raOpen preserves cut subsets, uPull and no hidden-wall pass (playing) 
+  ok   REVIEW: 1440px AVN, His and LBB have usable tap areas {'avn': 732, 'his': 888, 'lbb': 620}
+  ok   REVIEW: 1440px junction taps survive ±6px offsets []
+  ok   REVIEW: 1440px real pointer taps survive ±6px offsets []
+  ok   REVIEW: both AV valve callouts retain their slots through four frames [[{'id': 'mitral_valve', 'x': 866, 'y': 287.59375}, {'id': 'tricuspid_valve', 'x': 424, 'y': 341.0625}], [{'id': 'mitral_valve', 'x': 866, 'y': 287.59375}, {'id': 'tricuspid_valve', 'x': 424, 'y': 341.0625}], [{'id': 'mitral_valve', 'x': 866, 'y': 287.59375}, {'id': 'tricuspid_valve', 'x': 424, 'y': 341.0625}], [{'id': 'mitral_valve', 'x': 866, 'y': 287.59375}, {'id': 'tricuspid_valve', 'x': 424, 'y': 341.0625}]]
+  ok   REVIEW: 1300px AVN, His and LBB have usable tap areas {'avn': 792, 'his': 952, 'lbb': 720}
+  ok   REVIEW: 1300px junction taps survive ±6px offsets []
+  ok   REVIEW: 1300px real pointer taps survive ±6px offsets []
+  ok   REVIEW: 400px AVN, His and LBB have usable tap areas {'avn': 600, 'his': 848, 'lbb': 516}
+  ok   REVIEW: 400px junction taps survive ±6px offsets []
+  ok   REVIEW: 400px real pointer taps survive ±6px offsets []
+  ok   no page or console errors []
+
+0 failure(s)
